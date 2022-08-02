@@ -94,6 +94,5 @@ python main.py track
 - step:6:"module","class"替换为需要接入的算法
 - step7:"paramLocal" 中"algorithm_task_queue","algorithm_processing_queue"替换为需要接入算法的处理成功和处理失败队列
 
-## 开发者指南
-若用户需了解算法接入实现细节，请参考官方文档：开发人员自定义算法接入规范
+
 
