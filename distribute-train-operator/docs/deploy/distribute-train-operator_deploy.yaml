@@ -26,7 +26,7 @@ spec:
           name: config-volume
         env:
         - name: JAR_BALL
-          value: "distribute-train-operator-1.0.jar --k8s.kubeconfig=/root/config --spring.redis.host=192.168.1.104"
+          value: "distribute-train-operator-1.0.jar --k8s.kubeconfig=/root/config --spring.redis.host=127.0.0.1"
         imagePullPolicy: IfNotPresent
       volumes:
         - name: config-volume

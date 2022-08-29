@@ -21,7 +21,7 @@ log = Logger().logger
 parser = configs.get_parser()
 args = parser.parse_args()
 
-_HOST = '10.5.24.134'
+_HOST = '127.0.0.1'
 _PORT = '8500'
 MAX_MESSAGE_LENGTH = 1024 * 1024 * 1024  # 可根据具体需求设置，此处设为1G
 
