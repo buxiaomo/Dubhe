@@ -16,10 +16,7 @@
  */
 package org.dubhe.dcm.domain.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
@@ -76,6 +73,9 @@ public class DataMedicine extends BaseEntity implements Serializable {
 
     @ApiModelProperty(value = "标注类型: 1001.器官分割 2001.病灶检测之肺结节检测")
     private Integer annotateType;
+
+    @ApiModelProperty(value = "是否自动标注停止")
+    private Boolean stop;
 
     public DataMedicine() {
     }

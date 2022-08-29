@@ -207,8 +207,10 @@ public class NoteBookServiceImpl implements NoteBookService {
      */
     private String getDefaultImage() {
         PtImageQueryUrlDTO imageQueryUrlDTO = new PtImageQueryUrlDTO();
-        imageQueryUrlDTO.setProjectType(ImageTypeEnum.NOTEBOOK.getType())
-                .setImageResource(ImageSourceEnum.PRE.getCode());
+        List<Integer> notebookImageType = new ArrayList(){{
+            add(ImageTypeEnum.NOTEBOOK.getType());
+        }};
+        imageQueryUrlDTO.setImageTypes(notebookImageType).setImageResource(ImageSourceEnum.PRE.getCode()).setIsDefault(true);
         DataResponseBody<String> responseBody = imageClient.getImageUrl(imageQueryUrlDTO);
         if (!responseBody.succeed()) {
             LogUtil.error(LogEnum.NOTE_BOOK, "dubhe-image service call failed, responseBody is 【{}】", responseBody);

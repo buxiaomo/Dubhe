@@ -62,6 +62,35 @@ export default {
   },
   methods: {
     ...mapStatisticMutations(['setStatisticInfo']),
+    // 科学计数法
+    numberChangeToE(d) {
+      if (Math.abs(d) > 10000) {
+        let numLen = (numLen = d.toString().length - 1);
+        if (d < 0) {
+          numLen = d.toString().length - 2;
+        }
+        return `${(d / Math.pow(10, numLen)).toFixed(2)}e+${numLen}`;
+      }
+      if (Math.abs(d) < 0.001) {
+        if (d === 0) return d;
+        const dString = d.toString();
+        if (dString.indexOf('e') !== -1) return d;
+        let i = 3;
+        if (d < 0) {
+          i = 4;
+        }
+        for (; i < dString.length; i++) {
+          if (dString[i] !== '0') {
+            break;
+          }
+        }
+        if (d < 0) {
+          i -= 1;
+        }
+        return `${(d * Math.pow(10, i - 1)).toFixed(2)}e-${i - 1}`;
+      }
+      return d;
+    },
     drawOverlay() {
       // label是这组数据的标签，ttlabel是这组数据属于哪个集合
       const label = this.id;
@@ -71,11 +100,10 @@ export default {
       // 先找到value和number的最大值和最小值
       let numberMin = 10000;
       let numberMax = 0;
-      for (let i = 0; i < data.length; i += 1) {
-        for (let j = 0; j < data[i].length; j += 1) {
-          const pixel = data[i][j][1];
-          if (numberMin > pixel) numberMin = pixel;
-          if (numberMax < pixel) numberMax = pixel;
+      for (let i = 0; i < data.length; i++) {
+        for (let j = 0; j < data[i].length; j++) {
+          if (numberMin > data[i][j][1]) numberMin = data[i][j][1];
+          if (numberMax < data[i][j][1]) numberMax = data[i][j][1];
         }
       }
       const valueMin = data[0][0][0];
@@ -120,13 +148,7 @@ export default {
             .scale(xscale)
             .ticks(5)
             .tickSize(-height)
-            .tickFormat((d) => {
-              if (d > 10000) {
-                const numLen = d.toString().length - 1;
-                return `${d / 10 ** numLen}e+${numLen}`;
-              }
-              return d;
-            })
+            .tickFormat((d) => this.numberChangeToE(d))
         );
       const yscale = d3
         .scaleLinear()
@@ -141,24 +163,7 @@ export default {
           d3
             .axisRight()
             .scale(yscale)
-            .tickFormat((d) => {
-              if (d > 10000) {
-                const numLen = d.toString().length - 1;
-                return `${d / 10 ** numLen}e+${numLen}`;
-              }
-              if (d < 0.001) {
-                if (d === 0) return d;
-                const dString = d.toString();
-                let i = 3;
-                for (; i < dString.length; i += 1) {
-                  if (dString[i] !== '0') {
-                    break;
-                  }
-                }
-                return `${(d * 10 ** (i - 1)).toFixed(1)}e-${i - 1}`;
-              }
-              return d;
-            })
+            .tickFormat((d) => this.numberChangeToE(d))
             .tickSize(-width)
         );
       svg
@@ -238,19 +243,65 @@ export default {
       // 画线
       const lineFunction = d3
         .line()
-        .x(function _nonName(d) {
+        .x(function(d) {
           return xscale(d[0]);
         })
-        .y(function _nonName(d) {
+        .y(function(d) {
           return yscale(d[1]);
         });
       // 为了实现光晕效果
       const haloData = [];
-      for (let i = 0; i < data.length; i += 1) {
+      for (let i = 0; i < data.length; i++) {
         haloData.push(data[i]); // i%2==0是白线
         haloData.push(data[i]); // i%2==1是数据
       }
       const dc = 255 / (haloData.length - 1); // 红->蓝
+      pathg
+        .selectAll('path')
+        .data(haloData)
+        .enter()
+        .append('g')
+        .append('path')
+        .attr('transform', `translate(${padding.left},${padding.top})`)
+        .attr('fill', 'none')
+        .attr('d', function(d) {
+          return lineFunction(d);
+        })
+        .attr('stroke', function(d, i) {
+          if (i % 2 === 0) return 'white';
+
+          const redcolor = 255 - i * dc;
+          const bluecolor = i * dc;
+          return `rgb(${redcolor},0,${bluecolor})`;
+        })
+        .attr('stroke-width', function(d, i) {
+          if (i % 2 === 0) return 0.8;
+          return 0.4;
+        })
+        .style('opacity', function(d, i) {
+          if (i % 2 === 0) return 0.6;
+          return 1.0;
+        })
+        .attr('id', function(d, i) {
+          // 白线也要给id，方便隐藏
+          return `${label}step${i}`;
+        })
+        .attr('class', function(d, i) {
+          return i;
+        })
+        .on('mousemove', function(d, i) {
+          // 可以直接用xscale，yscale，各图之间没有影响,svg也无影响
+          lastLineData = d;
+          svg
+            .select('.lastline')
+            .attr('visibility', 'visible')
+            .attr('d', lineFunction(d))
+            .attr('transform', `translate(${padding.left},${padding.top})`)
+            .on('mousemove', function() {
+              mouseMoveFunc(lastLineData);
+            });
+          mouseMoveFunc(d);
+        });
       function mouseMoveFunc(myData) {
         const curX = d3.mouse(svg.node())[0];
         const curY = d3.mouse(svg.node())[1];
@@ -268,7 +319,7 @@ export default {
         if (ytext > 10000) {
           ytext = Math.ceil(ytext);
           const numLen = ytext.toString().length - 1;
-          ytext = `${Math.ceil((ytext / 10 ** numLen) * 100) / 100}e+${numLen}`;
+          ytext = `${Math.ceil((ytext / Math.pow(10, numLen)) * 100) / 100}e+${numLen}`;
         }
         svg
           .select('.ycoord')
@@ -301,17 +352,16 @@ export default {
           .attr('y2', curY);
         // 添加控制面板数据
         // 这个数据不准确，把所有相加
-        const curDataCountSum = d3.sum(myData, function _nonName(d) {
+        const curDataCountSum = d3.sum(myData, function(d) {
           return d[1];
         });
-        const curCountMin = d3.min(myData, function _nonName(d) {
+        const curCountMin = d3.min(myData, function(d) {
           return d[1];
         });
         let curCountMax = 0;
-        for (let it = 0; it < myData.length; it += 1) {
-          const pixel = myData[it][1];
-          if (curCountMax < pixel) {
-            curCountMax = pixel;
+        for (let it = 0; it < myData.length; it++) {
+          if (curCountMax < myData[it][1]) {
+            curCountMax = myData[it][1];
           }
         }
         that.setStatisticInfo([
@@ -321,53 +371,7 @@ export default {
           curCountMax.toFixed(2),
         ]);
       }
-      pathg
-        .selectAll('path')
-        .data(haloData)
-        .enter()
-        .append('g')
-        .append('path')
-        .attr('transform', `translate(${padding.left},${padding.top})`)
-        .attr('fill', 'none')
-        .attr('d', function _nonName(d) {
-          return lineFunction(d);
-        })
-        .attr('stroke', function _nonName(d, i) {
-          if (i % 2 === 0) return 'white';
-
-          const redcolor = 255 - i * dc;
-          const bluecolor = i * dc;
-          return `rgb(${redcolor},0,${bluecolor})`;
-        })
-        .attr('stroke-width', function _nonName(d, i) {
-          if (i % 2 === 0) return 0.8;
-          return 0.4;
-        })
-        .style('opacity', function _nonName(d, i) {
-          if (i % 2 === 0) return 0.6;
-          return 1.0;
-        })
-        .attr('id', function _nonName(d, i) {
-          // 白线也要给id，方便隐藏
-          return `${label}step${i}`;
-        })
-        .attr('class', function _nonName(d, i) {
-          return i;
-        })
-        .on('mousemove', function _nonName(d) {
-          // 可以直接用xscale，yscale，各图之间没有影响,svg也无影响
-          lastLineData = d;
-          svg
-            .select('.lastline')
-            .attr('visibility', 'visible')
-            .attr('d', lineFunction(d))
-            .attr('transform', `translate(${padding.left},${padding.top})`)
-            .on('mousemove', function _nonName() {
-              mouseMoveFunc(lastLineData);
-            });
-          mouseMoveFunc(d);
-        });
-      svg.on('mouseleave', function _nonName() {
+      svg.on('mouseleave', function() {
         svg.select('.steprect').attr('visibility', 'hidden');
         svg.select('.textbox').attr('visibility', 'hidden');
         svg

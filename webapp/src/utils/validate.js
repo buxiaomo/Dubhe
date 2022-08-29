@@ -18,7 +18,7 @@
  * validate，校验函数
  */
 
-import { isPlainObject } from 'lodash';
+import { isPlainObject, toNumber } from 'lodash';
 import { ValidationProvider, ValidationObserver, extend } from 'vee-validate';
 import { required } from 'vee-validate/dist/rules';
 import { isEmptyValue } from './base';
@@ -440,4 +440,13 @@ export const validateImageName = (rule, value, callback) => {
   } else {
     callback();
   }
+};
+
+// 类型校验
+// https://github.com/yiminghe/async-validator/blob/master/src/rule/type.ts
+export const types = {
+  number(value) {
+    if (Number.isNaN(value)) return false;
+    return typeof toNumber(value) === 'number';
+  },
 };

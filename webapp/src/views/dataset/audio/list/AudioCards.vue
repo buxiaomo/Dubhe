@@ -54,7 +54,7 @@
 
 <script>
 import { computed, set, ref } from '@vue/composition-api';
-import { fileCodeMap, findKey, isStatus, annotationCodeMap } from '@/views/dataset/util';
+import { fileCodeMap, findKey, isStatus, annotationMap } from '@/views/dataset/util';
 import WaveSurfer from '@/components/WaveSurfer';
 
 export default {
@@ -95,10 +95,10 @@ export default {
           let categoryName = {};
           let tagColor = '#db2a2a';
           if (statusInfo && Array.isArray(annotation) && annotation.length > 0) {
-            if (props.audioType === annotationCodeMap.AUDIOCLASSIFY) {
+            if (props.audioType === annotationMap.AudioClassify.code) {
               const categoryId = annotation[0].category_id;
               categoryName = props.categoryId2Name[categoryId] || {};
-            } else if (props.audioType === annotationCodeMap.SPEECHRECOGNITION) {
+            } else if (props.audioType === annotationMap.SpeechRecognition.code) {
               categoryName.name = '语音识别完成';
             }
             tagColor = statusInfo.color;

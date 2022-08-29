@@ -14,6 +14,13 @@
  * =============================================================
  */
 
+/* eslint-disable global-require */
+// 模型炼知重组任务类型枚举
+export const JOB_TYPE_ENUM = {
+  SINGLE: 1, // 单任务
+  MULTIPLE: 2, // 多任务
+};
+
 // 训练状态枚举
 export const TRAINING_STATUS_ENUM = {
   PENDING: 0, // 待处理
@@ -23,6 +30,13 @@ export const TRAINING_STATUS_ENUM = {
   STOPED: 4, // 停止
   UNKNOW: 5, // 未知
   CREATE_FAILED: 7, // 创建失败
+};
+// 任务类型枚举 // DISTRIBUTED: 1, // 分布式任务，暂不展示
+export const TRAINING_TYPE_ENUM = {
+  TRAINING: 0, // 普通训练任务
+  DISTRIBUTED: 1, // 分布式训练任务
+  ATLAS: 2, // 重组任务
+  DDRL: 3, // 强化学习任务
 };
 
 // 训练状态匹配
@@ -34,6 +48,13 @@ export const TRAINING_STATUS_MAP = {
   [TRAINING_STATUS_ENUM.STOPED]: { name: '停止', tagMap: 'info', statusMap: 'done' },
   [TRAINING_STATUS_ENUM.UNKNOW]: { name: '未知', statusMap: 'done' },
   [TRAINING_STATUS_ENUM.CREATE_FAILED]: { name: '创建失败', tagMap: 'danger', statusMap: 'done' },
+};
+// 任务类型匹配
+export const TRAINING_TYPE_MAP = {
+  [TRAINING_TYPE_ENUM.TRAINING]: '训练任务',
+  [TRAINING_TYPE_ENUM.DISTRIBUTED]: '训练任务', // 分布式任务属于训练任务，直接展示训练任务，不再细分
+  [TRAINING_TYPE_ENUM.ATLAS]: '模型重组',
+  [TRAINING_TYPE_ENUM.DDRL]: '强化学习',
 };
 
 // 目录树弹窗文案
@@ -67,10 +88,21 @@ export const IMAGE_RESOURCE_ENUM = {
   TERMINAL: '3', // 终端镜像
 };
 
-export const IMAGE_PROJECT_TYPE = {
-  TRAIN: 1, // 训练镜像和预置镜像类型
+// 快速创建训练任务相关参数
+export const ATLAS_ALGORITHM_TYPE_ENUM = {
+  LAYERWISE: 1, // layerwise-amalgamation
+  CFL: 2, // common-future-learning
+  TASK_BRANCHING: 3, // task_branching
+  DDRL: 4, // ddrl
+};
+
+export const IMAGE_TYPE = {
   NOTEBOOK: 0, // notebook镜像类型
+  TRAIN: 1, // 训练镜像和预置镜像类型
+  SERVING: 2, // serving镜像
   TERMINAL: 3, // 终端镜像
+  POINTCLOUD: 4, // 点云镜像
+  DATASETMARKED: 5, // 数据标注镜像
 };
 
 // 训练可视化列表页查询项
@@ -162,3 +194,17 @@ export function getTrainVisualColumns({ goVisual, jobStatusList }) {
     },
   ];
 }
+
+// 创建训练任务顶部列表
+export const trainCreateList = [
+  {
+    type: TRAINING_TYPE_ENUM.TRAINING,
+    title: '训练任务',
+    img: require('@/assets/images/training/training-job.png'),
+  },
+  {
+    type: TRAINING_TYPE_ENUM.ATLAS,
+    title: '模型重组',
+    img: require('@/assets/images/training/training-atlas.png'),
+  },
+];

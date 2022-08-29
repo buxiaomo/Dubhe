@@ -32,12 +32,12 @@ export function createLabel(id, label) {
   });
 }
 
-export function editLabel(labelId, label) {
+export function editLabel(labelId, label, datasetId = undefined) {
   label.labelId = labelId;
   return request({
     url: `/${API_MODULE_NAME.DATA}/datasets/labels`,
     method: 'put',
-    data: label,
+    data: { ...label, datasetId },
   });
 }
 

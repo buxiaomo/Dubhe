@@ -17,14 +17,14 @@
 <template>
   <BaseModal
     class="upload-dialog"
-    title="上传图片"
+    title="上传文件"
     :visible.sync="visible"
     width="600px"
     @close="onClose"
   >
     <el-steps :active="activeStep" align-center finish-status="success">
-      <el-step title="选择图片" />
-      <el-step title="上传图片" :status="uploadStatus" />
+      <el-step title="选择文件" />
+      <el-step title="上传文件" :status="uploadStatus" />
     </el-steps>
     <div v-show="activeStep === 0">
       <UploadInline

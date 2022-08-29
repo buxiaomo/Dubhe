@@ -22,8 +22,14 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.dubhe.biz.base.constant.Permissions;
 import org.dubhe.biz.base.vo.DataResponseBody;
+import org.dubhe.biz.base.vo.LabelGroupBaseVO;
 import org.dubhe.data.constant.Constant;
-import org.dubhe.data.domain.dto.*;
+import org.dubhe.data.domain.dto.GroupConvertPresetDTO;
+import org.dubhe.data.domain.dto.LabelGroupCopyDTO;
+import org.dubhe.data.domain.dto.LabelGroupCreateDTO;
+import org.dubhe.data.domain.dto.LabelGroupDeleteDTO;
+import org.dubhe.data.domain.dto.LabelGroupImportDTO;
+import org.dubhe.data.domain.dto.LabelGroupQueryDTO;
 import org.dubhe.data.domain.entity.LabelGroup;
 import org.dubhe.data.domain.vo.LabelGroupQueryVO;
 import org.dubhe.data.domain.vo.LabelGroupVO;
@@ -31,10 +37,19 @@ import org.dubhe.data.service.LabelGroupService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Set;
 
 
 /**
@@ -122,6 +137,13 @@ public class LabelGroupController {
     public DataResponseBody convertPreset(@RequestBody GroupConvertPresetDTO groupConvertPresetDTO) {
         labelGroupService.convertPreset(groupConvertPresetDTO);
         return new DataResponseBody();
+    }
+
+    @ApiOperation(value = "标签组集合详情(远程调用)")
+    @PostMapping(value = "/labelGroup/queryLabelGroupList")
+    @PreAuthorize(Permissions.DATA)
+    public DataResponseBody<List<LabelGroupBaseVO>> queryLabelGroupList( @RequestBody  Set<Long> labelGroupIds) {
+        return new DataResponseBody(labelGroupService.queryLabelGroupList(labelGroupIds));
     }
 
 }

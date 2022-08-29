@@ -67,5 +67,18 @@ public class GatewayConstant {
 	 * MD5加密方式
 	 */
 	public static final String MD5 = "MD5";
+	/**
+	 * redis group
+	 */
+	public static final String REDIS_GROUP = "serving_group";
 
+	/**
+	 * ROUTE_WEIGHT_100
+	 */
+	public static final String ROUTE_WEIGHT_100 = "weight.weight\":\"100";
+
+	/**
+	 * ROUTE_WEIGHT_0
+	 */
+	public static final String ROUTE_WEIGHT_0 = "weight.weight\":\"0";
 }

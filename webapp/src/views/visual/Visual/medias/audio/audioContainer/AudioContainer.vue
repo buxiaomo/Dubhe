@@ -14,15 +14,45 @@
  * =============================================================
  */
 
+<style lang="less">
+.audiocontent .el-slider__bar {
+  background-color: #8f8ad7;
+}
+
+.audiocontent .el-slider__button {
+  border-color: #8f8ad7;
+}
+
+audio::-webkit-media-controls-play-button {
+  font-size: 25px;
+  color: #8f8ad7 !important;
+}
+
+audio::-webkit-media-controls-mute-button {
+  color: #8f8ad7;
+}
+
+audio {
+  background-color: white;
+}
+
+audio::-webkit-media-controls-panel {
+  color: #8f8ad7;
+  border: 1px solid #ebeef5;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+</style>
 <template>
   <div class="audiocontainer">
     <el-col :xs="24" :sm="24" :md="12" :lg="12" :xl="8">
       <el-card class="box-card">
         <el-row>
-          <el-col :span="6"><el-tag class="top">RUN</el-tag></el-col>
+          <el-col :span="6">
+            <el-tag class="top">RUN</el-tag>
+          </el-col>
           <el-col :span="16" class="center"
-            ><span>{{ content.run }}</span></el-col
-          >
+            ><span>{{ content.run }}</span>
+          </el-col>
           <el-col :span="2" class="center">
             <div class="leftItem">
               <el-tooltip
@@ -41,40 +71,49 @@
         </el-row>
         <el-divider />
         <el-row>
-          <el-col :span="6"><el-tag class="top">TAG</el-tag></el-col>
-          <el-col :span="18" class="center"
-            ><span>{{ Object.keys(content.value)[0] }}</span></el-col
+          <el-col :span="6">
+            <el-tag class="top">TAG</el-tag>
+          </el-col>
+          <el-col :span="18" class="center">
+            <span>{{ Object.keys(content.value)[0] }}</span></el-col
           >
         </el-row>
         <el-divider />
         <el-row>
-          <el-col :span="6"><el-tag class="bottom">STEP</el-tag></el-col>
-          <el-col :span="18" class="center"
-            ><span>{{ audiocontent[scrollvalue].step }}</span></el-col
+          <el-col :span="6">
+            <el-tag class="bottom">STEP</el-tag>
+          </el-col>
+          <el-col :span="18" class="center">
+            <span>{{ audiocontent[scrollvalue].step }}</span></el-col
           >
         </el-row>
         <el-divider />
         <el-row>
-          <el-col :span="6"><el-tag class="bottom">WALL_TIME</el-tag></el-col>
+          <el-col :span="6">
+            <el-tag class="bottom">WALL_TIME</el-tag>
+          </el-col>
           <el-col :span="18" class="center"
-            ><span>{{ normalTime }}</span></el-col
-          >
+            ><span>{{ normalTime }}</span>
+          </el-col>
         </el-row>
         <el-divider />
         <el-row>
-          <el-col :span="6"><el-tag class="bottom">LABEL</el-tag></el-col>
-          <el-col :span="18" class="center"
-            ><span>{{ audiocontent[scrollvalue].label }}</span></el-col
+          <el-col :span="6">
+            <el-tag class="bottom">LABEL</el-tag>
+          </el-col>
+          <el-col :span="18" class="center">
+            <span>{{ audiocontent[scrollvalue].label }}</span></el-col
           >
         </el-row>
       </el-card>
 
       <div class="audiocontent">
-        <customAudio :URL="audiourl" />
+        <customAudio :theUrl="audiourl" :index="index" theControlList="noSpeed onlyOnePlaying" />
         <el-slider
           v-model="scrollvalue"
           :max="audiocontent.length - 1"
           :disabled="audiocontent.length - 1 === 0"
+          :format-tooltip="formatTooltip"
           class="slider"
         />
       </div>
@@ -83,9 +122,10 @@
 </template>
 
 <script>
-import { createNamespacedHelpers } from 'vuex';
-import { getAudioRaw } from '@/api/visual';
+import http from '@/utils/VisualUtils/request';
+import port from '@/utils/VisualUtils/api';
 import { unixTimestamp2Normal } from '@/utils';
+import { createNamespacedHelpers } from 'vuex';
 import customAudio from './CustomAudio';
 
 const { mapMutations: mapCustomMutations, mapGetters: mapCustomGetters } = createNamespacedHelpers(
@@ -114,42 +154,51 @@ export default {
   },
   computed: {
     ...mapCustomGetters(['getAudio']),
-    ...mapLayoutGetters(['getParams']),
+    ...mapLayoutGetters(['getParams', 'getTimer']),
   },
   watch: {
+    getTimer() {
+      this.audiocontent = this.content.value[Object.keys(this.content.value)[0]];
+    },
     async scrollvalue(val) {
       this.normalTime = unixTimestamp2Normal(this.audiocontent[this.scrollvalue].wall_time);
       const params = {
         step: this.audiocontent[val].step.toString(),
         run: this.content.run,
         tag: Object.keys(this.content.value)[0],
-        trainJobName: this.getParams.trainJobName,
       };
-      await getAudioRaw(params).then((res) => {
-        this.audiourl = res;
+      await http.useGet(port.category.audio_raw, params).then((res) => {
+        if (+res.data.code !== 200) {
+          this.setErrorMessage(`${res.data.msg}_${new Date().getTime()}`);
+          return;
+        }
+        this.audiourl = res.data.data;
       });
     },
   },
   mounted() {
     const paramStringIndex = `${this.content.run}/${Object.keys(this.content.value)[0]}`;
-    for (let i = 0; i < this.getAudio.length; i += 1) {
+    for (let i = 0; i < this.getAudio.length; i++) {
       if (paramStringIndex === this.getAudio[i].stringIndex) {
         this.checked = true;
         break;
       }
     }
+    this.normalTime = unixTimestamp2Normal(this.audiocontent[this.scrollvalue].wall_time);
   },
   async created() {
     this.audiocontent = this.content.value[Object.keys(this.content.value)[0]];
-    this.normalTime = unixTimestamp2Normal(this.audiocontent[this.scrollvalue].wall_time);
     const params = {
       step: this.audiocontent[0].step.toString(),
       run: this.content.run,
       tag: Object.keys(this.content.value)[0],
-      trainJobName: this.getParams.trainJobName,
     };
-    await getAudioRaw(params).then((res) => {
-      this.audiourl = res;
+    await http.useGet(port.category.audio_raw, params).then((res) => {
+      if (+res.data.code !== 200) {
+        this.setErrorMessage(`${res.data.msg}_${new Date().getTime()}`);
+        return;
+      }
+      this.audiourl = res.data.data;
     });
   },
   methods: {
@@ -177,6 +226,12 @@ export default {
       param.copyToData = false;
       this.setAudioData(param);
     },
+    formatTooltip(val) {
+      if (val === null) {
+        return 0;
+      }
+      return this.audiocontent[val].step;
+    },
   },
 };
 </script>
@@ -202,11 +257,42 @@ audio {
   font-size: 19px;
 }
 
-.el-col {
-  margin-bottom: 20px;
+.leftItem {
+  margin-right: 1%;
+  margin-left: auto;
+
+  /deep/.checked {
+    width: 20px;
+    height: 20px;
+  }
+
+  /deep/.el-checkbox__inner:hover {
+    border-color: #8f8bd9;
+  }
+
+  /deep/.el-checkbox__inner {
+    font-size: 20px;
+  }
+
+  /deep/.el-checkbox {
+    font-size: 20px;
+  }
+
+  /deep/.el-checkbox__input.is-checked .el-checkbox__inner {
+    background-color: #8f8bd9;
+    border-color: #8f8bd9;
+  }
+
+  /deep/.el-checkbox__input.is-focus .el-checkbox__inner {
+    border-color: gray;
+  }
+
+  /deep/.el-checkbox__input span {
+    height: 14px !important;
+  }
 }
 
-/deep/ .box-card {
+/deep/.box-card {
   width: 100%;
   height: 100%;
   text-align: left;
@@ -251,43 +337,8 @@ audio {
   }
 }
 
-.leftItem {
-  margin-right: 1%;
-  margin-left: auto;
-
-  /deep/ .checked {
-    width: 20px;
-    height: 20px;
-  }
-
-  /deep/ .el-checkbox__inner {
-    font-size: 20px;
-  }
-
-  /deep/ .el-checkbox__inner:hover {
-    border-color: #8f8bd9;
-  }
-
-  /deep/ .el-checkbox {
-    font-size: 20px;
-  }
-
-  /deep/ .el-checkbox__input.is-checked .el-checkbox__inner {
-    background-color: #8f8bd9;
-    border-color: #8f8bd9;
-  }
-
-  /deep/ .el-checkbox__input.is-checked .el-checkbox__inner::after {
-    border-color: #fff;
-  }
-
-  /deep/ .el-checkbox__input.is-focus .el-checkbox__inner {
-    border-color: gray;
-  }
-
-  /deep/ .el-checkbox__input span {
-    height: 14px !important;
-  }
+.el-col {
+  margin-bottom: 20px;
 }
 
 .audiotext {
@@ -303,16 +354,16 @@ p {
   font-size: 10px;
 }
 
-/deep/ .el-slider__runway {
+/deep/.el-slider__runway {
   width: 95%;
   margin: 16px auto;
 }
 
-/deep/ .el-slider__button {
+/deep/.el-slider__button {
   border-color: #625eb3;
 }
 
-/deep/ .el-slider__bar {
+/deep/.el-slider__bar {
   background-color: #625eb3;
 }
 </style>

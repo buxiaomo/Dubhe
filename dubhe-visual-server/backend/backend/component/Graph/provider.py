@@ -17,20 +17,41 @@
 """
 import json
 from utils.cache_io import CacheIO
-from utils.path_utils import get_file_path
-from .s_graph_read import get_s_graph_data, get_c_graph_data
+from utils.logfile_utils import get_file_path
+from .graph_read import get_data as graph_get_data
+from .s_graph_read import get_s_graph_data
 from .graph import graph_op
 from backend.api.utils import get_api_params
+from .graph_read import filter_graph
 
 
-def graph_provider(file_path):
+def graph_provider(file_path, tag):
     res = CacheIO(file_path).get_cache()
     if res:
-        return {
-            'net': get_s_graph_data(res) if "s_graph" in str(file_path)
-            else get_c_graph_data(res),
-            'operator': graph_op
-        }
+        if tag == "c_graph":
+            if isinstance(res, str):
+                return {
+                    'net': get_s_graph_data(res),
+                    'operator': graph_op
+                }
+            else:
+                data, _ = graph_get_data(res)
+                return {
+                    'net': data,
+                    'operator': graph_op
+                }
+        else:
+            if isinstance(res, str):
+                return {
+                    'net': get_s_graph_data(res),
+                    'operator': graph_op
+                }
+            else:
+                g, graph = graph_get_data(res)
+                return {
+                    'net': [filter_graph(g, graph)],
+                    'operator': graph_op
+                }
     else:
         raise ValueError('Parameter error, no data found')
 
@@ -38,6 +59,8 @@ def graph_provider(file_path):
 def get_graph_data(request):
     params = ['uid', 'trainJobName', 'run', 'tag']
     uid, trainJobName, run, tag = get_api_params(request, params)
-
-    file_path = get_file_path(uid, run, 'graph', tag)
-    return json.dumps(graph_provider(file_path))
+    try:
+        file_path = get_file_path(uid, run, 'graph', tag)
+    except:
+        file_path = get_file_path(uid, run, 'graph', 'c_graph')
+    return json.dumps(graph_provider(file_path, tag))

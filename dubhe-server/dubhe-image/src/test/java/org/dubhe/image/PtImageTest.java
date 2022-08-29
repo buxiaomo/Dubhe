@@ -60,7 +60,7 @@ public class PtImageTest extends BaseTest {
     }
 
     /**
-     * 通过projectName查询镜像
+     * 通过imageName查询镜像
      */
     @Test
     public void getTagsByImageNameTest() throws Exception {

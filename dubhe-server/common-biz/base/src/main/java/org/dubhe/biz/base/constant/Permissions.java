@@ -113,6 +113,7 @@ public final class Permissions {
     public static final String IMAGE_UPLOAD = "hasAuthority('ROLE_training:image:upload')";
     public static final String IMAGE_EDIT = "hasAuthority('ROLE_training:image:edit')";
     public static final String IMAGE_DELETE = "hasAuthority('ROLE_training:image:delete')";
+    public static final String IMAGE_EDIT_DEFAULT = "hasAuthority('ROLE_training:image:editDefault')";
 
     /**
      * 度量管理

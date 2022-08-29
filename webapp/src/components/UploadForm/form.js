@@ -216,7 +216,7 @@ export default {
               )}
             </div>
             {this.showFileCount && (
-              <span class="upload-chosen-tip">已选择{this.lenOfFileList}个</span>
+              <span class="upload-chosen-tip">已选择 {this.lenOfFileList} 个</span>
             )}
           </div>
         </el-upload>

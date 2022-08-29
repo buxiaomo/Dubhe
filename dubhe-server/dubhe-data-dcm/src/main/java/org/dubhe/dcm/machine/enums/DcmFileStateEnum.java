@@ -16,11 +16,10 @@
  */
 package org.dubhe.dcm.machine.enums;
 
-
+import org.dubhe.data.constant.FileTypeEnum;
 import org.dubhe.dcm.machine.constant.DcmFileStateCodeConstant;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 
 /**
@@ -133,6 +132,28 @@ public enum DcmFileStateEnum {
             }
         }
         return null;
+    }
+
+    /**
+     * 自动标注中筛选条件对应文件状态集
+     *
+     * @return
+     */
+    public static List<Integer> getFileStatusFromAutoLabelScreen(Integer status) {
+        List<Integer> noAnnotation = Arrays.asList(NOT_ANNOTATION_FILE_STATE.getCode());
+        List<Integer> hasAnnotation = Arrays.asList(ANNOTATION_FILE_STATE.getCode(),
+                AUTO_ANNOTATION_COMPLETE_FILE_STATE.getCode(), ANNOTATION_COMPLETE_FILE_STATE.getCode());
+        switch (status) {
+            case 304:
+                return noAnnotation;
+            case 303:
+                return hasAnnotation;
+            default:
+                List<Integer> result = new ArrayList<>();
+                result.addAll(noAnnotation);
+                result.addAll(hasAnnotation);
+                return result;
+        }
     }
 
 }

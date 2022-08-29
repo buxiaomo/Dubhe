@@ -29,6 +29,8 @@ import org.dubhe.tadl.enums.ModelTypeEnum;
 import org.dubhe.tadl.enums.TimeUnitEnum;
 import org.hibernate.validator.constraints.Length;
 
+import javax.validation.constraints.Digits;
+import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -134,15 +136,19 @@ public class AlgorithmCreateDTO {
         @ApiModelProperty("最大 trial 数量")
         @NotNull(message = "最大 trial 数量不能为空")
         @Min(value = NumberConstant.NUMBER_1, message = "最大 trial 数量不能小于1")
+        @Max(value = Integer.MAX_VALUE,message = "最大 trial 数量不能超过整数最大值")
         private Integer maxTrialNum;
 
         @ApiModelProperty("最大执行时间")
         @NotNull(message = "最大执行时间不能为空")
+        @Digits(integer=5,fraction = 4,message = "最大执行时间整数位上限为5位，小数位上限为4位")
+        @Min(value = NumberConstant.NUMBER_1,message = "最大执行时间参数不能小于1")
         private Double maxExecDuration;
 
         @ApiModelProperty("trial 并发数量")
         @NotNull(message = "trial 并发数量不能为空")
         @Min(value = NumberConstant.NUMBER_1, message = "并发数量不能小于1")
+        @Max(value = MagicNumConstant.TWENTY,message = "并发数量不能大于20")
         private Integer trialConcurrentNum;
 
         @ApiModelProperty("最大运行时间单位\n" +

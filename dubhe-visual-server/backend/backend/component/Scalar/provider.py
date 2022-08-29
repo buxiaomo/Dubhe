@@ -17,7 +17,7 @@
 """
 from utils.cache_io import CacheIO
 from .scalar_read import scalar_read
-from utils.path_utils import get_file_path
+from utils.logfile_utils import get_file_path
 from backend.api.utils import get_api_params
 
 

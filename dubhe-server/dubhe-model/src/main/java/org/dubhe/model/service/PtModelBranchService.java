@@ -27,6 +27,7 @@ import org.dubhe.model.domain.vo.PtModelBranchUpdateVO;
 import org.dubhe.model.domain.vo.PtModelConvertOnnxVO;
 import org.dubhe.recycle.domain.dto.RecycleCreateDTO;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -104,4 +105,14 @@ public interface PtModelBranchService {
      * @return
      */
     PtModelConvertOnnxVO convertToOnnx(PtModelConvertOnnxDTO ptModelConvertOnnxDTO);
+
+
+    /**
+     * 根据模型版本ids查询模型版本详情列表
+     *
+     * @param ids
+     * @return List<PtModelBranchQueryVO> 根据模型版本id查询模型版本详情返回结果
+     */
+    List<PtModelBranchQueryVO> listByBranchIds(List<Long> ids);
+
 }

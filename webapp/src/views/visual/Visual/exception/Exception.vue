@@ -14,17 +14,29 @@
  * =============================================================
  */
 
+<style lang="less" scoped>
+.temp {
+  width: 100%;
+  height: 100%;
+  overflow-y: hidden;
+  background-color: white;
+}
+
+.display-panel {
+  height: 97.5%;
+  margin: 1% 1% 0 1%;
+  overflow-y: auto;
+  background-color: white;
+  border-radius: 5px 5px 0 0;
+  box-shadow: rgba(0, 0, 0, 0.3) 0 0 10px;
+}
+</style>
 <template>
   <div>
     <div class="temp">
       <div id="excepDisplay" :class="['display-panel']">
-        <div
-          v-for="(item, index) in allData"
-          v-show="excepRunShow[item[0]]"
-          :key="index"
-          class="excepContDiv"
-        >
-          <excepContainer :oneData="item" :index="index" :oneAllStep="allStep[index]" />
+        <div v-if="getExceptionShow">
+          <excepContainer :oneData="getAllData[0]" :index="0" :oneAllStep="oneAllStep[0]" />
         </div>
       </div>
     </div>
@@ -44,34 +56,52 @@ export default {
   components: {
     excepContainer,
   },
-  data() {
-    return {
-      allData: [],
-      allStep: [],
-      excepRunShow: {},
-    };
-  },
   computed: {
     ...mapExceptionGetters([
       'getRun',
+      'getTag',
       'getAllStep',
       'getAllData',
       'getInitStateFlag',
       'getErrorMessage',
-      'getFreshFlag',
+      'getExceptionShow',
+      'getUpdateFlag',
+      'getFetchAllStepNotify',
+      'getUpdateHistMatrixDataFlag',
+      'getCurRunTag',
     ]),
     ...mapLayoutStates(['userSelectRunFile']),
+    oneAllStep() {
+      return this.getAllStep;
+    },
   },
   watch: {
-    getAllData(val) {
-      this.allData = val;
+    getFetchAllStepNotify() {
+      if (this.getUpdateHistMatrixDataFlag === 'none') {
+        // 如果run、tag、step没有变化，就不用请求颜色矩阵、直方图等数据了
+      } else if (this.getUpdateHistMatrixDataFlag.substr(0, 4) === 'step') {
+        // 如果只是step变化，就用fetchOneData取数据
+        this.fetchOneData({ step: this.getCurRunTag.step });
+        this.setCurIqrTimes(['', '', '', 1.5, 1.5]);
+      } else {
+        this.fetchAllData();
+        this.setCurIqrTimes(['', '', '', 1.5, 1.5]);
+      }
     },
-    getAllStep(val) {
-      this.allStep = val;
-      this.fetchAllData();
-    },
-    userSelectRunFile() {
-      this.setRunShow();
+    userSelectRunFile(val) {
+      if (!this.getExceptionShow) return;
+      // 稳定后再响应run的变化
+      let index = 0;
+      for (let i = 0; i < this.getRun.length; i++) {
+        if (val === this.getRun[i]) {
+          index = i;
+          break;
+        }
+      }
+      const param = { run: val, tag: this.getTag[index][0], index, step: '' };
+      this.setCurRunTag(param);
+      this.setUpdateHistMatrixDataFlag(`run${val}`);
+      this.fetchAllStep();
     },
     getErrorMessage(val) {
       this.$message({
@@ -79,62 +109,26 @@ export default {
         type: 'error',
       });
     },
+    getUpdateFlag() {
+      this.fetchAllStep();
+      this.setRectCurInfo([]);
+    },
   },
   created() {
-    // 在当前页面刷新时，先执行这个钩子函数再执行exception.js中获取类目信息的函数
-    // 不在当前页面刷新时，先存入类目信息，点击本页面时才开始渲染
-    if (this.getRun.length === 0) return; // 类目信息都还没有分发
-    this.setRunShow();
-    if (this.getAllStep.length === 0) {
+    if (this.getRun.length && this.getAllStep.length === 0) {
+      // 本页不是第一个时
       this.fetchAllStep();
-    } else if (this.getAllStep.length !== 0 && this.getAllData.length === 0) {
-      this.fetchAllData();
-    } else if (this.getAllStep.length !== 0 && this.getAllData.length !== 0) {
-      this.allStep = this.getAllStep;
-      this.allData = this.getAllData;
     }
   },
   methods: {
-    ...mapExceptionActions(['fetchAllStep', 'fetchAllData']),
+    ...mapExceptionActions(['fetchAllStep', 'fetchAllData', 'fetchOneData']),
     ...mapExceptionMutations([
       'setInitStateFlag',
-      'setFreshFlag',
       'setRectCurInfo',
       'setCurIqrTimes',
+      'setCurRunTag',
+      'setUpdateHistMatrixDataFlag',
     ]),
-    setRunShow() {
-      const stateTemp = [];
-      for (let i = 0; i < this.getRun.length; i += 1) {
-        stateTemp[this.getRun[i]] = false;
-      }
-      for (let i = 0; i < this.userSelectRunFile.length; i += 1) {
-        stateTemp[this.userSelectRunFile[i]] = true;
-      }
-      this.excepRunShow = stateTemp;
-      if (this.userSelectRunFile.length === 0) {
-        // 没有选择任何run时清空控制面板数据
-        this.setRectCurInfo(['', '', '', '', '', '', '']);
-        this.setCurIqrTimes(['', '', '', '', '', '', '']);
-      }
-    },
   },
 };
 </script>
-
-<style lang="less" scoped>
-.temp {
-  width: 100%;
-  height: 100%;
-  overflow-y: hidden;
-  background-color: white;
-}
-
-.display-panel {
-  height: 97.5%;
-  margin: 1% 1% 0 1%;
-  overflow-y: auto;
-  background-color: white;
-  border-radius: 5px 5px 0 0;
-  box-shadow: rgba(0, 0, 0, 0.3) 0 0 10px;
-}
-</style>

@@ -2,7 +2,7 @@ train-job:
   docker-dataset-path: "/dataset"
 
 k8s:
-  # k8s集群配置文件,路径为/Dubhe/dubhe-server/common-k8s/src/main/resources,将自己k8s集群的配置文件替换进去即可
+  # k8s集群配置文件
   kubeconfig: kubeconfig_test
   # nfs服务暴露的IP地址 如需测试需修改为合适的地址
   nfs: 127.0.0.1
@@ -17,19 +17,19 @@ k8s:
   # 命名空间关键字
   namespace: namespace
   # k8s ingress域名 如需测试需修改为合适的域名,注意：需要为此域名配置泛域名解析到 k8s集群master节点的ip
-  host: notebook.dubhe.club
+  host: notebooktest.dubhe.club
   # k8s ingress-controller 对外port
   port: 30865
   # k8s ingress-controller 对外grpc port
   https-port: 31287
   # k8s 模型部署配置
   serving:
-    # k8s 模型部署域名 如需测试需修改为合适的域名
-    host: serving.dubhe.club
+    # 在线服务模型部署后容器域名(k8s ingress域名),解析地址为k8s集群地址,如需测试需修改为合适的域名
+    host: servingtest.dubhe.club
     # tls 证书 crt
-    tls-crt:
+    tls-crt: 
     # tls 证书 key
-    tls-key:
+    tls-key: 
   # elasticsearch暴露的服务地址
   elasticsearch:
     hostlist: ${eshostlist:127.0.0.1:30498}
@@ -50,24 +50,24 @@ k8s:
   # 展示Pod的CPU使用率,Memory使用量,GPU使用率的grafana地址
   pod:
     metrics:
-      grafanaUrl: http://grafana.dubhe.ai:30006/d/job/monitor?orgId=1&refresh=5s&kiosk&var-pod=
+      grafanaUrl: http://127.0.0.1:30006/d/job/monitor?orgId=1&refresh=5s&kiosk&var-pod=
   prometheus:
-    url: http://10.5.26.91:30003/
+    url: http://127.0.0.1:30003/
     query: api/v1/query
     query-range: api/v1/query_range
-    gpu-query-param: sum(container_accelerator_duty_cycle{pod="pod-name-placeholder"})by(pod,acc_id)
-    gpu-mem-total-query-param: sum(container_accelerator_memory_total_bytes{pod="pod-name-placeholder"})by(pod,acc_id)
-    gpu-mem-use-query-param: sum(container_accelerator_memory_used_bytes{pod="pod-name-placeholder"})by(pod,acc_id)
+    gpu-query-param: sum(DCGM_FI_DEV_GPU_UTIL{pod="pod-name-placeholder"})by(pod,UUID)
+    gpu-mem-total-query-param: sum(DCGM_FI_DEV_FB_TOTAL_MEGABYTES{pod="pod-name-placeholder"})by(pod,UUID)
+    gpu-mem-use-query-param: sum(DCGM_FI_DEV_FB_USED{pod="pod-name-placeholder"})by(pod,UUID)
     cpu-range-query-param: sum(rate(container_cpu_usage_seconds_total{image!="",pod="pod-name-placeholder"}[1m])) by (pod) / (sum(container_spec_cpu_quota{image!=""}/100000) by (pod)) * 100
     mem-range-query-param: sum(container_memory_rss{image!="",pod="pod-name-placeholder"})
-    gpu-usage-query-param: sum by(Hostname,gpu)(DCGM_FI_PROF_GR_ENGINE_ACTIVE{pod!=""})
-    gpu-range-query-param: sum(container_accelerator_duty_cycle{pod="pod-name-placeholder"}) by (pod,acc_id)
-    gpu-mem-total-range-query-param: sum(container_accelerator_memory_total_bytes{pod="pod-name-placeholder"}) by (pod,acc_id)
-    gpu-mem-use-range-query-param: sum(container_accelerator_memory_used_bytes{pod="pod-name-placeholder"}) by (pod,acc_id)
-    gpu-usage-rate-query-param: topk(10,sort_desc(max_over_time(namespace:DCGM_FI_PROF_GR_ENGINE_ACTIVE:sumn[usage-rate-day])))
+    gpu-usage-query-param: sum by(Hostname,gpu)(DCGM_FI_DEV_GPU_UTIL{Hostname="node-name-placeholder",pod!=""})
+    gpu-range-query-param: sum(DCGM_FI_DEV_GPU_UTIL{pod="pod-name-placeholder"}) by (pod,UUID)
+    gpu-mem-total-range-query-param: sum(DCGM_FI_DEV_FB_TOTAL_MEGABYTES{pod="pod-name-placeholder"}) by (pod,UUID)
+    gpu-mem-use-range-query-param: sum(DCGM_FI_DEV_FB_USED{pod="pod-name-placeholder"}) by (pod,UUID)
+    gpu-usage-rate-query-param: topk(10,sort_desc(max_over_time(namespace:DCGM_FI_DEV_GPU_UTIL:sumn[usage-rate-day])))
     cpu-usage-rate-query-param: topk(10,sort_desc(max_over_time(namespace:container_cpu_user_seconds_total_sumn:raten[usage-rate-day])))
     mem-usage-rate-query-param: topk(10,sort_desc(max_over_time(namespace:CONTAINER_MEMERY_USAGE_BYTES:sumn{namespace=~"namespace.*"}[usage-rate-day])))
-    gpu-usage-namespace-query-param: max_over_time(namespace:DCGM_FI_PROF_GR_ENGINE_ACTIVE:sumn{namespace=~"namespace-placeholder"}[usage-rate-day])
+    gpu-usage-namespace-query-param: max_over_time(namespace:DCGM_FI_DEV_GPU_UTIL:sumn{namespace=~"namespace-placeholder"}[usage-rate-day])
     cpu-usage-namespace-query-param: max_over_time(namespace:container_cpu_user_seconds_total_sumn:raten{namespace=~"namespace-placeholder"}[usage-rate-day])
     mem-usage-namespace-query-param: max_over_time(namespace:CONTAINER_MEMERY_USAGE_BYTES:sumn{namespace=~"namespace-placeholder"}[usage-rate-day])
   nfs-storage-class-name: zjlab-nfs-storage
@@ -77,7 +77,7 @@ k8s:
     gpu: 2
 #配置harbor
 harbor:
-  address: harbor.dubhe.com
+  address: harbor.dubhe.ai
   username: admin
   password: Harbor12345
   model-name: train

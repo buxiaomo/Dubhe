@@ -120,4 +120,20 @@ public interface DataMedicineFileMapper extends BaseMapper<DataMedicineFile> {
      */
     @Delete("DELETE FROM data_medicine_file WHERE medicine_id= #{id} ")
     void deleteByDatasetId(@Param("id") Long id);
+
+    /**
+     * 根据医学数据集id删除医学数据集文件数据
+     *
+     * @param datasetId 医学数据集ID
+     */
+    List<Integer> getFileStatusListByDataset(@Param("datasetId") Long datasetId);
+
+    /**
+     * 清理所有已标注信息
+     *
+     * @param datasetId
+     */
+    @Update("update data_medicine_file set `status` = 101 where medicine_id = #{datasetId}")
+    void cleanAnnotation(@Param("datasetId") Long datasetId);
+
 }

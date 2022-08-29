@@ -23,6 +23,9 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 import org.dubhe.biz.base.annotation.DataPermission;
 import org.dubhe.dcm.domain.entity.DataMedicine;
+import org.dubhe.dcm.domain.vo.DataMedicineSmallVO;
+
+import java.util.List;
 
 /**
  * @description 医学数据集管理 Mapper 接口
@@ -86,4 +89,12 @@ public interface DataMedicineMapper extends BaseMapper<DataMedicine> {
      */
     @Select("select * from data_medicine where id = #{id}  and deleted = 1")
     DataMedicine findDataMedicineByIdAndDeleteIsFalse(@Param("id") Long datasetId);
+
+    /**
+     * 获取医学数据集列表
+     *
+     * @return
+     */
+    List<DataMedicineSmallVO> getList();
+
 }

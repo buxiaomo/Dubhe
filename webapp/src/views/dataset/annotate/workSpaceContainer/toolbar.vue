@@ -57,8 +57,13 @@
         <span>保存</span>
       </div>
       <div class="action-item" @click="confirm">
-        <IconFont type="chengyuanguanli" />
+        <IconFont type="finish" />
         <span>完成</span>
+      </div>
+      <div class="action-item">
+        <el-popconfirm title="确定删除该文件吗？" @onConfirm="remove">
+          <span slot="reference"><i class="el-icon-delete mr-4" />删除</span>
+        </el-popconfirm>
       </div>
       <div class="action-item">
         <el-tooltip effect="dark" placement="bottom-start">
@@ -126,6 +131,10 @@ export default {
       ctx.emit('save');
     };
 
+    const remove = () => {
+      ctx.emit('remove');
+    };
+
     const handleZoomIn = () => {
       setApi({ active: 'zoomIn' });
       zoomIn();
@@ -148,6 +157,7 @@ export default {
       handleZoomOut,
       handleZoomReset,
       save,
+      remove,
     };
   },
 };

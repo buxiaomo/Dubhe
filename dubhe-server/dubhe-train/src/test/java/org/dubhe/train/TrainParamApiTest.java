@@ -65,9 +65,10 @@ public class TrainParamApiTest extends BaseTest {
         PtTrainParamCreateDTO ptTrainParamCreateDTO = new PtTrainParamCreateDTO();
         JSONObject runParams = new JSONObject();
         runParams.put("data_url", "/nfs/testuser1/mnist/MNIST_data");
-        ptTrainParamCreateDTO.setParamName("新增任务参数名称单元测试").setAlgorithmId(133L).setRunParams(runParams)
+        ptTrainParamCreateDTO.setParamName("新增任务参数名称单元测试").setRunParams(runParams)
                 .setDescription("新增任务参数名称").setDataSourceName("T1:V0004").setDataSourcePath("dataset/159/versionFile/V0004/ofrecord/train")
-                .setResourcesPoolType(1).setTrainType(0).setResourcesPoolNode(1).setRunCommand("python p.py").setTrainJobSpecsName("1Core4GB 1TITAN V").setImageName("oneflow").setImageTag("cu102-py37-dist");
+                .setResourcesPoolType(1).setTrainType(0).setResourcesPoolNode(1).setTrainJobSpecsName("1Core4GB 1TITAN V").setImageName("oneflow").setImageTag("cu102-py37-dist");
+        ptTrainParamCreateDTO.setAlgorithmId(133L).setRunCommand("python p.py");
         mockMvcTest(MockMvcRequestBuilders.post("/trainParams"), JSON.toJSONString(ptTrainParamCreateDTO), MockMvcResultMatchers.status().isOk(), 200);
 
     }

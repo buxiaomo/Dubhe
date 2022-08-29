@@ -51,6 +51,35 @@ export default {
     this.drawDistri();
   },
   methods: {
+    // 科学计数法
+    numberChangeToE(d) {
+      if (Math.abs(d) > 10000) {
+        let numLen = (numLen = d.toString().length - 1);
+        if (d < 0) {
+          numLen = d.toString().length - 2;
+        }
+        return `${(d / Math.pow(10, numLen)).toFixed(2)}e+${numLen}`;
+      }
+      if (Math.abs(d) < 0.001) {
+        if (d === 0) return d;
+        const dString = d.toString();
+        if (dString.indexOf('e') !== -1) return d;
+        let i = 3;
+        if (d < 0) {
+          i = 4;
+        }
+        for (; i < dString.length; i++) {
+          if (dString[i] !== '0') {
+            break;
+          }
+        }
+        if (d < 0) {
+          i -= 1;
+        }
+        return `${(d * Math.pow(10, i - 1)).toFixed(2)}e-${i - 1}`;
+      }
+      return d;
+    },
     drawDistri() {
       const label = this.id;
       const { data } = this;
@@ -78,14 +107,12 @@ export default {
       const stepMax = data[0][data[0].length - 1][0];
       let valueMin = 10000;
       let valueMax = -10000;
-      for (let j = 0; j < data[0].length; j += 1) {
-        const pixel = data[0][j][1];
-        if (pixel < valueMin) valueMin = pixel;
+      for (let j = 0; j < data[0].length; j++) {
+        if (data[0][j][1] < valueMin) valueMin = data[0][j][1];
       }
-      for (let j = 0; j < data[dataLen - 1].length; j += 1) {
-        const pixel2 = data[dataLen - 1][j][1];
-        if (pixel2 > valueMax) {
-          valueMax = pixel2;
+      for (let j = 0; j < data[dataLen - 1].length; j++) {
+        if (data[dataLen - 1][j][1] > valueMax) {
+          valueMax = data[dataLen - 1][j][1];
         }
       }
       const xscale = d3
@@ -107,14 +134,7 @@ export default {
             .axisBottom()
             .scale(xscale)
             .tickSize(-height)
-            .tickFormat((d) => {
-              if (d > 10000) {
-                const numLen = d.toString().length - 1;
-                // eslint-disable-next-line no-restricted-properties
-                return `${d / Math.pow(10, numLen)}e+${numLen}`;
-              }
-              return d;
-            })
+            .tickFormat((d) => this.numberChangeToE(d))
         );
       svg
         .append('g')
@@ -137,18 +157,18 @@ export default {
       const pathg = svg.append('g');
       const areaFunction = d3
         .area()
-        .x(function _nonName(d) {
+        .x(function(d) {
           return xscale(d[0]);
         })
-        .y0(function _nonName(d) {
+        .y0(function(d) {
           return yscale(d[1]);
         })
-        .y1(function _nonName(d) {
+        .y1(function(d) {
           return yscale(d[2]);
         });
       const dopa = (1.0 / dataLen) * 2;
       const middle = Math.ceil(dataLen / 2);
-      for (let j = 1; j < dataLen; j += 1) {
+      for (let j = 1; j < dataLen; j++) {
         let opacity = dopa * j;
         if (j >= middle) opacity = dopa * (dataLen - j);
         pathg
@@ -163,10 +183,10 @@ export default {
       // 画最中间的一条线
       const lineFunction = d3
         .line()
-        .x(function _nonName(d) {
+        .x(function(d) {
           return xscale(d[0]);
         })
-        .y(function _nonName(d) {
+        .y(function(d) {
           return yscale(d[1]);
         });
       pathg

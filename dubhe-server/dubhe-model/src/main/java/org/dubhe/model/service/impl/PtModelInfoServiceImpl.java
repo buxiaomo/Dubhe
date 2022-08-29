@@ -18,6 +18,7 @@
 package org.dubhe.model.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -28,6 +29,7 @@ import org.dubhe.biz.base.context.UserContext;
 import org.dubhe.biz.base.dto.PtModelInfoConditionQueryDTO;
 import org.dubhe.biz.base.dto.PtModelInfoQueryByIdDTO;
 import org.dubhe.biz.base.dto.PtModelStatusQueryDTO;
+import org.dubhe.biz.base.dto.UserDTO;
 import org.dubhe.biz.base.enums.DatasetTypeEnum;
 import org.dubhe.biz.base.exception.BusinessException;
 import org.dubhe.biz.base.service.UserContextService;
@@ -41,11 +43,20 @@ import org.dubhe.biz.log.enums.LogEnum;
 import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.biz.permission.annotation.DataPermissionMethod;
 import org.dubhe.biz.permission.base.BaseService;
+import org.dubhe.cloud.authconfig.service.AdminClient;
 import org.dubhe.cloud.remotecall.config.RestTemplateHolder;
 import org.dubhe.model.constant.ModelConstants;
 import org.dubhe.model.dao.PtModelBranchMapper;
 import org.dubhe.model.dao.PtModelInfoMapper;
-import org.dubhe.model.domain.dto.*;
+import org.dubhe.model.domain.dto.PtModelBranchCreateDTO;
+import org.dubhe.model.domain.dto.PtModelInfoByResourceDTO;
+import org.dubhe.model.domain.dto.PtModelInfoCreateDTO;
+import org.dubhe.model.domain.dto.PtModelInfoDeleteDTO;
+import org.dubhe.model.domain.dto.PtModelInfoPackageDTO;
+import org.dubhe.model.domain.dto.PtModelInfoQueryDTO;
+import org.dubhe.model.domain.dto.PtModelInfoUpdateDTO;
+import org.dubhe.model.domain.dto.PtModelOptimizationCreateDTO;
+import org.dubhe.model.domain.dto.ServingModelDTO;
 import org.dubhe.model.domain.entity.PtModelBranch;
 import org.dubhe.model.domain.entity.PtModelInfo;
 import org.dubhe.model.domain.enums.ModelPackageEnum;
@@ -57,6 +68,7 @@ import org.dubhe.model.domain.vo.PtModelInfoUpdateVO;
 import org.dubhe.model.service.FileService;
 import org.dubhe.model.service.PtModelBranchService;
 import org.dubhe.model.service.PtModelInfoService;
+import org.dubhe.model.service.PtModelStructureService;
 import org.dubhe.model.utils.ModelStatusUtil;
 import org.dubhe.recycle.config.RecycleConfig;
 import org.dubhe.recycle.domain.dto.RecycleCreateDTO;
@@ -74,10 +86,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -116,6 +131,12 @@ public class PtModelInfoServiceImpl implements PtModelInfoService {
 
     @Autowired
     private ModelStatusUtil ModelStatusUtil;
+    
+    @Autowired
+    private PtModelStructureService ptModelStructureService;
+
+    @Resource
+    private AdminClient adminClient;
 
     public final static List<String> FIELD_NAMES;
 
@@ -145,8 +166,14 @@ public class PtModelInfoServiceImpl implements PtModelInfoService {
         Integer packaged = ptModelInfoQueryDTO.getPackaged();
         wrapper.eq(packaged != null, "packaged", packaged);
 
-        String modelClassName = ptModelInfoQueryDTO.getModelClassName();
-        wrapper.like(!StringUtils.isEmpty(modelClassName), "model_type", modelClassName);
+        Integer frameType = ptModelInfoQueryDTO.getFrameType();
+        wrapper.eq(frameType != null, "frame_type", frameType);
+
+        String modelType = ptModelInfoQueryDTO.getModelClassName();
+        wrapper.eq(StringUtils.isNotEmpty(modelType), "model_type", modelType);
+
+        Integer modelFormat = ptModelInfoQueryDTO.getModelType();
+        wrapper.eq(modelFormat != null, "model_format", modelFormat);
 
         String orderField = FIELD_NAMES.contains(ptModelInfoQueryDTO.getSort())
                 ? StringUtils.humpToLine(ptModelInfoQueryDTO.getSort())
@@ -155,6 +182,16 @@ public class PtModelInfoServiceImpl implements PtModelInfoService {
         wrapper.orderBy(true, isAsc, orderField);
 
         Page<PtModelInfo> ptModelInfos = ptModelInfoMapper.selectPage(page, wrapper);
+
+        Map<Long, String> idUserNameMap = new HashMap<>();
+        List<Long> userIds = ptModelInfos.getRecords().stream().map(PtModelInfo::getCreateUserId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        if (org.apache.commons.collections4.CollectionUtils.isNotEmpty(userIds)) {
+            DataResponseBody<List<UserDTO>> result = adminClient.getUserList(userIds);
+            if (result.getData() != null) {
+                idUserNameMap = result.getData().stream().collect(Collectors.toMap(UserDTO::getId, UserDTO::getUsername, (o, n) -> n));
+            }
+        }
+        Map<Long, String> finalIdUserNameMap = idUserNameMap;
 
         List<PtModelInfoQueryVO> ptModelInfoQueryVOList = ptModelInfos.getRecords().stream().map(x -> {
             PtModelInfoQueryVO vo = new PtModelInfoQueryVO();
@@ -165,6 +202,12 @@ public class PtModelInfoServiceImpl implements PtModelInfoService {
                     || (x.getFrameType() == PtModelUtil.NUMBER_FOUR && x.getModelType() == PtModelUtil.NUMBER_ONE)
                     || (x.getFrameType() == PtModelUtil.NUMBER_THREE && x.getModelType() == PtModelUtil.NUMBER_EIGHT);
             vo.setServingModel(flag);
+
+            //获取任务创建人用户名
+            if (BaseService.isAdmin(userContextService.getCurUser()) && x.getCreateUserId() != null) {
+                vo.setCreateUserName(finalIdUserNameMap.getOrDefault(x.getCreateUserId(), null));
+            }
+
             return vo;
         }).collect(Collectors.toList());
         return PageUtil.toPage(page, ptModelInfoQueryVOList);
@@ -200,6 +243,9 @@ public class PtModelInfoServiceImpl implements PtModelInfoService {
             String targetPath = fileService.transfer(sourcePath, user);
             //修改存储路径
             ptModelInfoCreateDTO.setModelAddress(targetPath);
+            
+            //模型结构不存在则创建
+            ptModelStructureService.create(ptModelInfoCreateDTO.getStructName(),ptModelInfoCreateDTO.getJobType());
         }
 
         //保存任务参数
@@ -295,7 +341,7 @@ public class PtModelInfoServiceImpl implements PtModelInfoService {
         ptModelStatusQueryDTO.setModelIds(ids);
         ModelStatusUtil.queryModelStatus(user, ptModelStatusQueryDTO, ids);
 
-        //删除任务参数
+        // 
         if (ptModelInfoMapper.deleteBatchIds(ids) < ids.size()) {
             //模型列表未删除成功,抛出异常，并返回失败信息
             LogUtil.error(LogEnum.BIZ_MODEL, "The user {} failed to delete the model list. The model management table deletion operation based on ID array {} failed", user.getUsername(), ids);
@@ -542,7 +588,7 @@ public class PtModelInfoServiceImpl implements PtModelInfoService {
     @Override
     public PtModelInfoByResourceVO modelOptimizationUploadModel(PtModelOptimizationCreateDTO ptModelOptimizationCreateDTO) {
         PtModelInfoCreateDTO ptModelInfoCreateDTO = new PtModelInfoCreateDTO();
-        ptModelInfoCreateDTO.setName(ptModelOptimizationCreateDTO.getName()).setModelAddress(ptModelOptimizationCreateDTO.getPath()).setModelSource(PtModelUtil.NUMBER_ZERO).setFrameType(PtModelUtil.NUMBER_ONE).setModelType(PtModelUtil.NUMBER_ONE).setModelClassName("模型优化").setModelDescription("模型优化上传模型");
+        ptModelInfoCreateDTO.setName(ptModelOptimizationCreateDTO.getName()).setModelAddress(ptModelOptimizationCreateDTO.getPath()).setModelSource(PtModelUtil.NUMBER_ZERO).setFrameType(PtModelUtil.NUMBER_ONE).setModelType(PtModelUtil.NUMBER_ONE).setModelDescription("模型优化上传模型");
         PtModelInfoCreateVO ptModelInfoCreateVO = create(ptModelInfoCreateDTO);
         PtModelInfo ptModelInfo = ptModelInfoMapper.selectById(ptModelInfoCreateVO.getId());
         PtModelInfoByResourceVO ptModelInfoByResourceVO = new PtModelInfoByResourceVO();
@@ -581,6 +627,20 @@ public class PtModelInfoServiceImpl implements PtModelInfoService {
             return vo;
         }).collect(Collectors.toList());
         return servingModelList;
+    }
+
+    @Override
+    public PtModelInfoQueryVO getAtlasModels(String name) {
+
+        List<PtModelInfo> ptModelInfos = ptModelInfoMapper.selectList(new LambdaQueryWrapper<PtModelInfo>()
+                .eq(PtModelInfo::getName, name)
+                .eq(PtModelInfo::getModelResource, ModelResourceEnum.ATLAS.getCode()));
+        PtModelInfoQueryVO ptModelInfoQueryVO = new PtModelInfoQueryVO();
+
+        if (CollUtil.isNotEmpty(ptModelInfos)) {
+            BeanUtils.copyProperties(ptModelInfos.get(0), ptModelInfoQueryVO);
+        }
+        return ptModelInfoQueryVO;
     }
 
 }

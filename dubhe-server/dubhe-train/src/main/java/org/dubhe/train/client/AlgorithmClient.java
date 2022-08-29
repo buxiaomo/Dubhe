@@ -26,6 +26,7 @@ import org.dubhe.train.client.fallback.AlgorithmClientFallback;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.cloud.openfeign.SpringQueryMap;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -59,6 +60,15 @@ public interface AlgorithmClient {
      */
     @GetMapping("/algorithms/selectAllBatchIds")
     DataResponseBody<List<TrainAlgorithmQureyVO>> selectAllBatchIds(@SpringQueryMap TrainAlgorithmSelectAllBatchIdDTO trainAlgorithmSelectAllBatchIdDTO);
+
+    /**
+     * 根据名称获取算法信息
+     *
+     * @param name 算法名称
+     * @return {@code DataResponseBody<TrainAlgorithmQureyVO>}
+     */
+    @GetMapping("/algorithms/findAlgorithmByName")
+    DataResponseBody<TrainAlgorithmQureyVO> findAlgorithmByName(@RequestParam String name);
 
 }
 

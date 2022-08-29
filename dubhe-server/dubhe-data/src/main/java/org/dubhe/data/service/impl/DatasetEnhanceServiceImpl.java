@@ -88,6 +88,7 @@ public class DatasetEnhanceServiceImpl implements DatasetEnhanceService {
     @Autowired
     private DataFileAnnotationService  dataFileAnnotationService;
 
+
     /**
      * 提交任务
      *
@@ -96,7 +97,7 @@ public class DatasetEnhanceServiceImpl implements DatasetEnhanceService {
      * @param datasetEnhanceRequestDTO 数据增强请求条件
      */
     @Override
-    public void commitEnhanceTask(List<DatasetVersionFile> datasetVersionFiles, Task task, DatasetEnhanceRequestDTO datasetEnhanceRequestDTO) {
+    public void commitEnhanceTask(List<DatasetVersionFile> datasetVersionFiles, Task task, DatasetEnhanceRequestDTO datasetEnhanceRequestDTO,String taskQueue,String detail,String placeholder) {
         Set<File> fileSet = fileService.get(datasetVersionFiles.stream().
                 map(DatasetVersionFile::getFileId).collect(Collectors.toList()), task.getDatasetId());
         Map<Long, DatasetVersionFile> datasetVersionFilesMap = new HashMap<>(datasetVersionFiles.size());
@@ -117,10 +118,11 @@ public class DatasetEnhanceServiceImpl implements DatasetEnhanceService {
                         fileUtil);
                 String uuid = IdUtil.simpleUUID();
                 enhanceTaskSplitBO.setReTaskId(uuid);
+                enhanceTaskSplitBO.setAlgorithm(104);
                 try {
-                    Boolean imgProcessUnprocessed = taskUtils.zAdd("imgProcess_task_queue", uuid, 10L);
+                    Boolean imgProcessUnprocessed = taskUtils.zAdd(taskQueue.replace(placeholder,uuid), uuid, 10L);
                     if (imgProcessUnprocessed) {
-                        redisUtils.set(uuid, enhanceTaskSplitBO);
+                        redisUtils.set(detail.replace(placeholder,uuid), enhanceTaskSplitBO);
                     }
                 } catch (Exception e) {
                     LogUtil.error(LogEnum.BIZ_DATASET, "enhancingTask add fail. task:{} exception:{}", enhanceTaskSplitBO, e);
@@ -134,25 +136,34 @@ public class DatasetEnhanceServiceImpl implements DatasetEnhanceService {
      *
      * @return
      */
-    public boolean getEnhanceFinishedTask() {
-        Object failedIdKey = redisUtils.lpop("imgProcess_failed_queue");
+    public boolean getEnhanceFinishedTask(String failedQueue,String finishedQueue) {
+        Object failedIdKey = taskUtils.getFailedTask(failedQueue);
         if (ObjectUtil.isNotNull(failedIdKey)) {
-            JSONObject jsonObject = JSON.parseObject(JSON.toJSONString(failedIdKey));
-            String failedId = jsonObject.getString("processKey").replaceAll("\"", "");
-            Object object = redisUtils.get("imgProcess:" + failedId);
+            Object object = redisUtils.get(failedIdKey.toString().replace("annotation","detail"));
             String enhanceTaskSplitBOString = JSON.toJSONString(object);
             EnhanceTaskSplitBO enhanceTaskSplitBO = JSON.parseObject(enhanceTaskSplitBOString, EnhanceTaskSplitBO.class);
+            if (taskService.isStop(enhanceTaskSplitBO.getId())) {
+                //删除标注
+                redisUtils.del(failedIdKey.toString());
+                //删除详情
+                redisUtils.del(failedIdKey.toString().replace("annotation","detail"));
+                return true;
+            }
             Integer fileNum = enhanceTaskSplitBO.getFileDtos().size();
             taskService.finishTaskFile(enhanceTaskSplitBO, fileNum);
-            redisUtils.del("imgProcess:" + failedId);
+
+            //删除标注
+            redisUtils.del(failedIdKey.toString());
+            //删除详情
+            redisUtils.del(failedIdKey.toString().replace("annotation","detail"));
         }
-        Object object = redisUtils.lpop("imgProcess_finished_queue");
+        Object object = taskUtils.getFinishedTask(finishedQueue);
         if (ObjectUtil.isNotNull(object)) {
             String taskId = object.toString();
             DatasetEnhanceFinishDTO datasetEnhanceFinishDTO = JSONObject.parseObject(JSON.toJSONString(redisUtils.get(taskId))
                     , DatasetEnhanceFinishDTO.class);
             LogUtil.info(LogEnum.BIZ_DATASET, "start finish enhance task datasetEnhanceFinishDTO:{}", datasetEnhanceFinishDTO);
-            enhanceFinish(datasetEnhanceFinishDTO);
+//            enhanceFinish(datasetEnhanceFinishDTO,taskId);
         }
         return ObjectUtil.isNotNull(failedIdKey) || ObjectUtil.isNotNull(object);
     }
@@ -164,9 +175,8 @@ public class DatasetEnhanceServiceImpl implements DatasetEnhanceService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void enhanceFinish(DatasetEnhanceFinishDTO datasetEnhanceFinishDTO) {
-        Object object = redisUtils.get(datasetEnhanceFinishDTO.getId());
-        EnhanceTaskSplitBO enhanceTaskSplitBO = JSON.parseObject(JSON.toJSONString(object), EnhanceTaskSplitBO.class);
+    public void enhanceFinish(DatasetEnhanceFinishDTO datasetEnhanceFinishDTO, JSONObject taskDetail) {
+        EnhanceTaskSplitBO enhanceTaskSplitBO = JSON.parseObject(taskDetail.toJSONString(), EnhanceTaskSplitBO.class);
         if (ObjectUtil.isNull(enhanceTaskSplitBO)) {
             throw new BusinessException(ErrorEnum.TASK_SPLIT_ABSENT);
         }
@@ -220,8 +230,6 @@ public class DatasetEnhanceServiceImpl implements DatasetEnhanceService {
         }
         LogUtil.info(LogEnum.BIZ_DATASET, "DatasetEnhanceServiceImpl enhance finish version file save success {}", datasetEnhanceFinishDTO.getId());
         taskService.finishTaskFile(enhanceTaskSplitBO, fileNum);
-        redisUtils.del("imgProcess:finished:" + datasetEnhanceFinishDTO.getId());
-        redisUtils.del("imgProcess:" + datasetEnhanceFinishDTO.getId());
     }
 
 }

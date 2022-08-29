@@ -129,7 +129,7 @@ import { getPublishedDatasets, getDatasetVersions } from '@/api/preparation/data
 import { add as addNotebook } from '@/api/development/notebook';
 import { list as getSpecsNames } from '@/api/system/resources';
 import { getImageNameList, getImageTagList } from '@/api/trainingImage/index';
-import { IMAGE_PROJECT_TYPE } from '@/views/trainingJob/utils';
+import { IMAGE_TYPE } from '@/views/trainingJob/utils';
 
 const defaultForm = {
   noteBookName: null,
@@ -208,9 +208,7 @@ export default {
       }
     },
     async getHarborProjects() {
-      this.harborProjectList = await getImageNameList({
-        projectTypes: [IMAGE_PROJECT_TYPE.NOTEBOOK],
-      });
+      this.harborProjectList = await getImageNameList({ imageTypes: [IMAGE_TYPE.NOTEBOOK] });
       if (
         this.form.imageName &&
         !this.harborProjectList.some((project) => project === this.form.imageName)
@@ -239,7 +237,7 @@ export default {
       }
       return getImageTagList({
         imageName: this.form.imageName,
-        projectType: IMAGE_PROJECT_TYPE.NOTEBOOK,
+        imageTypes: [IMAGE_TYPE.NOTEBOOK],
       }).then((res) => {
         this.harborImageList = res;
       });

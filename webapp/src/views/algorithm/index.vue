@@ -53,7 +53,6 @@ import { mapGetters } from 'vuex';
 
 import { downloadZipFromObjectPath, ALGORITHM_RESOURCE_ENUM } from '@/utils';
 import { list, add, del as deleteAlgorithm } from '@/api/algorithm/algorithm';
-import { list as getAlgorithmUsages } from '@/api/algorithm/algorithmUsage';
 import { createNotebook, getNotebookAddress } from '@/api/development/notebook';
 import BaseModal from '@/components/BaseModal';
 import ProTable from '@/components/ProTable';
@@ -64,6 +63,7 @@ import AlgorithmForm from './components/algorithmForm';
 
 export default {
   name: 'Algorithm',
+  dicts: ['model_class'],
   components: {
     BaseModal,
     ProTable,
@@ -88,7 +88,6 @@ export default {
       // form
       formVisible: false,
       formSubmitting: false,
-      algorithmUsageList: [],
       formType: '', // 'add' or 'fork'
 
       // drawer
@@ -99,16 +98,20 @@ export default {
   },
   computed: {
     ...mapGetters(['user', 'isAdmin']),
+    modelTypeDropdownList() {
+      return [{ label: '全部', value: null }].concat(this.dict.model_class);
+    },
     columns() {
       return getColumns({
         doEdit: this.goEdit,
+        getModelTypeLabel: this.getModelTypeLabel,
         createTrain: this.goTraining,
         doDownload: this.goDownload,
         doFork: this.doFork,
         doDelete: this.doDelete,
         active: this.active,
-        allAlgorithmUsageList: this.allAlgorithmUsageList,
         isAdmin: this.isAdmin,
+        modelTypeDropdownList: this.modelTypeDropdownList,
       });
     },
     queryFormItems() {
@@ -120,13 +123,6 @@ export default {
       return {
         algorithmSource: Number(this.active),
       };
-    },
-    allAlgorithmUsageList() {
-      return [{ label: '全部', value: null }].concat(
-        this.algorithmUsageList.map((item) => {
-          return { label: item.auxInfo, value: item.auxInfo };
-        })
-      );
     },
     operationProps() {
       return {
@@ -141,7 +137,6 @@ export default {
     },
   },
   mounted() {
-    this.getAlgorithmUsages();
     if (this.$route.params.target === 'add') {
       this.doAdd(this.$route.params.form);
     }
@@ -163,6 +158,11 @@ export default {
     },
     onSubmitForm() {
       this.$refs.form.validate(async (form) => {
+        // 新增表单校验，用户选择镜像的话镜像版本必选
+        if (form.imageName && !form.imageTag) {
+          this.$message.warning('请选择镜像版本');
+          return;
+        }
         this.formSubmitting = true;
         await add(form).finally(() => {
           this.formSubmitting = false;
@@ -179,8 +179,10 @@ export default {
     goTraining(item) {
       this.$router.push({
         name: 'jobAdd',
-        params: {
+        query: {
           from: 'algorithm',
+        },
+        params: {
           params: {
             algorithmId: item.id,
             algorithmSource: Number(this.active),
@@ -201,6 +203,14 @@ export default {
         message: '请查看下载文件',
         type: 'success',
       });
+    },
+
+    getModelTypeLabel(value) {
+      if (value) {
+        const item = this.dict.model_class.find((modelType) => modelType.value === value);
+        return item?.label || '';
+      }
+      return '';
     },
     async goEdit(algorithm) {
       if (this.disableEdit) {
@@ -276,15 +286,6 @@ export default {
           this.disableEdit = false;
           throw new Error(err);
         });
-    },
-    async getAlgorithmUsages() {
-      const params = {
-        isContainDefault: true,
-        current: 1,
-        size: 1000,
-      };
-      const data = await getAlgorithmUsages(params);
-      this.algorithmUsageList = data.result;
     },
     openNoteBook(url, noteBookName) {
       window.open(url);

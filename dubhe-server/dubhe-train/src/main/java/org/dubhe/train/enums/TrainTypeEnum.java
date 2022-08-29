@@ -28,12 +28,13 @@ public enum TrainTypeEnum {
     /**
      * 普通训练
      */
-    JOB(0,"普通训练"),
+    JOB(0, "普通训练"),
     /**
      * 分布式训练
      */
-    DISTRIBUTE_TRAIN(1,"分布式训练"),
-    ;
+    DISTRIBUTE_TRAIN(1, "分布式训练"),
+
+    ATLAS_TRAIN(2, "炼知重组训练");
 
 
     private Integer code;
@@ -45,12 +46,21 @@ public enum TrainTypeEnum {
         this.name = name;
     }
 
+    public static TrainTypeEnum getTrainTypeByCode(Integer code) {
+        for (TrainTypeEnum enums : TrainTypeEnum.values()) {
+            if (enums.code.equals(code)) {
+                return enums;
+            }
+        }
+        return null;
+    }
+
     /**
      * 判断是否是分布式训练
      * @param trainType  训练类型
      * @return true 分布式训练，false 普通训练
      */
-    public static boolean isDistributeTrain(int trainType){
+    public static boolean isDistributeTrain(int trainType) {
         return DISTRIBUTE_TRAIN.getCode() == trainType;
     }
 }

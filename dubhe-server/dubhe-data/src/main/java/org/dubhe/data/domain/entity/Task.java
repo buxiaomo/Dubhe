@@ -113,4 +113,14 @@ public class Task implements Serializable {
     @ApiModelProperty(value = "目的ID")
     private Long targetId;
 
+    @ApiModelProperty(value = "模型服务id")
+    private Long modelServiceId;
+
+    @ApiModelProperty(value = "文件类型")
+    private Integer fileType;
+
+    private boolean stop;
+
+    @ApiModelProperty(value = "生成ofRecord的版本")
+    private String ofRecordVersion;
 }

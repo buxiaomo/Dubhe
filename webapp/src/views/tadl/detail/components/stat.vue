@@ -53,13 +53,15 @@ export default {
 <style lang="scss" scoped>
 .styledBorder {
   padding-left: 10px;
-  border-left-width: 4px;
-  border-left-style: solid;
   margin-bottom: 40px;
+  border-left-style: solid;
+  border-left-width: 4px;
+
   ::v-deep {
     .el-statistic-title {
       font-size: 16px;
     }
+
     .el-statistic-content {
       font-size: 36px;
       line-height: 54px;

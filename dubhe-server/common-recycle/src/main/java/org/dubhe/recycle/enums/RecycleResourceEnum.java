@@ -86,8 +86,16 @@ public enum RecycleResourceEnum {
     /**
      * 模型优化文件回收
      */
-    MODEL_OPT_RECYCLE_FILE("modelOptRecycleFile","模型优化文件回收"),
-    ;
+    MODEL_OPT_RECYCLE_FILE("modelOptRecycleFile", "模型优化文件回收"),
+    /**
+     * 点云文件回收
+     */
+    PC_DATASET_RECYCLE_FILE("pcDatasetRecycleFile", "点云数据集文件回收"),
+
+    /**
+     * 训练任务文件回收
+     */
+    TRAIN_JOB_RECYCLE_FILE("trainJobRecycleFile", "训练任务文件回收");
 
     private String className;
 

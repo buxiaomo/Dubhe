@@ -19,8 +19,11 @@ package org.dubhe.train.client.fallback;
 import org.dubhe.biz.base.dto.PtModelInfoConditionQueryDTO;
 import org.dubhe.biz.base.dto.PtModelInfoQueryByIdDTO;
 import org.dubhe.biz.base.vo.DataResponseBody;
+import org.dubhe.biz.base.vo.PtModelInfoQueryVO;
 import org.dubhe.biz.dataresponse.factory.DataResponseFactory;
 import org.dubhe.train.client.ModelInfoClient;
+
+import java.util.List;
 
 /**
  * @description 模型管理远程调用熔断类
@@ -35,5 +38,10 @@ public class ModelInfoClientFallback implements ModelInfoClient {
     @Override
     public DataResponseBody getConditionQuery(PtModelInfoConditionQueryDTO ptModelInfoConditionQueryDTO) {
         return DataResponseFactory.failed("call dubhe-model server getConditionQuery error");
+    }
+
+    @Override
+    public DataResponseBody<PtModelInfoQueryVO> getAtlasModels(String name) {
+        return DataResponseFactory.failed("call dubhe-model server getAtlasModels error");
     }
 }

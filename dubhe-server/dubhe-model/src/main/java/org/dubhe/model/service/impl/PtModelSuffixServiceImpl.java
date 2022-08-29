@@ -51,9 +51,6 @@ public class PtModelSuffixServiceImpl implements PtModelSuffixService {
         Integer modelType = ptModelSuffixDTO.getModelType();
         wrapper.eq(modelType != null, "model_type", modelType);
         List<PtModelSuffix> ptModelSuffixs = ptModelSuffixMapper.selectList(wrapper);
-        if (CollectionUtils.isEmpty(ptModelSuffixs)) {
-            return null;
-        }
         Map<Integer, String> ptModelSuffixMap = new HashMap<>();
         for (PtModelSuffix ptModelSuffix : ptModelSuffixs) {
             ptModelSuffixMap.put(ptModelSuffix.getModelType(), ptModelSuffix.getModelSuffix());

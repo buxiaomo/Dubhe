@@ -10,10 +10,10 @@ the License. * ============================================================= */
   <el-card class="app-content-section" shadow="never">
     <div class="app-content-title mb-20">概览</div>
     <div class="flex flex-vertical-align">
-      <div v-if="!isOneTrial" style="width: 100%">
+      <div v-if="!isOneTrial" style="width: 100%;">
         <TrialStat :info="info" />
       </div>
-      <div v-else-if="stage !== 'RETRAIN'" style="width: 100%">
+      <div v-else-if="stage !== 'RETRAIN'" style="width: 100%;">
         <SingleTrialStat />
       </div>
     </div>

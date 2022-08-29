@@ -21,6 +21,11 @@
 }
 
 #upload-form-style {
+  .upload-chosen-tip {
+    min-width: 100px;
+    text-align: right;
+  }
+
   ul.el-upload-list {
     width: 100%;
     height: auto;

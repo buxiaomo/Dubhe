@@ -46,10 +46,7 @@ class hparams_read:
         return self.res
 
     def parse_hparams(self):
-        # 先添加metrics的tag
-        for i in range(len(self.data[0].session_start_info.metrics)):
-            self.res['metrics'].append({'tag': '', 'value': []})
-        # 再添加metrics的数据
+        # 添加metrics的数据
         for hp in self.data:
             group_name = hp.session_start_info.group_name
             current_hparams_info = {
@@ -65,9 +62,10 @@ class hparams_read:
                 })
             current_hparams_info[group_name]["start_time_secs"] = \
                 hp.session_start_info.start_time_secs
-            for i, metric in enumerate(session_start_info.metrics):
-                self.res['metrics'][i]['tag'] = metric
-                value = session_start_info.metrics[metric]
-                _data = get_proto_value(value)
-                self.res['metrics'][i]['value'].append(_data)
+
             self.res["hparamsInfo"].append(current_hparams_info)
+
+            # 获取metrics对应的结果
+            for name in session_start_info.metrics:
+                if name in self.scalar_data:
+                    self.res['metrics'].append({'tag':name, 'value':[self.scalar_data[name]]})

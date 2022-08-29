@@ -57,44 +57,17 @@
         <div class="label">模型类别</div>
       </el-col>
       <el-col :xl="19" :lg="16" :span="24">
-        <div class="text">{{ item.algorithmUsage }}</div>
-        <el-popover
-          v-if="displayType === 1"
-          v-model="usageEditVisible"
-          placement="bottom"
-          title="修改模型类别"
-          @show="onUsageEditShow"
+        <el-select
+          v-model="item.algorithmUsage"
+          @change="(value) => editAlgorithmUsage(value, item)"
         >
-          <el-select
-            v-model="localUsage"
-            placeholder="请选择或输入模型类别"
-            filterable
-            clearable
-            allow-create
-            @change="onAlgorithmUsageChange"
-          >
-            <el-option
-              v-for="usage in algorithmUsageList"
-              :key="usage.id"
-              :label="usage.auxInfo"
-              :value="usage.auxInfo"
-            >
-              <span style="float: left;">{{ usage.auxInfo }}</span>
-              <el-button
-                v-if="!usage.isDefault"
-                class="select-del-btn"
-                type="text"
-                @click.stop="delAlgorithmUsage(usage)"
-                ><i class="el-icon-close"
-              /></el-button>
-            </el-option>
-          </el-select>
-          <div class="tc" style="margin-top: 8px;">
-            <el-button @click="handleCancel">取消</el-button>
-            <el-button type="primary" @click="handleOk">确定</el-button>
-          </div>
-          <i slot="reference" class="el-icon-edit primary cp dib" />
-        </el-popover>
+          <el-option
+            v-for="modelClass in dict.model_class"
+            :key="modelClass.value"
+            :label="modelClass.label"
+            :value="modelClass.value"
+          />
+        </el-select>
       </el-col>
     </el-row>
     <el-row class="row">
@@ -111,7 +84,7 @@
             <el-tooltip
               class="item"
               effect="dark"
-              content="请确保代码中包含“train_out”参数用于接收训练的文件输出路径"
+              content="请确保代码中包含“output”参数用于接收训练的文件输出路径"
               placement="top"
             >
               <i class="el-icon-warning-outline primary f18 v-bottom" />
@@ -145,6 +118,31 @@
         </div>
       </el-col>
     </el-row>
+    <el-row class="row">
+      <el-col :xl="5" :lg="8" :span="24">
+        <div class="label">模型输出</div>
+      </el-col>
+      <el-col :xl="19" :lg="16" :span="24">
+        <div class="text">
+          <div v-if="displayType === 1">
+            <el-switch
+              v-model="item.isTrainModelOut"
+              @change="(value) => editAlgorithm('isTrainModelOut', value)"
+            />
+            <el-tooltip
+              class="item"
+              effect="dark"
+              content="请确保该算法支持模型输出"
+              placement="top"
+            >
+              <i class="el-icon-warning-outline primary f18 v-bottom" />
+            </el-tooltip>
+          </div>
+          <span v-else>{{ item.isTrainModelOut ? '是' : '否' }}</span>
+        </div>
+      </el-col>
+    </el-row>
+
     <el-row v-if="displayType === 2" class="row">
       <el-col :xl="5" :lg="8" :span="24">
         <div class="label">镜像名称</div>
@@ -191,15 +189,12 @@
 <script>
 import { convertMapToList } from '@/utils';
 import { edit as editAlgorithm } from '@/api/algorithm/algorithm';
-import {
-  list as getUsages,
-  add as addUsage,
-  del as deleteUsage,
-} from '@/api/algorithm/algorithmUsage';
+import { list as getUsages, add as addUsage } from '@/api/algorithm/algorithmUsage';
 import Edit from '@/components/InlineTableEdit';
 
 export default {
   name: 'AlgorithmDetail',
+  dicts: ['model_class'],
   components: { Edit },
   props: {
     item: {
@@ -256,6 +251,12 @@ export default {
       });
       this.item.description = description;
     },
+    async editAlgorithmUsage(algorithmUsage, algorithm) {
+      await editAlgorithm({
+        id: algorithm.id,
+        algorithmUsage,
+      });
+    },
     editAlgorithm(type, value) {
       const param = { id: this.item.id };
       param[type] = value;
@@ -274,29 +275,8 @@ export default {
       await addUsage({ auxInfo });
       this.getAlgorithmUsages();
     },
-    async delAlgorithmUsage(usage) {
-      await deleteUsage({ ids: [usage.id] });
-      if (this.localUsage === usage.auxInfo) {
-        this.localUsage = null;
-      }
-      this.getAlgorithmUsages();
-    },
-    onAlgorithmUsageChange(value) {
-      const usage = this.algorithmUsageList.find((usage) => usage.auxInfo === value);
-      if (value && !usage) {
-        this.createAlgorithmUsage(value);
-      }
-    },
     onUsageEditShow() {
       this.localUsage = this.item.algorithmUsage;
-    },
-    handleCancel() {
-      this.usageEditVisible = false;
-    },
-    async handleOk() {
-      await this.editAlgorithm('algorithmUsage', this.localUsage);
-      this.item.algorithmUsage = this.localUsage;
-      this.usageEditVisible = false;
     },
   },
 };

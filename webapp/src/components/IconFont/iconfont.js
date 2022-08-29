@@ -40,6 +40,15 @@ const create = (options = {}) => {
       });
   }
 
+  const svgIconFiles = require.context('@/svgs/svgs', false, /\.svg$/);
+  const svgRe = /\.\/(.*)\.svg/;
+  svgIconFiles.keys().forEach((key) => {
+    const result = key.match(svgRe);
+    if (result) {
+      iconList.push(result[1]);
+    }
+  });
+
   const IconFont = {
     functional: true,
     name: 'IconFont',

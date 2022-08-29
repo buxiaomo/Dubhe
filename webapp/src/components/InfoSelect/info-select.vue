@@ -19,7 +19,7 @@
     <el-select
       ref="selectRef"
       :style="{ width: selectEleWidth }"
-      clearable
+      :clearable="clearable"
       v-bind="attrs"
       :value="state.sValue"
       v-on="listeners"
@@ -64,6 +64,14 @@ export default {
       type: Array,
       default: () => [],
     },
+    clearable: {
+      type: Boolean,
+      default: true,
+    },
+    plain: {
+      type: Boolean,
+      default: false,
+    },
     innerRef: Function,
   },
   setup(props, ctx) {
@@ -74,8 +82,8 @@ export default {
     const buildOptions = (list) =>
       list.map((d) => ({
         ...d,
-        label: d[labelKey],
-        value: d[valueKey],
+        label: props.plain ? d : d[labelKey],
+        value: props.plain ? d : d[valueKey],
       }));
 
     const state = reactive({

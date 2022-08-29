@@ -14,70 +14,129 @@
  * =============================================================
  */
 
+<style lang="less" scoped>
+.temp {
+  height: 100px;
+}
+
+.excepPanel {
+  width: 100%;
+  text-align: left;
+}
+
+.infoTitle {
+  height: 30px;
+  padding-left: 5%;
+  font-size: 12px;
+  line-height: 30px;
+  color: white;
+  text-align: left;
+  background-color: #625eb3;
+  border-radius: 3px;
+
+  .dot {
+    margin-right: 2%;
+  }
+}
+
+.infoContent {
+  padding: 5%;
+  font-size: 11px;
+  text-align: left;
+}
+
+.item {
+  margin-top: 5%;
+}
+
+.subButtonDiv {
+  display: flex;
+}
+
+.subButton {
+  width: 18%;
+  margin-right: 1%;
+  margin-left: auto;
+}
+
+.el-checkbox__input.is-focus .el-checkbox__inner {
+  border-color: #625eb3;
+}
+
+.excepPanelSelect {
+  line-height: 30px;
+}
+</style>
 <template>
   <div class="temp">
     <div class="excepPanel">
       <el-card>
         <!-- 盒线图倍数相关信息 -->
         <div>
-          <div class="infoTitle"><i class="el-icon-chat-dot-round dot" />盒线图相关信息：</div>
-          <div v-show="!boxInfoShowFlag" class="infoContent">暂无信息</div>
-          <div v-show="boxInfoShowFlag" class="infoContent">
-            <el-row class="item">
-              <el-col :span="colSpan0[0]">run&nbsp;：</el-col>
-              <el-col :span="colSpan0[1]">{{ curBoxInfo.run }}</el-col>
+          <div class="infoTitle"><i class="el-icon-chat-dot-round dot" />箱线图相关信息：</div>
+          <div v-if="getCurRunTag !== null" class="infoContent">
+            <el-row class="item excepPanelSelect">
+              <el-col :span="colSpan1[0]"
+                >标&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;签&nbsp;:</el-col
+              >
+              <el-col :span="colSpan1[1]">
+                <el-select v-model="curTag" class="histmodeselect" placeholder="请选择">
+                  <el-option
+                    v-for="item in getTag[getCurRunTag.index]"
+                    :key="item"
+                    :value="item"
+                    :label="item"
+                  />
+                </el-select>
+              </el-col>
             </el-row>
-            <el-row class="item">
-              <el-col :span="colSpan0[0]">tag&nbsp;：</el-col>
-              <el-col :span="colSpan0[1]">{{ curBoxInfo.tag }}</el-col>
-            </el-row>
-            <el-row class="item">
-              <el-col :span="colSpan0[0]">step&nbsp;：</el-col>
-              <el-col :span="colSpan0[1]">{{ curBoxInfo.step }}</el-col>
-            </el-row>
-            <div v-if="!dq0Show">
-              <el-row class="item">
-                <el-col :span="colSpan0[0]">联动&nbsp;：</el-col>
-                <el-col :span="colSpan0[1]"><el-checkbox v-model="myLinkChecked"/></el-col>
-              </el-row>
-              <el-row class="item excepPanelSelect">
-                <el-col :span="colSpan1[0]">上四分位距倍数&nbsp;：</el-col>
-                <el-col :span="colSpan1[1]"
-                  ><el-input v-model="curBoxInfo.upTimes" type="number" @change="changeUpTimes()"
-                /></el-col>
-              </el-row>
-              <el-row class="item excepPanelSelect">
-                <el-col :span="colSpan1[0]">下四分位距倍数&nbsp;：</el-col>
-                <el-col :span="colSpan1[1]"
-                  ><el-input
-                    v-model="curBoxInfo.downTimes"
-                    type="number"
-                    @change="changeDownTimes()"
-                /></el-col>
-              </el-row>
-              <div class="item subButtonDiv">
-                <el-button class="subButton" @click="submitBoxInfo()">确定</el-button>
+            <div v-if="boxInfoShowFlag">
+              <div v-if="!dq0Show">
+                <el-row class="item">
+                  <el-col :span="colSpan1[0]"
+                    >联&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;动&nbsp;：</el-col
+                  >
+                  <el-col :span="colSpan1[1]"><el-checkbox v-model="myLinkChecked"/></el-col>
+                </el-row>
+                <el-row class="item excepPanelSelect">
+                  <el-col :span="colSpan1[0]">上四分位距倍数&nbsp;：</el-col>
+                  <el-col :span="colSpan1[1]"
+                    ><el-input v-model="curBoxInfo.upTimes" type="number" @change="changeUpTimes()"
+                  /></el-col>
+                </el-row>
+                <el-row class="item excepPanelSelect">
+                  <el-col :span="colSpan1[0]">下四分位距倍数&nbsp;：</el-col>
+                  <el-col :span="colSpan1[1]"
+                    ><el-input
+                      v-model="curBoxInfo.downTimes"
+                      type="number"
+                      @change="changeDownTimes()"
+                  /></el-col>
+                </el-row>
+                <div class="item subButtonDiv">
+                  <el-button class="subButton" @click="submitBoxInfo()">确定</el-button>
+                </div>
               </div>
-            </div>
-            <div v-if="dq0Show">
-              <el-row class="item">
-                <el-col :span="colSpan1[0]">上边界数值&nbsp;：</el-col>
-                <el-col :span="colSpan1[1]">{{ upDownValue[0] }}</el-col>
-              </el-row>
-              <el-row class="item">
-                <el-col :span="colSpan1[0]">下边界数值&nbsp;：</el-col>
-                <el-col :span="colSpan1[1]">{{ upDownValue[1] }}</el-col>
-              </el-row>
-            </div>
-            <div v-show="excepBoxStatisticFlag">
-              <el-row class="item">
-                <el-col :span="colSpan1[0]">异常点总个数：</el-col>
-                <el-col :span="colSpan1[1]">{{ excepBoxStatistic[0] }}</el-col>
-              </el-row>
-              <el-row class="item">
-                <el-col :span="colSpan1[0]">异常点百分比：</el-col>
-                <el-col :span="colSpan1[1]">{{ excepBoxStatistic[1] }}%</el-col>
-              </el-row>
+              <div v-if="dq0Show">
+                <el-row class="item">
+                  <el-col :span="colSpan1[0]">上边界数值&nbsp;：</el-col>
+                  <el-col :span="colSpan1[1]">{{ upDownValue[0] }}</el-col>
+                </el-row>
+                <el-row class="item">
+                  <el-col :span="colSpan1[0]">下边界数值&nbsp;：</el-col>
+                  <el-col :span="colSpan1[1]">{{ upDownValue[1] }}</el-col>
+                </el-row>
+              </div>
+              <div v-show="excepBoxStatisticFlag">
+                <el-row class="item">
+                  <el-col :span="colSpan1[0]">异常点总个数&nbsp;：</el-col>
+                  <el-col :span="colSpan1[1]">{{ excepBoxStatistic[0] }}</el-col>
+                </el-row>
+                <el-row class="item">
+                  <el-col :span="colSpan1[0]">异常点百分比&nbsp;：</el-col>
+                  <el-col :span="colSpan1[1]">{{ excepBoxStatistic[1] }}%</el-col>
+                </el-row>
+              </div>
             </div>
           </div>
         </div>
@@ -106,6 +165,7 @@ import { createNamespacedHelpers } from 'vuex';
 const {
   mapGetters: mapExceptionGetters,
   mapMutations: mapExceptionMutations,
+  mapActions: mapExceptionActions,
 } = createNamespacedHelpers('Visual/exception');
 export default {
   data() {
@@ -125,6 +185,7 @@ export default {
       upDownValue: [0, 0],
       colSpan0: [7, 17],
       colSpan1: [12, 12],
+      curTag: '',
     };
   },
   computed: {
@@ -138,12 +199,29 @@ export default {
       'getExcepBoxStatistic',
       'getDq0Show',
       'getUpDownValue',
+      'getExceptionShow',
+      'getCurRunTag',
+      'getTag',
     ]),
   },
   watch: {
+    getCurRunTag() {
+      this.curTag = this.getCurRunTag.tag;
+    },
+    curTag(newVal) {
+      if (newVal === this.getCurRunTag.tag) return;
+      const temp = {};
+      temp.run = this.getCurRunTag.run;
+      temp.tag = newVal;
+      temp.index = this.getCurRunTag.index;
+      temp.step = '';
+      this.setCurRunTag(temp);
+      this.setUpdateHistMatrixDataFlag(`tag${newVal}`);
+      this.fetchAllStep();
+    },
     getRectCurInfo(val) {
       this.curRectInfo = val;
-      if (this.curRectInfo[0] === '') {
+      if (this.curRectInfo.length === 0) {
         this.rectInfoShowFlag = false;
       } else {
         this.rectInfoShowFlag = true;
@@ -180,11 +258,19 @@ export default {
     },
   },
   mounted() {
+    this.curTag = this.getCurRunTag ? this.getCurRunTag.tag : '';
     this.dq0Show = this.getDq0Show;
-    this.setRectCurInfo(['', '', '', '', '', '', '']);
+    this.setRectCurInfo([]);
   },
   methods: {
-    ...mapExceptionMutations(['setCurIqrTimes', 'setLinkChecked', 'setRectCurInfo']),
+    ...mapExceptionMutations([
+      'setCurIqrTimes',
+      'setLinkChecked',
+      'setRectCurInfo',
+      'setCurRunTag',
+      'setUpdateHistMatrixDataFlag',
+    ]),
+    ...mapExceptionActions(['fetchAllStep']),
     mySetCurIqrTimes() {
       this.setCurIqrTimes([
         this.curBoxInfo.run,
@@ -337,69 +423,20 @@ export default {
   },
 };
 </script>
-
-<style lang="less" scoped>
-.temp {
-  height: 100px;
-}
-
-.excepPanel {
-  width: 100%;
-  text-align: left;
-}
-
-.infoTitle {
-  height: 30px;
-  padding-left: 5%;
-  font-size: 12px;
-  line-height: 30px;
-  color: white;
-  text-align: left;
-  background-color: #625eb3;
-  border-radius: 3px;
-
-  .dot {
-    margin-right: 2%;
-  }
-}
-
-.infoContent {
-  padding: 5%;
-  font-size: 11px;
-  text-align: left;
-}
-
-.item {
-  margin-top: 5%;
-}
-
-.subButtonDiv {
-  display: flex;
-}
-
-.subButton {
-  width: 18%;
-  margin-right: 1%;
-  margin-left: auto;
-}
-
-.excepPanelSelect {
-  line-height: 30px;
-}
-
+<style>
 /* el-card */
-/deep/ .excepPanel .el-card__body {
+.excepPanel .el-card__body {
   padding: 0;
   border-radius: 0 0 3px 3px;
 }
 
-/deep/ .excepPanel .el-card {
+.excepPanel .el-card {
   margin: 3.5% 5% 4% 0%;
   border-top: 0;
 }
 
 /* 输入框 */
-/deep/ .excepPanel .el-input__inner {
+.excepPanel .el-input__inner {
   height: 30px;
   font-size: 11px;
   line-height: 30px;
@@ -409,35 +446,30 @@ export default {
 }
 
 /* button */
-/deep/ .excepPanel .el-button {
+.excepPanel .el-button {
   padding: 8px;
   font-size: 12px;
   border-radius: 10px;
 }
 
-/deep/ .excepPanel .el-button:active {
+.excepPanel .el-button:active {
   color: #8c89c7;
   border-color: #625eb3;
 }
 
-/deep/ .excepPanel .el-button:focus,
-/deep/ .excepPanel .el-button:hover {
+.excepPanel .el-button:focus,
+.excepPanel .el-button:hover {
   color: #8c89c7;
   background-color: #d9d8f5;
   border-color: #d9d8f5;
 }
 
 /* 复选框 */
-/deep/ .excepPanel .el-checkbox__inner,
-/deep/ .excepPanel .el-checkbox__inner:hover {
+.excepPanel .el-checkbox__inner,
+.excepPanel .el-checkbox__inner:hover {
   border-color: #625eb3;
 }
 
-/deep/ .el-checkbox__input.is-focus .el-checkbox__inner {
-  border-color: #625eb3;
-}
-
-/deep/
 .excepPanel .el-checkbox__input.is-checked .el-checkbox__inner .excepPanel .el-checkbox__input.is-indeterminate .el-checkbox__inner {
   background-color: #625eb3;
   border-color: #625eb3;

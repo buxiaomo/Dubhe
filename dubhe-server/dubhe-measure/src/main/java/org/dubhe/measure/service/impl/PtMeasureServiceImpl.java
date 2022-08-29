@@ -230,7 +230,7 @@ public class PtMeasureServiceImpl implements PtMeasureService {
                 .eq(PtMeasure::getName, ptMeasureUpdateDTO.getName())
                 .eq(PtMeasure::getCreateUserId, currentUser.getId())
         );
-        if (CollUtil.isNotEmpty(ptMeasures)) {
+        if (CollUtil.isNotEmpty(ptMeasures) && !ptMeasures.get(0).getId().equals(measure.getId())) {
             throw new BusinessException("度量名称已存在!");
         }
 

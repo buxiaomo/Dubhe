@@ -20,20 +20,18 @@ package org.dubhe.image.rest;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.dubhe.biz.base.constant.Permissions;
+import org.dubhe.biz.base.dto.PtImageIdDTO;
+import org.dubhe.biz.base.dto.PtImageIdsDTO;
 import org.dubhe.biz.base.vo.DataResponseBody;
+import org.dubhe.biz.base.vo.PtImageVO;
 import org.dubhe.image.domain.dto.*;
 import org.dubhe.image.service.PtImageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * @description 镜像
@@ -54,7 +52,7 @@ public class PtImageController {
         return new DataResponseBody(ptImageService.getImage(ptImageQueryDTO));
     }
 
-    @ApiOperation("通过projectName查询镜像")
+    @ApiOperation("通过ImageName查询镜像")
     @GetMapping
     public DataResponseBody getTagsByImageName(@Validated PtImageQueryImageDTO ptImageQueryImageDTO) {
         return new DataResponseBody(ptImageService.searchImages(ptImageQueryImageDTO));
@@ -90,10 +88,17 @@ public class PtImageController {
         return new DataResponseBody(ptImageService.getImageNameList(ptImageQueryNameDTO));
     }
 
-    @PutMapping("/imageResource")
-    @ApiOperation("修改镜像来源(notebook定制)")
-    public DataResponseBody updateImageResource(@RequestParam Long id) {
-        ptImageService.updImageResource(id);
+    @GetMapping("/imageDefault")
+    @ApiOperation("获取Notebook默认镜像")
+    public DataResponseBody getImageDefault() {
+        return new DataResponseBody(ptImageService.getImageDefault());
+    }
+
+    @PutMapping("/imageDefault")
+    @ApiOperation("设置Notebook默认镜像")
+    @PreAuthorize(Permissions.IMAGE_EDIT_DEFAULT)
+    public DataResponseBody updateImageDefault(@RequestParam Long id) {
+        ptImageService.updImageDefault(id);
         return new DataResponseBody();
     }
 
@@ -108,4 +113,17 @@ public class PtImageController {
     public DataResponseBody getTerminalImageList() {
         return new DataResponseBody(ptImageService.getTerminalImageList());
     }
+
+    @GetMapping("/byId")
+    @ApiOperation("根据模镜像id查询镜像详情")
+    public DataResponseBody<PtImageVO> getById(@Validated PtImageIdDTO ptImageIdDTO) {
+        return new DataResponseBody(ptImageService.getById(ptImageIdDTO.getId()));
+    }
+
+    @GetMapping("/listByIds")
+    @ApiOperation("根据模镜像id查询镜像详情")
+    public DataResponseBody<List<PtImageVO>> listByIds(@Validated PtImageIdsDTO ptImageIdsDTO) {
+        return new DataResponseBody(ptImageService.listByIds(ptImageIdsDTO.getIds()));
+    }
+
 }

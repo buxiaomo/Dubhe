@@ -20,18 +20,20 @@ package org.dubhe.data.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.dubhe.biz.file.dto.FilePageDTO;
+import org.dubhe.data.domain.bo.FileAnnotationBO;
 import org.dubhe.data.domain.bo.TaskSplitBO;
 import org.dubhe.data.domain.dto.DatasetCsvImportDTO;
 import org.dubhe.data.domain.dto.FileCreateDTO;
 import org.dubhe.biz.file.dto.FileDTO;
+import org.dubhe.data.domain.dto.FileScreenStatSearchDTO;
 import org.dubhe.data.domain.entity.Dataset;
 import org.dubhe.data.domain.entity.File;
 import org.dubhe.data.domain.entity.Task;
 import org.dubhe.data.domain.vo.FileQueryCriteriaVO;
+import org.dubhe.data.domain.vo.FileScreenStatVO;
 import org.dubhe.data.domain.vo.FileVO;
 import org.dubhe.biz.base.vo.ProgressVO;
 import org.dubhe.data.machine.enums.FileStateEnum;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.Collection;
 import java.util.List;
@@ -94,12 +96,6 @@ public interface FileService {
      */
     Long getFirst(Long datasetId, Integer type);
 
-    /**
-     * 对minio 的账户密码进行加密操作
-     *
-     * @return Map<String, String> minio账户密码加密map
-     */
-    Map<String, String> getMinIOInfo();
 
     /**
      * 获取文件对应所有增强文件
@@ -113,7 +109,7 @@ public interface FileService {
     /**
      * 视频采样任务
      */
-    void videoSample();
+    void videoSample(String finishedQueue, String failedQueue);
 
     /**
      * 更新文件状态
@@ -218,9 +214,10 @@ public interface FileService {
      * @param datasetId  数据集ID
      * @param offset     偏移量
      * @param batchSize  批大小
+     * @param status     文件标注状态
      * @return 文件列表
      */
-    List<File> listBatchFile(Long datasetId, int offset, int batchSize);
+    List<File> listBatchFile(Long datasetId, int offset, int batchSize, Collection<Integer> status);
 
     /**
      * 采样任务过期
@@ -242,9 +239,9 @@ public interface FileService {
      * @param datasetId     数据集ID
      * @param changed       版本文件是否改动
      * @param versionName   版本名称
-     * @return List<name>   名称列表
+     * @return List<FileAnnotationBO>   文件列表
      */
-    List<String> selectNames(Long datasetId, Integer changed,String versionName);
+    List<FileAnnotationBO> selectFileAnnotations(Long datasetId, Integer changed,String versionName);
 
     /**
      * 音频数据集文件查询
@@ -270,10 +267,10 @@ public interface FileService {
      * 文本状态数量统计
      *
      * @param datasetId               数据集ID
-     * @param fileQueryCriteria       文件查询条件
+     * @param fileScreenStatSearchDTO       文件查询条件
      * @return 文本状态数量统计
      */
-    ProgressVO getFileCountByStatus(Long datasetId, FileQueryCriteriaVO fileQueryCriteria);
+    FileScreenStatVO getFileCountByStatus(Long datasetId, FileScreenStatSearchDTO fileScreenStatSearchDTO);
 
     /**
      * 获取数据集文件数量
@@ -351,4 +348,12 @@ public interface FileService {
      */
     void filePage(FilePageDTO filePageDTO, Long datasetId);
 
+    /**
+     * 根据版本和数据集ID获取文件url width height
+     *
+     * @param datasetId     数据集ID
+     * @param versionName   版本名
+     * @return List<String> url列表
+     */
+    List<FileAnnotationBO> listByDatasetIdAndVersionName(Long datasetId, String versionName);
 }

@@ -78,10 +78,14 @@ public enum LogEnum {
     MEASURE,
     //云端Serving
     SERVING,
+    //serving gateway
+    SERVING_GATEWAY,
     //专业版终端
     TERMINAL,
     //tadl
-    TADL;
+    TADL,
+    //点云
+    POINT_CLOUD;
 
     /**
      * 判断日志类型不能为空

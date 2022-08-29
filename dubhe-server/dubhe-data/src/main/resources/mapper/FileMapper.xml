@@ -4,7 +4,7 @@
 <mapper namespace="org.dubhe.data.dao.FileMapper">
     <insert id="saveList" parameterType="java.util.List">
         insert into data_file (id,
-        `name`,dataset_id,status,url,enhance_type,width,height,file_type,frame_interval,pid,create_user_id,origin_user_id
+        `name`,dataset_id,status,url,enhance_type,width,height,file_type,frame_interval,pid,create_user_id,origin_user_id,exclude_header
         )
         values
         <foreach collection="files" item="file" separator=",">
@@ -24,6 +24,14 @@
                 </when>
                 <otherwise>
                     ,#{userId},#{datasetUserId}
+                </otherwise>
+            </choose>
+            <choose>
+                <when test="file.excludeHeader != null">
+                    ,#{file.excludeHeader}
+                </when>
+                <otherwise>
+                    ,1
                 </otherwise>
             </choose>
             )
@@ -79,24 +87,13 @@
             df.enhance_type,
             df.origin_user_id,
             df.id
-            <if test="ifImport">
-                ,
-                dfa.label_id,
-                dfa.prediction
-            </if>
         FROM
             data_dataset_version_file ddvf
             LEFT JOIN data_file df ON ddvf.file_id = df.id
-            <if test="ifImport">
-                LEFT JOIN data_file_annotation dfa on ddvf.id = dfa.version_file_id
-            </if>
         WHERE
             df.es_transport = 0
             AND ddvf.dataset_id = #{datasetId}
             AND df.dataset_id = #{datasetId}
-            <if test="ifImport">
-                AND dfa.dataset_id = #{datasetId}
-            </if>
             AND df.id in
             <foreach collection="fileIdsNotToEs" item="fileId" open="(" close=")" separator=",">
                 #{fileId}
@@ -113,4 +110,29 @@
             #{fileId}
         </foreach>
     </update>
+
+    <select id="selectTextAnnotation" resultMap="textAnnotationResultMap">
+        SELECT
+            df.id,
+            dfa.label_id,
+            dfa.prediction
+        FROM
+            data_file_annotation dfa
+            LEFT JOIN data_dataset_version_file ddvf on dfa.version_file_id = ddvf.id
+            LEFT JOIN data_file df ON ddvf.file_id = df.id
+        WHERE
+            dfa.dataset_id = #{datasetId}
+            and df.dataset_id = #{datasetId}
+            and ddvf.dataset_id = #{datasetId}
+            and df.id in
+            <foreach collection="fileIdsNotToEs" item="fileId" open="(" close=")" separator=",">
+                #{fileId}
+            </foreach>
+    </select>
+
+    <resultMap id="textAnnotationResultMap" type="org.dubhe.data.domain.bo.TextAnnotationBO">
+        <result property="id" column="id"/>
+        <result property="labelId" column="label_id"/>
+        <result property="prediction" column="prediction"/>
+    </resultMap>
 </mapper>

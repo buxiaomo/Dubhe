@@ -112,28 +112,6 @@ public class DeployServingAsyncTask {
     @Value("${serving.sourcePath}")
     private String sourcePath;
 
-    /**
-     * 在线服务文件根路径
-     */
-    @Value("${serving.onlineRootPath}")
-    private String onlineRootPath;
-
-    /**
-     * 批量服务文件根路径
-     */
-    @Value("${serving.batchRootPath}")
-    private String batchRootPath;
-    /**
-     *  pod http端口
-     */
-    @Value("${serving.pod-http-port}")
-    private Integer podHttpPort;
-    /**
-     * pod grpc端口
-     */
-    @Value("${serving.pod-grpc-port}")
-    private Integer podGrpcPort;
-
     private final static String TRUE = "True";
 
     private final static String FALSE = "False";
@@ -231,9 +209,9 @@ public class DeployServingAsyncTask {
         ModelServingBO bo = new ModelServingBO();
         //容器端口
         if (ServingTypeEnum.GRPC.getType().equals(servingInfo.getType())) {
-            bo.setGrpcPort(podGrpcPort);
+            bo.setGrpcPort(ServingConstant.POD_LISTENING_POD);
         } else {
-            bo.setHttpPort(podHttpPort);
+            bo.setHttpPort(ServingConstant.POD_LISTENING_POD);
         }
         //推理脚本名称，不同协议采用不同的推理脚本
         String scriptName = ServingConstant.HTTP_SCRIPT;
@@ -246,7 +224,7 @@ public class DeployServingAsyncTask {
                 ResourcesPoolTypeEnum.isGpuCode(servingModelConfig.getResourcesPoolType()) ? TRUE : FALSE, servingModelConfig.getUseScript() ? TRUE : FALSE) + servingModelConfig.getDeployParam();
         String resourceInfo = StringUtils.getRandomString() + servingModelConfig.getId();
         servingModelConfig.setResourceInfo(resourceInfo);
-        String targetPath = k8sNameTool.getAbsolutePath(onlineRootPath + servingInfo.getCreateUserId() + File.separator + servingInfo.getId() + File.separator + servingModelConfig.getId() + File.separator);
+        String targetPath = k8sNameTool.getAbsolutePath(ServingConstant.ONLINE_ROOT_PATH + servingInfo.getCreateUserId() + File.separator + servingInfo.getId() + File.separator + servingModelConfig.getId() + File.separator);
         String servingPath = getServingSourcePath(user, targetPath, servingModelConfig.getUseScript(), servingModelConfig.getScriptPath());
         if (StringUtils.isBlank(servingPath)) {
             return null;
@@ -328,11 +306,9 @@ public class DeployServingAsyncTask {
 
                 PtBaseResult ptBaseResult = modelServingApi.delete(namespace, resourceName);
                 if (ServingConstant.SUCCESS_CODE.equals(ptBaseResult.getCode())) {
-                    servingModelConfig.setResourceInfo(SymbolConstant.BLANK);
-                    if (servingModelConfigService.updateById(servingModelConfig)) {
-                        LogUtil.info(LogEnum.SERVING, "Delete the service SUCCESS, namespace:{}, resourceName:{}", namespace, resourceName);
-                    }
+                    LogUtil.info(LogEnum.SERVING, "Delete the service SUCCESS, namespace:{}, resourceName:{}", namespace, resourceName);
                 } else {
+                    LogUtil.error(LogEnum.SERVING, "Delete the service FAILED, namespace:{}, resourceName:{},error message:{}", namespace, resourceName,ptBaseResult.getMessage());
                     servingInfo.putStatusDetail(statusDetailKey, ptBaseResult.getMessage());
                     flag = false;
                 }
@@ -460,7 +436,7 @@ public class DeployServingAsyncTask {
                 ServingConstant.INPUT_PATH, ServingConstant.OUTPUT_PATH, FALSE, ResourcesPoolTypeEnum.isGpuCode(batchServing.getResourcesPoolType()) ? TRUE : FALSE, batchServing.getUseScript() ? TRUE : FALSE) + batchServing.getDeployParam();
         String resourceInfo = StringUtils.getRandomString() + batchServing.getId();
         batchServing.setResourceInfo(resourceInfo);
-        String targetPath = k8sNameTool.getAbsolutePath(batchRootPath + batchServing.getCreateUserId() + File.separator + batchServing.getId() + File.separator);
+        String targetPath = k8sNameTool.getAbsolutePath(ServingConstant.BATCH_ROOT_PATH + batchServing.getCreateUserId() + File.separator + batchServing.getId() + File.separator);
         String servingPath = getServingSourcePath(user, targetPath, batchServing.getUseScript(), batchServing.getScriptPath());
         PtJupyterJobBO bo = new PtJupyterJobBO()
                 .setNamespace(k8sNameTool.getNamespace(batchServing.getCreateUserId()))
@@ -499,7 +475,7 @@ public class DeployServingAsyncTask {
                 batchServing.getUseScript() ? TRUE : FALSE) + batchServing.getDeployParam();
         String resourceInfo = StringUtils.getRandomString() + batchServing.getId();
         batchServing.setResourceInfo(resourceInfo);
-        String targetPath = k8sNameTool.getAbsolutePath(batchRootPath + batchServing.getCreateUserId() + File.separator + batchServing.getId() + File.separator);
+        String targetPath = k8sNameTool.getAbsolutePath(ServingConstant.BATCH_ROOT_PATH + batchServing.getCreateUserId() + File.separator + batchServing.getId() + File.separator);
         String servingPath = getServingSourcePath(user, targetPath, batchServing.getUseScript(), batchServing.getScriptPath());
         if (StringUtils.isBlank(servingPath)) {
             return null;

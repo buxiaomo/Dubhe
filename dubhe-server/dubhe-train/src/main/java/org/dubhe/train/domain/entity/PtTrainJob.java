@@ -75,6 +75,12 @@ public class PtTrainJob extends BaseEntity {
     private String description;
 
     /**
+     * 数据来源 Id
+     */
+    @TableField(value = "data_source_id")
+    private Integer dataSourceId;
+
+    /**
      * 数据来源路径
      */
     @TableField(value = "data_source_path")
@@ -154,10 +160,16 @@ public class PtTrainJob extends BaseEntity {
     private String k8sJobName;
 
     /**
-     * 训练类型,0:普通训练，1：分布式训练
+     * 训练类型,0:普通训练，1：分布式训练，2：炼知重组任务
      */
     @TableField(value = "train_type")
     private Integer trainType;
+
+    /**
+     * 数据来源 Id
+     */
+    @TableField(value = "val_data_source_id")
+    private Integer valDataSourceId;
 
     /**
      * 验证数据集来源名称
@@ -206,18 +218,18 @@ public class PtTrainJob extends BaseEntity {
      */
     @TableField(value = "train_msg")
     private String trainMsg;
-
+    
     /**
-     * 教师模型id集合
+     * 学生模型id集合
      */
-    @TableField(value = "teacher_model_ids")
-    private String teacherModelIds;
+    @TableField(value = "student_model_struct")
+    private String studentModelStruct;
 
     /**
      * 学生模型id集合
      */
-    @TableField(value = "student_model_ids")
-    private String studentModelIds;
+    @TableField(value = "job_type")
+    private Integer jobType;
 
     /**
      * put 键值

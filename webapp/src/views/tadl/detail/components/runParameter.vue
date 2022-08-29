@@ -262,15 +262,18 @@ export default {
 </script>
 <style lang="scss" scoped>
 .run-parameter-card {
-  border: 1px solid#DFE1E5;
   padding: 32px;
+  border: 1px solid#DFE1E5;
+
   ::v-deep .el-form-item {
     margin-bottom: 0;
   }
+
   ::v-deep .el-form-item__label {
     padding-bottom: 0;
   }
 }
+
 .ptr {
   padding-top: 22px;
 }

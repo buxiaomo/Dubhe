@@ -24,6 +24,7 @@ import org.dubhe.biz.base.functional.StringFormat;
 import org.dubhe.k8s.domain.vo.GpuTotalMemResultVO;
 import org.dubhe.k8s.domain.vo.MetricsDataResultValueVO;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -63,7 +64,7 @@ public class PrometheusMetricBO {
             return gpuMemValueMap;
         }
         StringFormat memMetricsFormat = (value) -> {
-            return NumberUtil.isNumber(String.valueOf(value)) ? String.valueOf(Long.valueOf(String.valueOf(value)) / MagicNumConstant.BINARY_TEN_EXP) : String.valueOf(MagicNumConstant.ZERO);
+            return NumberUtil.isNumber(String.valueOf(value)) ? String.valueOf(Long.valueOf(String.valueOf(value)) * MagicNumConstant.BINARY_TEN_EXP) : String.valueOf(MagicNumConstant.ZERO);
         };
         for (MetricResult result : data.getResult()) {
             gpuMemValueMap.put(result.getMetric().getAcc_id(), memMetricsFormat.format(result.getValue().get(1).toString()));
@@ -81,7 +82,7 @@ public class PrometheusMetricBO {
             return gpuTotalMemValueVOList;
         }
         StringFormat memMetricsFormat = (value) -> {
-            return NumberUtil.isNumber(String.valueOf(value)) ? String.valueOf(Long.valueOf(String.valueOf(value)) / MagicNumConstant.BINARY_TEN_EXP) : String.valueOf(MagicNumConstant.ZERO);
+            return NumberUtil.isNumber(String.valueOf(value)) ? String.valueOf(Long.valueOf(String.valueOf(value)) * MagicNumConstant.BINARY_TEN_EXP) : String.valueOf(MagicNumConstant.ZERO);
         };
         for (MetricResult result : data.getResult()) {
             gpuTotalMemValueVOList.add(new GpuTotalMemResultVO(result.getMetric().getAcc_id(), memMetricsFormat.format(result.getValue().get(1).toString())));
@@ -162,7 +163,7 @@ public class PrometheusMetricBO {
             return map;
         }
         StringFormat memMetricsFormat = (value) -> {
-            return NumberUtil.isNumber(String.valueOf(value)) ? String.valueOf(Long.valueOf(String.valueOf(value)) / MagicNumConstant.BINARY_TEN_EXP) : String.valueOf(MagicNumConstant.ZERO);
+            return NumberUtil.isNumber(String.valueOf(value)) ? String.valueOf(Long.valueOf(String.valueOf(value)) * MagicNumConstant.BINARY_TEN_EXP) : String.valueOf(MagicNumConstant.ZERO);
         };
         for (MetricResult result : data.getResult()) {
             map.put(result.getMetric().getAcc_id(), getFormatValues(result, memMetricsFormat));
@@ -195,7 +196,7 @@ public class PrometheusMetricBO {
             return list;
         }
         StringFormat memMetricsFormat = (value) -> {
-            return NumberUtil.isNumber(String.valueOf(value)) ? String.valueOf(Long.valueOf(String.valueOf(value)) / MagicNumConstant.BINARY_TEN_EXP) : String.valueOf(MagicNumConstant.ZERO);
+            return NumberUtil.isNumber(String.valueOf(value)) ? String.valueOf(Long.valueOf(String.valueOf(value)) * MagicNumConstant.BINARY_TEN_EXP) : String.valueOf(MagicNumConstant.ZERO);
         };
         for (MetricResult result : data.getResult()) {
             list.add(new GpuTotalMemResultVO(result.getMetric().getAcc_id(), getGpuTotalValues(result, memMetricsFormat)));
@@ -220,7 +221,16 @@ class MetricResult {
 
 @Data
 class Metric {
+    private String UUID;
     private String acc_id;
     private String pod;
+
+    public String getAcc_id(){
+        if (!StringUtils.isEmpty(acc_id)){
+            return acc_id;
+        }else {
+            return UUID;
+        }
+    }
 }
 

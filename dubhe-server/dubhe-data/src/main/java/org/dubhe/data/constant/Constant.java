@@ -94,7 +94,9 @@ public class Constant {
 
     public static final String DATA_TYPE_RULE = "数据类型参数不对,请使用: 0-图片 1-视频 2-文本 3-表格 4-语音 100-自定义导入";
 
-    public static final String ANNOTATE_TYPE_RULE = "数据标注类型参数不对, 请使用: 1-目标检测 2-图像分类 5-目标跟踪 6-文本分类 7-语义分割 8-声音分类 9-语音识别 100-自定义导入";
+    public static final String ANNOTATE_TYPE_RULE = "数据标注类型参数不对, 请使用: 102-目标检测 101-图像分类 201-目标跟踪 301-文本分类 103-语义分割 401-声音分类 402-语音识别 10001-自定义导入";
+
+    public static final String ANNOTATE_FILE_TYPE_RULE = "文件标注信息不对，请使用: 0-全部 304-无标注信息 303-有标注信息";
 
     /**
      * 排序规则
@@ -266,6 +268,17 @@ public class Constant {
      */
     public static final String ABSTRACT_NAME_PREFIX = "abstract_";
 
+    public static final String MODEL_SERVICE_COMMAND = "cd /dubhe_data_process && python main.py %s %s %s,%s,%s,%s";
 
+    public static final  String TRUE = "True";
 
+    public final static String FALSE = "False";
+
+    public static final String DATA_PROCESS_PATH="/dubhe_data_process";
+    public static final String DATA_PROCESS_ALGORITHM_PATH="/dubhe_data_process/algorithm/%s";
+    public static final String DATA_PROCESS_HOST_PATH="/dubhe_data_process";
+
+    public static final String DATA_PROCESS_NFS_PATH="/nfs";
+
+    public static final String DATA_PROCESS_HOST_NFS_PATH="/nfs";
 }

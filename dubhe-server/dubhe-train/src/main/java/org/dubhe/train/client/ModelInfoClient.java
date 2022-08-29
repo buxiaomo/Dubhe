@@ -25,6 +25,7 @@ import org.dubhe.train.client.fallback.ModelInfoClientFallback;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.cloud.openfeign.SpringQueryMap;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -50,4 +51,9 @@ public interface ModelInfoClient {
      */
     @GetMapping("/ptModelInfo/conditionQuery")
     DataResponseBody<List<PtModelInfoQueryVO>> getConditionQuery(@SpringQueryMap PtModelInfoConditionQueryDTO ptModelInfoConditionQueryDTO);
+
+    @GetMapping("/ptModelInfo/atlasModel")
+    DataResponseBody<PtModelInfoQueryVO> getAtlasModels(@RequestParam String name);
+
+
 }

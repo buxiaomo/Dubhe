@@ -57,13 +57,15 @@ the License. * ============================================================= */
       :row="importRow"
       :visible="uploadDataFileVisible"
       :closeUploadDataFile="closeUploadDataFile"
+      :hideUploadDataFile="hideUploadDataFile"
     />
     <div class="mb-10 flex flex-between">
       <el-tabs :value="activePanel" class="eltabs-inlineblock" @tab-click="handlePanelClick">
         <el-tab-pane label="我的数据集" name="0" />
         <el-tab-pane label="预置数据集" name="2" />
       </el-tabs>
-      <div>
+      <div class="flex flex-vertical-align">
+        <TenantSelector :datasetListType="datasetListType" class="mr-8" />
         <el-tooltip effect="dark" content="刷新" placement="top">
           <el-button
             class="filter-item with-border"
@@ -72,7 +74,6 @@ the License. * ============================================================= */
             @click="onResetFresh"
           />
         </el-tooltip>
-        <TenantSelector :datasetListType="datasetListType" style="margin: 0 3px 10px 10px;" />
       </div>
     </div>
     <!--表格渲染-->
@@ -230,17 +231,18 @@ the License. * ============================================================= */
         fixed="right"
         min-width="330"
         align="left"
+        :stopRunning="stopRunning"
         :showPublish="showPublish"
         :uploadDataFile="showUploadDataFile"
         :goDetail="goDetail"
-        :autoAnnotate="autoAnnotate"
         :gotoVersion="gotoVersion"
-        :reAnnotation="reAnnotation"
-        :track="track"
+        :showTrack="showTrack"
         :dataEnhance="showDataEnhance"
         :topDataset="topDataset"
         :editDataset="showEditDataset"
+        :showAutoAnnotate="showAutoAnnotate"
         :checkImport="checkImport"
+        :modelTypeList="modelTypeList"
       />
     </el-table>
     <!--分页组件-->
@@ -280,25 +282,36 @@ the License. * ============================================================= */
       :handleCancel="handleCancel"
       :handleOk="handleEditDataset"
     />
+    <AutoAnnotate
+      :key="`autoAnnotate_${autoAnnotateKey}`"
+      :visible="actionModal.show && actionModal.type === 'autoAnnotate'"
+      :loading="actionModal.showOkLoading"
+      :row="actionModal.row"
+      :handleCancel="handleCancel"
+      @ok="handleAutoAnnotate"
+    />
+    <Track
+      :key="`track_${trackKey}`"
+      :visible="actionModal.show && actionModal.type === 'track'"
+      :loading="actionModal.showOkLoading"
+      :row="actionModal.row"
+      :handleCancel="handleCancel"
+      @ok="handleTrack"
+    />
   </div>
 </template>
 
 <script>
+import { inject } from '@vue/composition-api';
 import { Message } from 'element-ui';
-import { isNil, omit, findKey } from 'lodash';
+import { isNil, omit, findKey, pick } from 'lodash';
 import { mapState } from 'vuex';
 import CopyToClipboard from 'vue-copy-to-clipboard';
 
 import CRUD, { presenter, header, form, crud } from '@crud/crud';
 import rrOperation from '@crud/RR.operation';
 import cdOperation from '@crud/CD.operation';
-import {
-  publish,
-  autoAnnotate,
-  annotateStatus,
-  delAnnotation,
-  track,
-} from '@/api/preparation/annotation';
+import { publish, annotateStatus, track } from '@/api/preparation/annotation';
 import crudDataset, {
   editDataset,
   detail,
@@ -306,7 +319,9 @@ import crudDataset, {
   topDataset,
   queryDatasetsProgress,
   queryDatasetStatus,
+  stopRunning,
 } from '@/api/preparation/dataset';
+import { startAutoService } from '@/api/preparation/model';
 import datePickerMixin from '@/mixins/datePickerMixin';
 
 import {
@@ -320,16 +335,18 @@ import {
   isStatus,
   isIncludeStatus,
   getDatasetType,
-  annotationCodeMap,
+  annotationMap,
   isPublishDataset,
   isPresetDataset,
   isCustomDataset,
   annotationBy,
+  objectDetectionLikeUrl,
 } from '@/views/dataset/util';
 import Edit from '@/components/InlineTableEdit';
 import BaseModal from '@/components/BaseModal';
 import DropdownHeader from '@/components/DropdownHeader';
 import { toFixed, isEqualByProp, formatDateTime, replace } from '@/utils';
+import { modelTypeSymbol } from '@/utils/constant';
 import { TableTooltip } from '@/hooks/tooltip';
 import store from '@/store';
 import TenantSelector from '../components/tenant';
@@ -340,6 +357,8 @@ import Action from './action';
 import Publish from './publish';
 import DataEnhance from './data-enhance';
 import EditDataset from './edit-dataset';
+import AutoAnnotate from './auto-annotate';
+import Track from './track';
 import UploadDataFile from './upload-datafile';
 import '../style/list.scss';
 
@@ -381,6 +400,8 @@ export default {
     CopyToClipboard,
     UploadDataFile,
     DropdownHeader,
+    AutoAnnotate,
+    Track,
   },
   beforeRouteEnter(to, from, next) {
     // 拦截非视觉场景
@@ -411,6 +432,8 @@ export default {
       uploadDataFileVisible: false, // 单独导入数据文件的对话框
       enhanceKey: 1000,
       editKey: 1,
+      autoAnnotateKey: 1,
+      trackKey: 1,
       currentRow: null,
       annotateType: null,
       dataType: null,
@@ -547,7 +570,7 @@ export default {
     // tooltip的key，需要根据数据集类型进行过滤
     progressKeys(row) {
       const keys = Object.keys(annotationProgressMap);
-      if (row.annotateType !== annotationCodeMap.TRACK) {
+      if (row.annotateType !== annotationMap.ObjectTracking.code) {
         return keys.filter((key) => key !== 'finishAutoTrack');
       }
       return keys;
@@ -702,7 +725,7 @@ export default {
     async goDetail(row) {
       // 自定义数据类型的数据集 不论标注类型 都是查看文件
       if (isCustomDataset(row)) {
-        const customUrlPrefix = annotationByCode(annotationCodeMap.CUSTOM, 'urlPrefix');
+        const customUrlPrefix = annotationByCode(annotationMap.Custom.code, 'urlPrefix');
         this.$router.push({
           path: `/data/datasets/${customUrlPrefix}/${row.id}`,
         });
@@ -718,11 +741,36 @@ export default {
         return Message.error('数据集当前状态不能进行查看');
       }
       const urlPrefix = annotationByCode(row.annotateType, 'urlPrefix');
-      !!urlPrefix &&
+      if (!urlPrefix) return false;
+      // 如果是目标是目标检测、分割、跟踪，跳转到文件管理页面
+      if (objectDetectionLikeUrl(urlPrefix)) {
+        this.$router.push({
+          path: `/data/datasets/${row.id}/file-management`,
+        });
+      } else {
         this.$router.push({
           path: `/data/datasets/${urlPrefix}/${row.id}`,
         });
-      return null;
+      }
+      return false;
+    },
+
+    // 停止进行中的操作
+    stopRunning(row) {
+      return stopRunning(row.id)
+        .then(() => {
+          this.$message({
+            message: '进行中的任务已停止',
+            type: 'success',
+          });
+        })
+        .catch((e) => {
+          this.$message({
+            message: e.message || '停止失败',
+            type: 'error',
+          });
+        })
+        .finally(() => this.crud.refresh());
     },
 
     // 历史版本
@@ -731,9 +779,9 @@ export default {
         path: `/data/datasets/${row.id}/version`,
       });
     },
-    autoAnnotate(row) {
+    autoAnnotate(row, data) {
       this.$set(row, 'pollIng', true); // 新增响应式变量，并设置禁用操作台按钮
-      return autoAnnotate([row.id])
+      return startAutoService(data)
         .then(() => {
           this.$message({
             message: '自动标注任务开始',
@@ -749,6 +797,19 @@ export default {
             type: 'error',
           });
         });
+    },
+    handleAutoAnnotate(model = {}) {
+      Object.assign(this.actionModal, {
+        showOkLoading: true,
+      });
+      const { labelService, id, status } = model;
+      return this.autoAnnotate(this.actionModal.row, {
+        datasetIds: [id],
+        modelServiceId: labelService,
+        fileStatus: status,
+      }).finally(() => {
+        this.resetActionModal();
+      });
     },
     filter(column, value) {
       this[column] = value;
@@ -786,6 +847,9 @@ export default {
       this.importRow = null;
       this.uploadDataFileVisible = false;
       this.onResetFresh();
+    },
+    hideUploadDataFile() {
+      this.uploadDataFileVisible = false;
     },
     // 统计完成进度
     getAllFinished(progress = {}) {
@@ -978,6 +1042,12 @@ export default {
     showEditDataset(row) {
       this.showActionModal(row, 'editDataset');
     },
+    showAutoAnnotate(row) {
+      this.showActionModal(row, 'autoAnnotate');
+    },
+    showTrack(row) {
+      this.showActionModal(row, 'track');
+    },
     // 轮询查询数据集状态
     checkImport(row) {
       this.$set(row, 'pollIng', true);
@@ -998,6 +1068,12 @@ export default {
       }
       if (this.actionModal.type === 'editDataset') {
         this.editKey += 1;
+      }
+      if (this.actionModal.type === 'autoAnnotate') {
+        this.autoAnnotateKey += 1;
+      }
+      if (this.actionModal.type === 'track') {
+        this.trackKey += 1;
       }
       this.actionModal = {
         show: false,
@@ -1020,6 +1096,8 @@ export default {
             datasetId: model.id,
             versionNote: model.versionNote || '',
             ofRecord: model.ofRecord,
+            format: model.format,
+            containOrigin: model.containOrigin,
           });
           setTimeout(() => {
             this.crud.toQuery();
@@ -1030,33 +1108,12 @@ export default {
         return null;
       });
     },
-    reAnnotation(row) {
-      return delAnnotation(row.id)
+    startTrack(row, modelServiceId) {
+      this.$set(row, 'pollIng', true); // 新增响应式变量，并设置禁用操作台按钮
+      return track(row.id, modelServiceId)
         .then(() => {
-          this.$set(row, 'pollIng', true); // 新增响应式变量，并设置禁用操作台按钮
           this.$message({
-            message: '重新自动标注任务开始',
-            type: 'success',
-          });
-          // 启动自动标注轮询
-          this.poll(row, 'AUTO_ANNOTATING');
-        })
-        .catch((e) => {
-          row.pollIng = false;
-          this.$message({
-            message: e.message || '重新自动标注任务失败',
-            type: 'error',
-          });
-        });
-    },
-    track(row, retry) {
-      const messageText1 = retry ? '重新目标跟踪任务开始' : '目标跟踪任务开始';
-      const messageText2 = retry ? '重新目标跟踪任务失败' : '目标跟踪任务失败';
-      return track(row.id)
-        .then(() => {
-          this.$set(row, 'pollIng', true);
-          this.$message({
-            message: messageText1,
+            message: '目标跟踪任务开始',
             type: 'success',
           });
           // 启动目标跟踪轮询
@@ -1065,10 +1122,18 @@ export default {
         .catch((e) => {
           row.pollIng = false;
           this.$message({
-            message: e.message || messageText2,
+            message: e.message || '目标跟踪任务失败',
             type: 'error',
           });
         });
+    },
+    handleTrack(model = {}) {
+      Object.assign(this.actionModal, {
+        showOkLoading: true,
+      });
+      return this.startTrack(this.actionModal.row, model.labelService).finally(() => {
+        this.resetActionModal();
+      });
     },
     handleDataEnhance(model, row) {
       Object.assign(this.actionModal, {
@@ -1094,13 +1159,9 @@ export default {
         showOkLoading: true,
       });
       const editForm = {
+        ...pick(data, ['name', 'labelGroupId', 'dataType', 'annotateType', 'module', 'remark']),
         id: row.id,
-        name: data.name,
-        labelGroupId: data.labelGroupId,
-        dataType: data.dataType,
-        annotateType: data.annotateType,
         presetLabelType: '',
-        remark: data.remark,
         type: 0,
       };
       return editDataset(editForm)
@@ -1116,6 +1177,13 @@ export default {
           this.onResetFresh();
         });
     },
+  },
+  setup() {
+    const modelTypeList = inject(modelTypeSymbol);
+
+    return {
+      modelTypeList,
+    };
   },
 };
 </script>

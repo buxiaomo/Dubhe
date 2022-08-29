@@ -17,6 +17,7 @@
 package org.dubhe.dcm.service;
 
 
+import com.alibaba.fastjson.JSONObject;
 import org.dubhe.dcm.domain.dto.MedicineAnnotationDTO;
 import org.dubhe.dcm.domain.dto.MedicineAutoAnnotationDTO;
 import org.dubhe.dcm.domain.entity.DataMedicineFile;
@@ -43,7 +44,7 @@ public interface MedicineAnnotationService {
      *
      * @return boolean 是否有任务
      */
-    boolean finishAuto();
+    void finishAuto(JSONObject taskDetail);
 
     /**
      * 标注保存

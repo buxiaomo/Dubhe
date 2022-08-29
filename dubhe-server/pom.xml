@@ -38,6 +38,7 @@
         <module>dubhe-serving-gateway</module>
         <module>dubhe-terminal</module>
         <module>dubhe-tadl</module>
+        <module>dubhe-point-cloud</module>
     </modules>
 
 

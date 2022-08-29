@@ -47,6 +47,10 @@ public enum DatatypeEnum {
      */
     AUDIO(4, "语音"),
     /**
+     * 点云
+     */
+    POINT_CLOUD(5,"点云"),
+    /**
      * 自定义导入
      */
     AUTO_IMPORT(100, "自定义导入");
@@ -92,6 +96,8 @@ public enum DatatypeEnum {
                 return TABLE;
             case 4:
                 return AUDIO;
+            case 5:
+                return POINT_CLOUD;
             default:
                 return IMAGE;
         }

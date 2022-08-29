@@ -25,7 +25,6 @@
           ref="upload"
           :disabled="!requestUrl || disabled"
           multiple
-          accept=".jpg,.png,.bmp,.jpeg"
           :action="requestUrl"
           :auto-upload="false"
           :on-change="onFileChange"
@@ -91,7 +90,7 @@ export default {
       return this.type === ONLINE_SERVING_TYPE.GRPC;
     },
     predictContent() {
-      return `仅支持预测 JPG、JPEG、PNG、BMP 格式的文件，且单次预测选择的文件大小总计不超过 ${servingConfig.onlinePredictFileSizeSum}MB`;
+      return `单次预测选择的文件大小总计不超过 ${servingConfig.onlinePredictFileSizeSum}MB`;
     },
   },
   activated() {

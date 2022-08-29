@@ -1,22 +1,35 @@
+/** Copyright 2020 Tianshu AI Platform. All Rights Reserved. * * Licensed under the Apache License,
+Version 2.0 (the "License"); * you may not use this file except in compliance with the License. *
+You may obtain a copy of the License at * * http://www.apache.org/licenses/LICENSE-2.0 * * Unless
+required by applicable law or agreed to in writing, software * distributed under the License is
+distributed on an "AS IS" BASIS, * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+implied. * See the License for the specific language governing permissions and * limitations under
+the License. * ============================================================= */
+
 <template>
   <div style="width: 600px;">
     <el-form-item label="文件类型" prop="fileType">
       <div class="image-select flex flex-wrap">
         <div
           v-for="item in fileTypeList"
-          :key="item"
-          :class="getImageKlass(item)"
-          @click="selectFileType(item)"
+          :key="item.name"
+          :class="getImageKlass(item.name)"
+          @click="selectFileType(item.name)"
         >
-          <div class="image-title">{{ item }}</div>
-          <IconFont :type="item" class="fileIcon" />
+          <div class="image-title">{{ item.name }}</div>
+          <IconFont :type="item.icon" class="fileIcon" />
           <span>
             <i class="check-icon" />
           </span>
         </div>
       </div>
       <el-input :value="state.form.fileType" class="dn" />
-      <div class="el-form-item__tip"><el-link>没有数据？查看并下载预置模板</el-link></div>
+      <div class="el-form-item__tip">
+        <el-link
+          href="http://docs.tianshu.org.cn/assets/files/template-10dbac08a9f37fd8b9641944af77b74f.zip"
+          >没有数据？查看并下载预置模板</el-link
+        >
+      </div>
     </el-form-item>
     <el-form-item label="上传文件" prop="file">
       <upload-inline
@@ -90,7 +103,7 @@ export default {
     };
 
     const uploadOptions = computed(() => {
-      const accept = props.state.form.fileType === 'csv' ? '.csv' : '.xls,.xlsx';
+      const accept = props.state.form.fileType === 'csv' ? '.csv' : '.xlsx';
       return {
         ...tableUploadProps,
         accept,

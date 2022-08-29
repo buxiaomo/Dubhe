@@ -159,7 +159,7 @@
 
       .statisticContaierContent {
         width: 100%;
-        // height: 80%
+
         .runTag {
           width: 100%;
         }
@@ -275,16 +275,20 @@
   </div>
 </template>
 <script>
-import { createNamespacedHelpers } from 'vuex';
-import statisticContainer from '../statistics/drawStatistic/statisticContainer';
-import ImageContainer from '../medias/image/imagecontainer/ImageContainer';
-import TextContainer from '../medias/text/textContainer/TextContainer';
-import AudioContainer from '../medias/audio/audioContainer/AudioContainer';
-import ScalarContainer from '../scalars/scalarcontainer/ScalarCustom';
+import statisticContainer from '@/views/visual/Visual/statistics/drawStatistic/statisticContainer.vue';
+import ImageContainer from '@/views/visual/Visual/medias/image/imagecontainer/ImageContainer.vue';
+import TextContainer from '@/views/visual/Visual/medias/text/textContainer/TextContainer.vue';
+import AudioContainer from '@/views/visual/Visual/medias/audio/audioContainer/AudioContainer.vue';
+import ScalarContainer from '@/views/visual/Visual/scalars/scalarcontainer/ScalarCustom.vue';
 
-const { mapMutations: mapCustomMutations, mapGetters: mapCustomGetters } = createNamespacedHelpers(
-  'Visual/custom'
-);
+import { createNamespacedHelpers } from 'vuex';
+
+const {
+  mapActions: mapCustomActions,
+  mapMutations: mapCustomMutations,
+  mapGetters: mapCustomGetters,
+} = createNamespacedHelpers('Visual/custom');
+const { mapGetters: mapLayoutGetters } = createNamespacedHelpers('Visual/layout');
 
 export default {
   components: {
@@ -325,6 +329,7 @@ export default {
     };
   },
   computed: {
+    ...mapLayoutGetters(['getTimer']),
     ...mapCustomGetters([
       'getAudioData',
       'getTextData',
@@ -339,11 +344,41 @@ export default {
     next();
   },
   watch: {
+    getTimer() {
+      for (let i = 0; i < Object.keys(this.scalarData).length; i++) {
+        const run = Object.keys(this.scalarData)[i].split(' ')[0];
+        const tag = Object.keys(this.scalarData)[i].split(' ')[1];
+        this.getScalarDataInterval({ run, tag });
+      }
+      for (let i = 0; i < this.audioData.length; i++) {
+        this.getAudioDataInterval([i, this.audioData[i]]);
+      }
+      for (let i = 0; i < this.imageData.length; i++) {
+        this.getImageDataInterval([i, this.imageData[i]]);
+      }
+      for (let i = 0; i < this.textData.length; i++) {
+        this.getTextDataInterval([i, this.textData[i]]);
+      }
+      for (let i = 0; i < this.statisticData.length; i++) {
+        this.getStatisticDataInterval([i, this.statisticData[i]]);
+      }
+    },
     getAudioData() {
       this.audioData = this.getAudioData;
       if (this.audioData.length === 0) {
         this.hasAudio.hasData = 0;
         this.hasAudio.showFlag = 0;
+      }
+      if (
+        this.audioData.length ||
+        this.textData.length ||
+        this.imageData.length ||
+        this.statisticData.length ||
+        Object.keys(this.scalarData).length
+      ) {
+        this.hasData = true;
+      } else {
+        this.hasData = false;
       }
     },
     getTextData() {
@@ -442,6 +477,13 @@ export default {
   },
   methods: {
     ...mapCustomMutations(['setTextData', 'setRouter']),
+    ...mapCustomActions([
+      'getAudioDataInterval',
+      'getImageDataInterval',
+      'getTextDataInterval',
+      'getScalarDataInterval',
+      'getStatisticDataInterval',
+    ]),
     showContent(title) {
       this[title].showFlag = (this[title].showFlag + 1) % 2;
     },

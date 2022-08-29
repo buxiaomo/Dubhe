@@ -92,7 +92,7 @@ export default {
     },
     accept() {
       if (this.isAtlas) {
-        return '.pth';
+        return '.zip';
       }
       if (this.modelType) {
         if (this.modelSuffixMap[this.modelType]) {

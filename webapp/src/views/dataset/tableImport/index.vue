@@ -20,7 +20,7 @@
       <div class="app-page-header">
         <div class="app-page-header-title">导入表格</div>
         <div class="app-page-header-content">
-          <div>支持 csv/xls 文件格式导入，文件大小不能超过 5M</div>
+          <div>支持 csv/xlsx 文件格式导入，文件大小不能超过 5M</div>
           <div>文件预览时间和大小、网络相关，请耐心等待</div>
           <div>表格上传完毕，需要进一步对表格进行解析、转换，请耐心等待</div>
         </div>
@@ -120,7 +120,16 @@ export default {
     const tableForm = ref(null);
     const uploadRef = ref(null);
 
-    const fileTypeList = ['csv', 'xls'];
+    const fileTypeList = [
+      {
+        name: 'csv',
+        icon: 'dataset-csv',
+      },
+      {
+        name: 'xlsx',
+        icon: 'dataset-xlsx',
+      },
+    ];
 
     const ruleSteps = [
       {

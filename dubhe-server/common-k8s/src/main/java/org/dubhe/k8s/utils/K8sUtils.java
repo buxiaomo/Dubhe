@@ -82,32 +82,20 @@ public class K8sUtils implements ApplicationContextAware {
      * @param clusterProperties
      * @throws IOException
      */
-    public K8sUtils(ClusterProperties clusterProperties) throws IOException{
+    public K8sUtils(ClusterProperties clusterProperties, String certificateAuthorityData, String server, String clientCertificateData, String clientKeyData) throws IOException{
         String kubeConfig = clusterProperties.getKubeconfig();
-        if (StrUtil.isNotBlank(kubeConfig)) {
-            String kubeConfigFile = getKubeconfigFile(kubeConfig);
-            //修改环境变量，重新指定kubeconfig读取位置
-            System.setProperty(Config.KUBERNETES_KUBECONFIG_FILE, kubeConfigFile);
-            client = new DefaultKubernetesClient();
-            config = client.getConfiguration();
 
-        } else {
-            LogUtil.warn(LogEnum.BIZ_K8S, "can't find kubeconfig in classpath, ignoring");
-            String k8sUrl = clusterProperties.getUrl();
-            if (k8sUrl.startsWith(HTTPS_PREFIX)) {
-                config = new ConfigBuilder().withMasterUrl(k8sUrl)
-                        .withTrustCerts(true)
-                        .withCaCertData(IOUtils.toString(clusterProperties.getCaCrt().getInputStream(), "UTF-8"))
-                        .withClientCertData(Base64.getEncoder().encodeToString(IOUtils.toByteArray(clusterProperties.getClientCrt().getInputStream())))
-                        .withClientKeyData(IOUtils.toString(clusterProperties.getClientKey().getInputStream(), "UTF-8"))
-                        .build();
-            } else {
-                config = new ConfigBuilder().withMasterUrl(k8sUrl).build();
-            }
-            LogUtil.info(LogEnum.BIZ_K8S, "config信息为{}", JSON.toJSONString(config));
-            client = new DefaultKubernetesClient(config);
-            LogUtil.info(LogEnum.BIZ_K8S, "client为{}", JSON.toJSONString(client));
-        }
+        LogUtil.warn(LogEnum.BIZ_K8S, "can't find kubeconfig in classpath, ignoring");
+        config = new ConfigBuilder().withMasterUrl(server)
+                .withCaCertData(certificateAuthorityData)
+                .withClientCertData(clientCertificateData)
+                .withClientKeyData(clientKeyData)
+                .build();
+
+        LogUtil.info(LogEnum.BIZ_K8S, "config信息为{}", JSON.toJSONString(config));
+        client = new DefaultKubernetesClient(config);
+        LogUtil.info(LogEnum.BIZ_K8S, "client为{}", JSON.toJSONString(client));
+
 
         nfs = clusterProperties.getNfs();
         host = clusterProperties.getHost();

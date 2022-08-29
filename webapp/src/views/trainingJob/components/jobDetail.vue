@@ -35,9 +35,12 @@
       </el-col>
       <el-col :xl="12" :span="24">
         <div class="label">训练数据集</div>
-        <div class="text">{{ item.dataSourceName }}</div>
+        <div v-if="item.modelResource !== MODEL_RESOURCE_ENUM.ATLAS" class="text">
+          {{ item.dataSourceName }}
+        </div>
+        <div v-else class="text">{{ item.dataSourceNameList }}</div>
       </el-col>
-      <el-col :xl="12" :span="24">
+      <el-col v-if="item.modelResource !== MODEL_RESOURCE_ENUM.ATLAS" :xl="12" :span="24">
         <div class="label">验证数据集</div>
         <div class="text">{{ item.valDataSourceName }}</div>
       </el-col>
@@ -128,21 +131,13 @@
           </el-tooltip>
         </div>
       </el-col>
-      <el-col :span="24">
+      <el-col :span="24" style="display: flex;">
         <div class="label">运行命令</div>
-        <div class="text">{{ item.runCommand }}</div>
-      </el-col>
-      <el-col :span="24" class="dynamic">
-        <div class="label">运行参数</div>
-        <div class="text">
-          <span v-for="(p, index) in runParamsList" :key="p.key"
-            >{{ p.key }} = {{ p.value }} {{ index === runParamsList.length - 1 ? '' : ', ' }}</span
-          >
-        </div>
+        <div class="text long-text">{{ preview }}</div>
       </el-col>
       <el-col :xl="12" :span="24">
         <div class="label">训练类型</div>
-        <div class="text">{{ trainTypeMap[item.trainType] }}</div>
+        <div class="text">{{ TRAINING_TYPE_MAP[item.trainType] }}</div>
       </el-col>
       <el-col :xl="12" :span="24">
         <div class="label">节点数</div>
@@ -151,7 +146,7 @@
       <el-col :span="24">
         <div class="label">节点规格</div>
         <div class="text">
-          {{ spec && spec.specsName }}
+          {{ item.trainJobSpecsName }}
         </div>
       </el-col>
     </el-row>
@@ -167,18 +162,12 @@
 
 <script>
 import { isNil } from 'lodash';
-import {
-  convertMapToList,
-  downloadZipFromObjectPath,
-  RESOURCES_MODULE_ENUM,
-  MODEL_RESOURCE_ENUM,
-} from '@/utils';
+import { convertMapToList, downloadZipFromObjectPath, MODEL_RESOURCE_ENUM } from '@/utils';
 import { createNotebook, getNotebookAddress } from '@/api/development/notebook';
 import { getTrainModel } from '@/api/trainingJob/job';
-import { list as getSpecsNames } from '@/api/system/resources';
 
 import pathSelectDialog from './pathSelectDialog';
-import { TRAINING_STATUS_ENUM } from '../utils';
+import { TRAINING_STATUS_ENUM, TRAINING_TYPE_MAP } from '../utils';
 
 export default {
   name: 'JobDetail',
@@ -199,12 +188,8 @@ export default {
 
       runParamsList: [],
       editLoading: false,
-      trainTypeMap: {
-        0: '普通训练',
-        1: '分布式训练',
-      },
+      TRAINING_TYPE_MAP,
       modelList: [],
-      specList: [],
       teacherModelList: [],
       studentModelList: [],
 
@@ -212,6 +197,55 @@ export default {
     };
   },
   computed: {
+    preview() {
+      const { item } = this;
+      if (item.modelResource === MODEL_RESOURCE_ENUM.ATLAS) {
+        let str = item.runCommand;
+        // eslint-disable-next-line no-template-curly-in-string
+        str += '  --teacher_path_list=${teacher_path_1,teacher_path_2,...}';
+        // eslint-disable-next-line no-template-curly-in-string
+        str += '  --student_path_list=${student_path}';
+        // eslint-disable-next-line no-template-curly-in-string
+        str += ' --atlas_dataset_paths=${atlas_dataset_path_1,atlas_dataset_path_2,...)}';
+        if (item.resourcesPoolType) {
+          // eslint-disable-next-line no-template-curly-in-string
+          str += ' --gpu_num_per_node=${gpu_num}';
+        }
+        if (item.resourcesPoolNode > 1) {
+          str += ` --num_nodes=${item.resourcesPoolNode} --node_ips=\${node_ips}`;
+        }
+        return str;
+      }
+      let str = item.runCommand;
+      const { runParamsNameMap } = item;
+      const dataUrl = runParamsNameMap?.dataUrl
+        ? `  --${runParamsNameMap.dataUrl}=/dataset `
+        : '  --data_url=/dataset';
+      const valDataUrl = runParamsNameMap?.valDataUrl
+        ? `  --${runParamsNameMap.valDataUrl}=/valdataset `
+        : '  --val_data_url=/valdataset';
+      const modelLoadDir = runParamsNameMap?.modelLoadDir
+        ? `  --${runParamsNameMap.modelLoadDir}=/modeldir `
+        : '  --model_load_dir=/modeldir';
+      const trainModelOut = runParamsNameMap?.trainModelOut
+        ? `  --${runParamsNameMap.trainModelOut}=/workspace/model-out `
+        : '  --train_model_out=/workspace/model-out';
+
+      str += item.dataSourceName && item.dataSourcePath ? dataUrl : '';
+      str += item.valDataSourceName && item.valDataSourcePath ? valDataUrl : '';
+      str += item.modelId && item.modelBranchId ? modelLoadDir : '';
+      str += trainModelOut;
+      str += '  --train_out=/workspace/out';
+
+      if (item.resourcesPoolType) {
+        // eslint-disable-next-line no-template-curly-in-string
+        str += ' --gpu_num_per_node=${gpu_num}';
+      }
+      if (item.resourcesPoolNode > 1) {
+        str += ` --num_nodes=${item.resourcesPoolNode} --node_ips=\${node_ips}`;
+      }
+      return str;
+    },
     outputDisableTooltip() {
       switch (this.item.trainStatus) {
         case TRAINING_STATUS_ENUM.PENDING:
@@ -244,9 +278,6 @@ export default {
     isParam() {
       return this.type === 'param';
     },
-    spec() {
-      return this.specList.find((spec) => spec.specsName === this.item.trainJobSpecsName);
-    },
     trainModel() {
       return this.modelList.length ? this.modelList[0] : {};
     },
@@ -264,27 +295,39 @@ export default {
     item: {
       async handler(item) {
         this.runParamsList = convertMapToList(item.runParams);
-        if (!isNil(item.resourcesPoolType)) {
-          this.specList = (
-            await getSpecsNames({
-              module: RESOURCES_MODULE_ENUM.TRAIN,
-              resourcesPoolType: item.resourcesPoolType,
-            })
-          ).result;
-        }
         if (isNil(item.modelResource)) {
           return;
         }
-        const { modelList, teacherModelList, studentModelList } = await getTrainModel({
-          modelResource: item.modelResource,
-          modelId: item.modelId || undefined,
-          modelBranchId: item.modelBranchId || undefined,
-          teacherModelIds: item.teacherModelIds || undefined,
-          studentModelIds: item.studentModelIds || undefined,
-        });
-        this.modelList = modelList || [];
-        this.teacherModelList = teacherModelList || [];
-        this.studentModelList = studentModelList || [];
+        if (item.modelResource === MODEL_RESOURCE_ENUM.ATLAS) {
+          this.studentModelList = [];
+          this.studentModelList.push({ name: item.studentModelStruct });
+          if (item?.baseAtlasParams) {
+            this.teacherModelList = [];
+            const dataSourceNameList = [];
+            for (const el of item.baseAtlasParams) {
+              if (el.teacherModelStruct) {
+                this.teacherModelList.push({ name: el.teacherModelStruct });
+              }
+              if (el.datasetVersion) {
+                dataSourceNameList.push(`${el.dataSourceName}:${el.datasetVersion}`);
+              } else {
+                dataSourceNameList.push(el.dataSourceName);
+              }
+            }
+            item.dataSourceNameList = dataSourceNameList.join(',');
+          }
+        } else {
+          const { modelList, teacherModelList, studentModelList } = await getTrainModel({
+            modelResource: item.modelResource,
+            modelId: item.modelId || undefined,
+            modelBranchId: item.modelBranchId || undefined,
+            teacherModelIds: item.teacherModelIds || undefined,
+            studentModelIds: item.studentModelIds || undefined,
+          });
+          this.modelList = modelList || [];
+          this.teacherModelList = teacherModelList || [];
+          this.studentModelList = studentModelList || [];
+        }
       },
       immediate: true,
     },
@@ -383,8 +426,17 @@ export default {
 
 <style lang="scss" scoped>
 .job-detail-container {
+  padding-left: 24px;
+
   .label {
     width: 110px;
+    margin: 0;
+  }
+
+  .long-text {
+    flex: 1;
+    word-break: break-all;
+    white-space: normal;
   }
 }
 </style>

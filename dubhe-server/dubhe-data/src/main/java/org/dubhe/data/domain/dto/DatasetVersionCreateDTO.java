@@ -29,6 +29,7 @@ import org.dubhe.data.constant.Constant;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * @description 数据集版本
@@ -68,6 +69,25 @@ public class DatasetVersionCreateDTO implements Serializable {
     @ApiModelProperty(value = "ofRecord转换")
     @NotNull(message = "转换标志不能为空")
     private Integer ofRecord;
+
+    /**
+     * 版本数据集格式
+     */
+    @ApiModelProperty(value = "格式")
+    @NotNull(message = "版本格式不能为空")
+    private String format;
+
+    /**
+     * 文件状态列表
+     */
+    @ApiModelProperty(value = "文件状态列表")
+    private List<Integer> fileStatus;
+
+    /**
+     * 标签id列表
+     */
+    @ApiModelProperty(value = "标签id列表")
+    private List<Long> labels;
 
     public @interface Create {
     }

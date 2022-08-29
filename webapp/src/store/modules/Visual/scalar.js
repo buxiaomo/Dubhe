@@ -14,13 +14,22 @@
  * =============================================================
  */
 
+/* eslint-disable no-irregular-whitespace */
+/*
+ * @Descripttion: state.scalar
+ * @version: 1.0
+ * @Author: xds
+ * @Date: 2020-05-02 07:10:51
+ * @LastEditors: Please set LastEditors
+ * @LastEditTime: 2021-07-29 10:46:40
+ */
 import http from '@/utils/VisualUtils/request';
 import port from '@/utils/VisualUtils/api';
 
 const state = {
   initshowrun: {},
   categoryInfo: '', // 存放自己的类目信息
-  detailData: '', // 具体全部数据
+  detailData: {}, // 具体全部数据
   clickState: false,
   smoothvalue: 0, // 平滑参数
   yaxis: 'linear', // y轴数据类型
@@ -44,6 +53,7 @@ const state = {
   mergedorder: {},
   showFlag: {},
   subisshow: {},
+  IntervalChange: false, // 监听定时刷新功能
 };
 
 const getters = {
@@ -72,13 +82,14 @@ const getters = {
   mergedorder: (state) => state.mergedorder,
   showFlag: (state) => state.showFlag,
   subisshow: (state) => state.subisshow,
+  getIntervalChange: (state) => state.IntervalChange,
 };
 
 const actions = {
   async getSelfCategoryInfo(context, param) {
     const initDetailData = {};
     const initshowrun = {};
-    for (let i = 0; i < param[1].length; i += 1) {
+    for (let i = 0; i < param[1].length; i++) {
       Object.keys(param[1][i]).forEach((value) => {
         initDetailData[value] = [];
         if (!(value in initshowrun)) {
@@ -94,37 +105,70 @@ const actions = {
       context.commit('setfreshnumber');
     }
   },
+  async getIntervalSelfCategoryInfo(context, param) {
+    context.commit('setIntervalSelfCategoryInfo', param);
+  },
   async getData(context, param) {
-    if (context.state.detailData[param[0]].length === 0) {
-      for (let j = 0; j < param[1].length; j += 1) {
-        for (let i = 0; i < context.state.categoryInfo[0].length; i += 1) {
-          if (Object.keys(context.state.categoryInfo[1][i]).indexOf(param[0]) > -1) {
-            if (context.state.categoryInfo[1][i][param[0]].indexOf(param[1][j]) > -1) {
-              const parameter = {
-                run: context.state.categoryInfo[0][i],
-                tag: param[1][j],
-              };
-              // eslint-disable-next-line no-await-in-loop
-              await http.useGet(port.category.scalar, parameter).then((res) => {
-                // port.category.scalar 'scalar' 换成你需要的接口
-                if (+res.data.code !== 200) {
-                  context.commit('setErrorMessage', `${res.data.msg}_${new Date().getTime()}`);
-                  return;
-                }
-                context.commit('setDetailData', [
-                  param[0],
-                  { run: context.state.categoryInfo[0][i], value: res.data.data },
-                ]);
-              });
-            }
+    // if (context.state.detailData[param[0]].length === 0) {
+    for (let j = 0; j < param[1].length; j++) {
+      for (let i = 0; i < context.state.categoryInfo[0].length; i++) {
+        if (Object.keys(context.state.categoryInfo[1][i]).indexOf(param[0]) > -1) {
+          if (context.state.categoryInfo[1][i][param[0]].indexOf(param[1][j]) > -1) {
+            const parameter = {
+              run: context.state.categoryInfo[0][i],
+              tag: param[1][j],
+            };
+            await http.useGet(port.category.scalar, parameter).then((res) => {
+              // port.category.scalar 'scalar' 换成你需要的接口
+              if (+res.data.code !== 200) {
+                context.commit('setErrorMessage', `${res.data.msg}_${new Date().getTime()}`);
+                return;
+              }
+
+              context.commit('setDetailData', [
+                param[0],
+                { run: context.state.categoryInfo[0][i], value: res.data.data },
+              ]);
+            });
           }
         }
       }
     }
+    // }
   },
 };
 
 const mutations = {
+  setIntervalSelfCategoryInfo: (state, param) => {
+    if (Object.keys(state.detailData).length < param[0].length) {
+      for (let i = 0; i < param[1].length; i++) {
+        for (const value of Object.keys(param[1][i])) {
+          if (Object.keys(state.detailData).indexOf(value) == -1) {
+            state.detailData[value] = [];
+          }
+        }
+      }
+    }
+
+    const keys = Object.keys(state.initshowrun);
+    const tag = !(keys.length > 0);
+    for (let i = 0; i < param[0].length; i++) {
+      const keys = Object.keys(param[1][i]);
+      for (let j = 0; j < keys.length; j++) {
+        if (keys[j] in state.initshowrun) {
+          if (!(param[0][i] in state.initshowrun[keys[j]])) {
+            state.initshowrun[keys[j]][param[0][i]] = tag;
+          }
+        } else {
+          state.initshowrun[keys[j]] = {};
+          state.initshowrun[keys[j]][param[0][i]] = tag;
+        }
+      }
+    }
+
+    state.categoryInfo = param;
+    state.freshnumber += 1;
+  },
   setinitshowrun: (state, param) => {
     state.initshowrun = param;
   },
@@ -135,14 +179,36 @@ const mutations = {
     state.detailData = param;
   },
   setDetailData: (state, param) => {
-    state.detailData[param[0]].push(param[1]);
+    // param[0]为string，存储大tag标签，例如loss，mean，conv1等
+    // param[1]param[1]['run']存储训练模型名称，param[1]['value']存储对应param[0]的标量数据类型
+    const keys = []; // keys存储标量数据类型及模型名称，如loss-log
+
+    for (const k in param[1].value) {
+      keys.push(`${k}-${param[1].run}`);
+    }
+
+    const keys2 = []; // keys2存储第一次加载数据的存储标量数据类型及模型名称，用于和keys比较，判断替换下一次请求的数据
+    const index = []; // 一个tag下多个模型编号
+    for (const key in state.detailData[param[0]]) {
+      for (const kk in state.detailData[param[0]][key].value) {
+        keys2.push(`${kk}-${state.detailData[param[0]][key].run}`);
+        index.push(key);
+      }
+    }
+
+    for (let i = 0; i < keys.length; i++) {
+      if (keys2.indexOf(keys[i]) != -1) {
+        state.detailData[param[0]][index[keys2.indexOf(keys[i])]].value = param[1].value;
+      } else {
+        state.detailData[param[0]].push(param[1]);
+      }
+    }
   },
   setClickState: (state, param) => {
     state.clickState = param;
   },
   setFreshInfo: (state, param) => {
-    const foo = param[1];
-    state.freshInfo[param[0]] = foo;
+    state.freshInfo[param[0]] = param[1]; // false表示类目被打开
   },
   setfreshnumber: (state) => {
     state.freshnumber += 1;
@@ -158,7 +224,7 @@ const mutations = {
   },
   // 当选中时，增加合并项
   setcheckeditem: (state, param) => {
-    if (!Object.prototype.hasOwnProperty.call(state.checkeditem, param[0])) {
+    if (!state.checkeditem.hasOwnProperty(param[0])) {
       state.checkeditem[param[0]] = [];
     }
     if (JSON.stringify(state.checkeditem[param[0]]).indexOf(JSON.stringify(param[1])) === -1) {
@@ -216,7 +282,7 @@ const mutations = {
   },
   setdatainit: (state) => {
     state.checkeditem = [];
-    for (let i = 0; i < state.checkedorder.length; i += 1) {
+    for (let i = 0; i < state.checkedorder.length; i++) {
       state.downLoadArray.pop();
     }
     state.checkedorder = [];
@@ -253,24 +319,19 @@ const mutations = {
     }
   },
   setmergedorder: (state, param) => {
-    const foo = param[1];
-    state.mergedorder[param[0]] = foo;
+    state.mergedorder[param[0]] = param[1];
   },
   setgrade: (state, param) => {
-    const foo = param[1];
-    state.grade[param[0]] = foo;
+    state.grade[param[0]] = param[1];
   },
   setchecked: (state, param) => {
-    const foo = param[1];
-    state.checked[param[0]] = foo;
+    state.checked[param[0]] = param[1];
   },
   setshowFlag: (state, param) => {
-    const foo = param[1];
-    state.showFlag[param[0]] = foo;
+    state.showFlag[param[0]] = param[1];
   },
   setsubisshow: (state, param) => {
-    const foo = param[1];
-    state.subisshow[param[0]] = foo;
+    state.subisshow[param[0]] = param[1];
   },
 };
 

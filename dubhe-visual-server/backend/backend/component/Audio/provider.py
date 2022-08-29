@@ -16,7 +16,7 @@
  =============================================================
 """
 from utils.cache_io import CacheIO
-from utils.path_utils import get_file_path
+from utils.logfile_utils import get_file_path
 from .audio_read import audio_read
 from backend.api.utils import get_api_params
 import base64

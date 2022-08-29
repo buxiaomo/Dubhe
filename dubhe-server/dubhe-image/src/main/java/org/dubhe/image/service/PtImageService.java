@@ -17,6 +17,7 @@
 
 package org.dubhe.image.service;
 
+import org.dubhe.biz.base.vo.PtImageVO;
 import org.dubhe.image.domain.dto.*;
 import org.dubhe.image.domain.entity.PtImage;
 import org.dubhe.recycle.domain.dto.RecycleCreateDTO;
@@ -79,11 +80,15 @@ public interface PtImageService {
     Set<String> getImageNameList(PtImageQueryNameDTO ptImageQueryNameDTO);
 
     /**
-     * 修改镜像来源(notebook定制)
+     * 查询Notebook默认镜像
+     */
+    List<PtImage> getImageDefault();
+    /**
+     * 设置Notebook默认镜像
      *
      * @param id 镜像id
      */
-    void updImageResource(Long id);
+    void updImageDefault(Long id);
 
     /**
      * 获取镜像URL
@@ -106,4 +111,10 @@ public interface PtImageService {
      * @return List<PtImage>
      */
     List<PtImage> getTerminalImageList();
+
+    PtImageVO getById(Long id);
+
+    List<PtImageVO> listByIds(List<Long> ids);
+
+
 }

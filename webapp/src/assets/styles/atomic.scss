@@ -14,6 +14,7 @@
 * =============================================================
 */
 
+@import './variables.scss';
 @import './mixin.scss';
 
 .dn {
@@ -60,6 +61,10 @@
   display: flex;
 }
 
+.flex-auto {
+  flex: 1 1 auto;
+}
+
 .flex-between {
   justify-content: space-between;
 }
@@ -74,6 +79,10 @@
 
 .flex-col {
   flex-direction: column;
+}
+
+.flex-row {
+  flex-direction: row;
 }
 
 .flex-start {
@@ -91,6 +100,14 @@
 .flex-center {
   align-items: center;
   justify-content: center;
+}
+
+.flex-center-v {
+  align-items: center;
+}
+
+.flex-grow {
+  flex-grow: 1;
 }
 
 .f1 {
@@ -180,6 +197,18 @@
   margin-left: 4px;
 }
 
+.ml-7 {
+  margin-left: 7px;
+}
+
+.ml-8 {
+  margin-left: 8px;
+}
+
+.mr-8 {
+  margin-right: 8px;
+}
+
 .mr-4 {
   margin-right: 4px;
 }
@@ -194,6 +223,10 @@
 
 .mr-10 {
   margin-right: 10px;
+}
+
+.mr-20 {
+  margin-right: 20px;
 }
 
 .ml-16 {
@@ -212,12 +245,20 @@
   margin-bottom: 0;
 }
 
-.mb-50 {
-  margin-bottom: 50px;
-}
-
 .mb-20 {
   margin-bottom: 20px;
+}
+
+.mb-16 {
+  margin-bottom: 16px;
+}
+
+.mb-40 {
+  margin-bottom: 40px;
+}
+
+.mb-50 {
+  margin-bottom: 50px;
 }
 
 .mb-22 {
@@ -231,6 +272,11 @@
 .mx-10 {
   margin-right: 10px;
   margin-left: 10px;
+}
+
+.mx-20 {
+  margin-right: 20px;
+  margin-left: 20px;
 }
 
 .my-5 {
@@ -274,12 +320,24 @@
   width: 200px;
 }
 
+.w-240 {
+  width: 240px;
+}
+
 .w-300 {
   width: 300px;
 }
 
+.w-320 {
+  width: 320px;
+}
+
 .w-500 {
   width: 500px;
+}
+
+.w-700 {
+  width: 700px;
 }
 
 .h-100 {
@@ -359,6 +417,10 @@ img.responsive {
   cursor: crosshair;
 }
 
+.cursor-not {
+  cursor: not-allowed;
+}
+
 .red {
   color: red;
 }
@@ -403,6 +465,10 @@ img.responsive {
   font-size: 18px;
 }
 
+.f20 {
+  font-size: 20px;
+}
+
 .f22 {
   font-size: 22px;
 }
@@ -413,6 +479,26 @@ img.responsive {
 
 .w100 {
   min-width: 100px;
+}
+
+.border {
+  border-width: 1px;
+}
+
+.bg-white {
+  background-color: #fff;
+}
+
+.border-primary {
+  border-color: $primaryColor;
+}
+
+.bg-gray-bglight {
+  background-color: $bglight;
+}
+
+.border-gray-light {
+  border-color: $graylight;
 }
 
 .fullBg {

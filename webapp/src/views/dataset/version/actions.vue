@@ -53,11 +53,15 @@
             </el-button>
           </el-tooltip>
         </el-dropdown-item>
-        <el-dropdown-item
-          v-if="!isOfRecord && showOfRecord(row.annotateType)"
-          @click.native="onShiftOfRecord"
-        >
-          <el-button type="text">转换OFRecord</el-button>
+        <el-dropdown-item v-if="canGenerate && showOfRecord(row.annotateType)">
+          <el-button type="text" @click.native="onGenerateOfRecord">
+            转换OFRecord
+          </el-button>
+        </el-dropdown-item>
+        <el-dropdown-item v-if="isGenerating && showOfRecord(row.annotateType)">
+          <el-button type="text" @click.native="stopGenerateOfRecord">
+            停止转换
+          </el-button>
         </el-dropdown-item>
       </el-dropdown-menu>
     </el-dropdown>
@@ -76,9 +80,15 @@ import {
   dataTypeCodeMap,
   showOfRecord,
   isCustomDataset,
-  annotationCodeMap,
+  annotationMap,
+  conversionStateMap,
 } from '@/views/dataset/util';
-import { toggleVersion, deleteVersion, shiftOfRecord } from '@/api/preparation/dataset';
+import {
+  toggleVersion,
+  deleteVersion,
+  generateOfRecord,
+  stopOfRecord,
+} from '@/api/preparation/dataset';
 import { TableTooltip } from '@/hooks/tooltip';
 
 const annotationByCode = annotationBy('code');
@@ -106,7 +116,15 @@ export default {
     const isPreset = computed(
       () => props.row.presetFlag && props.row.dataType !== dataTypeCodeMap.CUSTOM
     );
-    const isOfRecord = computed(() => props.row.isOfRecord);
+    // 可以生成OfRecord的状态
+    const canGenerate = computed(() =>
+      ['NOT_CONVERTED', 'CONVERT_FAILED'].includes(conversionStateMap[props.row.dataConversion])
+    );
+    // isOfRecord只表示前端页面点过生成OfRecord
+    // 点过生成OfRecord且还处在转换中的状态，是生成中
+    const isGenerating = computed(
+      () => props.row.isOfRecord && conversionStateMap[props.row.dataConversion] === 'CONVERTING'
+    );
     const isCustom = computed(() => isCustomDataset(props.row));
     const title = computed(() => `${props.row.name}(${props.row.versionName})`);
 
@@ -132,7 +150,7 @@ export default {
     const gotoDetail = () => {
       const { annotateType } = props.row;
       if (isCustomDataset(props.row)) {
-        const customUrlPrefix = annotationByCode(annotationCodeMap.CUSTOM, 'urlPrefix');
+        const customUrlPrefix = annotationByCode(annotationMap.Custom.code, 'urlPrefix');
         $router.push({
           path: `/data/datasets/${customUrlPrefix}/${props.row.datasetId}`,
         });
@@ -177,6 +195,9 @@ export default {
         filter: (result) => {
           // 自定义数据集没有固定目录结构，直接下载即可
           if (isCustomDataset(row)) return result;
+          // 导出 COCO/YOLO 等天天枢格式，直接导出
+          if (['COCO', 'YOLO'].includes(row.format))
+            return result.filter((item) => item.name.startsWith(`${prefixUrl}/${row.format}`));
           return result.filter((item) => {
             return ['annotation', 'origin'].some((str) =>
               item.name.startsWith(`${prefixUrl}/${str}`)
@@ -190,13 +211,20 @@ export default {
       return showConvert(row);
     };
 
-    const onShiftOfRecord = () => {
-      shiftOfRecord({
+    const onGenerateOfRecord = () => {
+      generateOfRecord({
         datasetId: props.row.datasetId,
         versionName: props.row.versionName,
       }).then(() => {
         actions.refresh();
         Message.success('开始生成OFRecord');
+      });
+    };
+
+    const stopGenerateOfRecord = () => {
+      stopOfRecord(props.row.datasetId, props.row.versionName).then(() => {
+        actions.refresh();
+        Message.success('已停止OFRecord转换');
       });
     };
 
@@ -208,7 +236,8 @@ export default {
       isCurrent,
       isPreset,
       isCustom,
-      isOfRecord,
+      canGenerate,
+      isGenerating,
       title,
       labels: Object.keys(list),
       list,
@@ -219,7 +248,8 @@ export default {
       keyAccessor,
       valueAccessor,
       download,
-      onShiftOfRecord,
+      onGenerateOfRecord,
+      stopGenerateOfRecord,
       showOfRecord,
     };
   },

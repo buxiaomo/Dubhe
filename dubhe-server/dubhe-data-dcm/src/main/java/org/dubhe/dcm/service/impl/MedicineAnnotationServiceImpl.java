@@ -38,11 +38,14 @@ import org.dubhe.biz.statemachine.dto.StateChangeDTO;
 import org.dubhe.cloud.authconfig.utils.JwtUtils;
 import org.dubhe.data.constant.DataTaskTypeEnum;
 import org.dubhe.data.constant.ErrorEnum;
+import org.dubhe.data.constant.FileTypeEnum;
 import org.dubhe.data.constant.TaskStatusEnum;
 import org.dubhe.data.domain.entity.Task;
 import org.dubhe.data.machine.constant.DataStateCodeConstant;
 import org.dubhe.data.machine.enums.DataStateEnum;
+import org.dubhe.data.service.AutoLabelModelServiceService;
 import org.dubhe.data.service.TaskService;
+import org.dubhe.data.util.TaskUtils;
 import org.dubhe.dcm.constant.DcmConstant;
 import org.dubhe.dcm.dao.DataMedicineFileMapper;
 import org.dubhe.dcm.domain.dto.MedicineAnnotationDTO;
@@ -54,6 +57,7 @@ import org.dubhe.dcm.machine.constant.DcmDataStateMachineConstant;
 import org.dubhe.dcm.machine.constant.DcmFileStateCodeConstant;
 import org.dubhe.dcm.machine.constant.DcmFileStateMachineConstant;
 import org.dubhe.dcm.machine.enums.DcmDataStateEnum;
+import org.dubhe.dcm.machine.enums.DcmFileStateEnum;
 import org.dubhe.dcm.machine.utils.DcmStateMachineUtil;
 import org.dubhe.dcm.service.DataLesionSliceService;
 import org.dubhe.dcm.service.DataMedicineFileService;
@@ -65,6 +69,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
@@ -108,11 +113,17 @@ public class MedicineAnnotationServiceImpl implements MedicineAnnotationService 
     @Autowired
     private DataLesionSliceService dataLesionSliceService;
 
+    @Autowired
+    private TaskUtils taskUtils;
+
     /**
      * bucketName
      */
     @Value("${minio.bucketName}")
     private String bucketName;
+
+    @Autowired
+    private AutoLabelModelServiceService autoLabelModelServiceService;
 
 
     /**
@@ -136,22 +147,34 @@ public class MedicineAnnotationServiceImpl implements MedicineAnnotationService 
         if (medicineAutoAnnotationDTO.getMedicalId() == null) {
             return;
         }
+        // 判断模型服务是否存在
+        if (ObjectUtil.isNull(medicineAutoAnnotationDTO.getModelServiceId())
+                || ObjectUtil.isNull(autoLabelModelServiceService.getOneById(medicineAutoAnnotationDTO.getModelServiceId()))) {
+            throw new BusinessException(ErrorEnum.MODEL_SERVER_NOT_EXIST);
+        }
         dataMedicineService.checkPublic(medicineAutoAnnotationDTO.getMedicalId(), OperationTypeEnum.UPDATE);
         Long medicineId = medicineAutoAnnotationDTO.getMedicalId();
         DataMedicine dataMedicine = dataMedicineService.getDataMedicineById(medicineId);
-        if (!dataMedicine.getStatus().equals(DataStateCodeConstant.NOT_ANNOTATION_STATE)) {
+        // 只能指定状态下才能进行自动标注
+        if (!DcmDataStateEnum.checkCurrentStatusWhetherToAutoLabel(dataMedicine.getStatus())) {
             throw new BusinessException(ErrorEnum.MEDICINE_AUTO_DATASET_ERROR);
         }
         QueryWrapper<DataMedicineFile> queryWrapper = new QueryWrapper<>();
-        queryWrapper.lambda().eq(DataMedicineFile::getMedicineId, medicineId).eq(DataMedicineFile::getStatus,
-                DataStateEnum.NOT_ANNOTATION_STATE.getCode());
+        queryWrapper.lambda()
+                .eq(DataMedicineFile::getMedicineId, medicineId)
+                .in(DataMedicineFile::getStatus, DcmFileStateEnum.getFileStatusFromAutoLabelScreen(medicineAutoAnnotationDTO.getFileStatus()));
         Integer medicineFilesCount = dataMedicineFileService.getCountByMedicineId(queryWrapper);
+        if (medicineFilesCount == 0) {
+            throw new BusinessException(ErrorEnum.MEDICINE_AUTO_NO_LABEL_FILE);
+        }
         Task task = Task.builder()
                 .status(TaskStatusEnum.INIT.getValue())
                 .datasetId(medicineId)
                 .total(medicineFilesCount)
+                .modelServiceId(medicineAutoAnnotationDTO.getModelServiceId())
                 .type(DataTaskTypeEnum.MEDICINE_ANNOTATION.getValue())
                 .labels("")
+                .fileType(medicineAutoAnnotationDTO.getFileStatus())
                 .build();
         taskService.createTask(task);
         DcmStateMachineUtil.stateChange(new StateChangeDTO() {{
@@ -169,19 +192,29 @@ public class MedicineAnnotationServiceImpl implements MedicineAnnotationService 
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean finishAuto() {
-        Object object = redisUtils.lpop(MEDICINE_FINISHED_QUEUE);
-        if (ObjectUtil.isNotNull(object)) {
-            JSONObject jsonObject = JSONObject.parseObject(JSON.toJSONString(redisUtils.get(object.toString())));
-            String detailId = jsonObject.getString("reTaskId");
-            JSONObject jsonDetail = JSON.parseObject(JSON.toJSONString(redisUtils.get(detailId)));
-            Long taskId = jsonDetail.getLong("taskId");
-            JSONArray dcmsArray = jsonDetail.getJSONArray("dcms");
+    public void finishAuto(JSONObject taskDetail) {
+        JSONObject jsonObject = JSON.parseObject(taskDetail.get("object").toString(),JSONObject.class);
+        if (ObjectUtil.isNotNull(taskDetail)) {
+            Long taskId = taskDetail.getLong("taskId");
+            JSONArray dcmsArray = taskDetail.getJSONArray("dcms");
+            JSONArray jsonArray = taskDetail.getJSONArray("annotations");
             String[] dcms = dcmsArray.toArray(new String[dcmsArray.size()]);
             QueryWrapper<Task> taskQueryWrapper = new QueryWrapper<>();
             taskQueryWrapper.lambda().eq(Task::getId, taskId);
             Task task = taskService.selectOne(taskQueryWrapper);
-            List<Long> medicineFileIds = JSON.parseObject(jsonDetail.getString("medicineFileIds"), ArrayList.class);
+            JSONArray annotationsArray = jsonObject.getJSONArray("annotations");
+            for (int i =0;i<annotationsArray.size();i++){
+                JSONObject oneAnnotation = annotationsArray.getJSONObject(i);
+                Long medicineFileId = oneAnnotation.getLong("id");
+                String medicineFileName = dataMedicineFileMapper.selectById(medicineFileId).getName();
+                String oneAnnotationContent = oneAnnotation.getJSONArray("annotations").toJSONString();
+                try {
+                    minioUtil.writeString(bucketName, DcmConstant.DCM_ANNOTATION_PATH + task.getDatasetId() +"/annotation/" + medicineFileName + ".json", oneAnnotationContent);
+                } catch (Exception e){
+                    LogUtil.error(LogEnum.BIZ_DATASET, "write medicine annotation error:{}", e);
+                }
+            }
+            List<Long> medicineFileIds = JSON.parseObject(taskDetail.getString("medicineFileIds"), ArrayList.class);
             DcmStateMachineUtil.stateChange(new StateChangeDTO() {{
                 setObjectParam(new Object[]{medicineFileIds});
                 setStateMachineType(DcmFileStateMachineConstant.DCM_FILE_STATE_MACHINE);
@@ -205,7 +238,6 @@ public class MedicineAnnotationServiceImpl implements MedicineAnnotationService 
             task.setFinished(finished);
             taskService.updateByTaskId(task);
         }
-        return ObjectUtil.isNotNull(object);
     }
 
     /**
@@ -260,6 +292,8 @@ public class MedicineAnnotationServiceImpl implements MedicineAnnotationService 
                     DcmFileStateMachineConstant.ANNOTATION_COMPLETE_EVENT : DcmFileStateMachineConstant.ANNOTATION_SAVE_EVENT);
         }});
         modifyUpdataUserId(medicineAnnotationDTO.getMedicalId());
+        medical.setStop(false);
+        dataMedicineService.updateByMedicineId(medical);
         return true;
     }
 
@@ -345,7 +379,9 @@ public class MedicineAnnotationServiceImpl implements MedicineAnnotationService 
                 LogUtil.error(LogEnum.BIZ_DATASET, "get medicine annotation json failed, {}", e);
             } finally {
                 try {
-                    inputStream.close();
+                    if (inputStream != null) {
+                        inputStream.close();
+                    }
                 } catch (IOException e) {
                     LogUtil.error(LogEnum.BIZ_DATASET, "close inputStream failed, {}", e);
                 }

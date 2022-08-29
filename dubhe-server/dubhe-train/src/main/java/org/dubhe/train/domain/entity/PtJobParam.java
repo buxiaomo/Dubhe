@@ -56,16 +56,16 @@ public class PtJobParam extends BaseEntity {
     private Long algorithmId;
 
     /**
-     * 算法用途
+     * 数据集类型
      */
-    @TableField(value = "algorithm_usage")
-    private String algorithmUsage;
+    @TableField(value = "dataset_type")
+    private Integer datasetType;
 
     /**
-     * 验证数据集算法用途
+     * 验证数据集类型
      */
-    @TableField(value = "val_algorithm_usage")
-    private String valAlgorithmUsage;
+    @TableField(value = "val_dataset_type")
+    private Integer valDatasetType;
 
     /**
      * 运行命令
@@ -84,6 +84,12 @@ public class PtJobParam extends BaseEntity {
      */
     @TableField(value = "run_params", typeHandler = FastjsonTypeHandler.class)
     private JSONObject runParams;
+
+    /**
+     * 运行参数映射关系
+     */
+    @TableField(value = "run_params_name_map", typeHandler = FastjsonTypeHandler.class)
+    private JSONObject runParamsNameMap;
 
     /**
      * F1值

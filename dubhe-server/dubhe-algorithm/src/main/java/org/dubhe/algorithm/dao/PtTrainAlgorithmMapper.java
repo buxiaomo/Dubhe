@@ -72,6 +72,6 @@ public interface PtTrainAlgorithmMapper extends BaseMapper<PtTrainAlgorithm> {
      * 查询可推理预置算法
      * @return List<PtTrainAlgorithmQueryVO> 返回可推理预置算法集合
      */
-    @Select("select * from pt_train_algorithm where deleted = 0 and inference=1 and algorithm_source=2 order by id desc")
+    @Select("select * from pt_train_algorithm where deleted = 0 and algorithm_source=2 order by id desc")
     List<PtTrainAlgorithm> selectPreAlgorithm();
 }

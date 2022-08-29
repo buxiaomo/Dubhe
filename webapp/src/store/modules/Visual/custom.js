@@ -1,4 +1,4 @@
-/** Copyright 2020 Tianshu AI Platform. All Rights Reserved.
+/** Copyright 2021 Tianshu AI Platform. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,9 @@
  * =============================================================
  */
 
-// dubhe-web\src\utils\VisualUtils\api.js
-// import port from '@/utils/VisualUtils/api';
+import http from '@/utils/VisualUtils/request';
+import port from '@/utils/VisualUtils/api';
+//  import { param2Obj } from '@/utils/utils'
 
 const state = {
   categoryInfo: '',
@@ -57,13 +58,85 @@ const getters = {
 
 const actions = {
   // eslint-disable-next-line
-  async getSelfCategoryInfo(context, param) {
-  },
+  async getSelfCategoryInfo(context, param) {},
+  async getIntervalSelfCategoryInfo(context, param) {},
   // eslint-disable-next-line
-  async getData(context, param) {
-  },
+  async getData(context, param) {},
   // eslint-disable-next-line
-  async dynamicGetData(context) {
+  async dynamicGetData(context) {},
+  async getScalarDataInterval(context, param) {
+    await http.useGet(port.category.scalar, param).then((res) => {
+      if (+res.data.code !== 200) {
+        context.commit('setErrorMessage', `${res.data.msg}_${new Date().getTime()}`);
+        return;
+      }
+      context.commit('setScalarDataInterval', [param.run, param.tag, res.data.data]);
+    });
+  },
+  async getAudioDataInterval(context, param) {
+    await http.useGet(param[1].content.port, param[1].content.parameter).then((res) => {
+      if (+res.data.code !== 200) {
+        context.commit('setErrorMessage', `${res.data.msg}_${new Date().getTime()}`);
+        return;
+      }
+      context.commit('setAudioDataInterval', [param[0], param[1], res.data.data]);
+    });
+  },
+  async getImageDataInterval(context, param) {
+    await http.useGet(param[1].content.port, param[1].content.parameter).then((res) => {
+      if (+res.data.code !== 200) {
+        context.commit('setErrorMessage', `${res.data.msg}_${new Date().getTime()}`);
+        return;
+      }
+      context.commit('setImageDataInterval', [param[0], param[1], res.data.data]);
+    });
+  },
+  async getTextDataInterval(context, param) {
+    await http.useGet(param[1].content.port, param[1].content.parameter).then((res) => {
+      if (+res.data.code !== 200) {
+        context.commit('setErrorMessage', `${res.data.msg}_${new Date().getTime()}`);
+        return;
+      }
+      context.commit('setTextDataInterval', [param[0], param[1], res.data.data]);
+    });
+  },
+  async getHistDataInterval(context, param) {
+    await http.useGet(port.category.histogram, { run: param.run, tag: param.tag }).then((res) => {
+      if (Number(res.data.code) !== 200) {
+        context.commit('setErrorMessage', `${param.run},${param.tag},${res.data.msg}`);
+        return;
+      }
+      context.commit('manageHistData', {
+        data: res.data.data[param.tag],
+        index: param.index,
+      });
+    });
+  },
+  async getDistDataInterval(context, param) {
+    await http
+      .useGet(port.category.distribution, { run: param.run, tag: param.tag })
+      .then((res) => {
+        if (Number(res.data.code) !== 200) {
+          context.commit('setErrorMessage', `${param.run},${param.tag},${res.data.msg}`);
+          return;
+        }
+        context.commit('manageDistData', {
+          data: res.data.data[param.tag],
+          index: param.index,
+        }); // 处理，然后存储下来
+      });
+  },
+  async getStatisticDataInterval(context, param) {
+    const featchParam = {
+      run: param[1].ttlabel,
+      tag: param[1].tag,
+      index: param[0],
+    };
+    if (param[1].componentName === 'threed' || param[1].componentName === 'orthographic') {
+      context.dispatch('getHistDataInterval', featchParam);
+    } else {
+      context.dispatch('getDistDataInterval', featchParam);
+    }
   },
 };
 
@@ -79,6 +152,23 @@ const mutations = {
   },
   setClickState: (state, param) => {
     state.clickState = param;
+  },
+  setScalarDataInterval: (state, param) => {
+    const scalarRunTag = `${param[0]} ${param[1]}`;
+    state.scalarData[scalarRunTag].value = param[2];
+    state.scalar[scalarRunTag] = param[2];
+  },
+  setAudioDataInterval: (state, param) => {
+    param[1].content.value = param[2];
+    state.audio[param[0]] = param[1];
+  },
+  setImageDataInterval: (state, param) => {
+    param[1].content.value = param[2];
+    state.image[param[0]] = param[1];
+  },
+  setTextDataInterval: (state, param) => {
+    param[1].content.value = param[2];
+    state.text[param[0]] = param[1];
   },
   setAudioData: (state, param) => {
     const paramStringIndex = `${param.content.run}/${Object.keys(param.content.value)[0]}`;
@@ -225,9 +315,9 @@ const mutations = {
     } else {
       for (let i = 0; i < state.statistic.length; i += 1) {
         // eslint-disable-next-line
-        if (state.statistic[i].componentName === 'threed') {
+        if (state.statistic[i].componentName === "threed") {
           // eslint-disable-next-line
-          state.statistic[i].componentName = 'orthographic';
+          state.statistic[i].componentName = "orthographic";
         }
       }
     }
@@ -249,6 +339,78 @@ const mutations = {
   },
   cleanScalar: (state) => {
     state.scalar = {};
+  },
+  manageDistData: (state, param) => {
+    const oneData = param.data;
+    const newData = [];
+    for (let i = 0; i <= 8; i++) {
+      // 每个图9条线
+      const linedata = [];
+      for (let j = 0; j < oneData.length; j++) {
+        const temp = [];
+        temp.push(oneData[j][1]); // step,x
+        temp.push(oneData[j][2][i][1]); // value,y
+        linedata.push(temp);
+      }
+      newData.push(linedata);
+    }
+    // 为了画area,需要再处理一下，除了第一步，其余都要加上上一条的y轴数据
+    for (let i = 1; i < newData.length; i++) {
+      for (let j = 0; j < newData[i - 1].length; j++) {
+        newData[i][j].push(newData[i - 1][j][1]);
+      }
+    }
+    const newStatisticData = JSON.parse(JSON.stringify(state.statisticData[param.index]));
+    newStatisticData.data = newData;
+    state.statisticData.splice(param.index, 1, newStatisticData);
+  },
+  manageHistData: (state, param) => {
+    const { data } = param;
+    const newdata = [];
+    let min = 1000;
+    let max = -1000;
+    for (let i = 0; i < data.length; i++) {
+      if (min > data[i][2]) min = data[i][2];
+      if (max < data[i][3]) max = data[i][3];
+    }
+    // 默认
+    const binNum = 30;
+    const binWidth = (max - min) / binNum;
+    for (let i = 0; i < data.length; i++) {
+      // 遍历step
+      const onedata = data[i][4];
+      // 处理一下首尾
+      onedata[0][0] = onedata[0][1] - binWidth / 2;
+      onedata[onedata.length - 1][1] = onedata[onedata.length - 1][0] + binWidth / 2;
+      const newOneData = [];
+      let binleft = min;
+      let binright = binleft;
+      let curbucket = 0;
+      // 让首尾为0
+      newOneData.push([min - binWidth / 2, 0, data[i][1]]);
+      for (let j = 0; j < binNum; j++) {
+        binleft = binright;
+        binright = binleft + binWidth;
+        let count = 0;
+        for (; curbucket < onedata.length - 1; curbucket++) {
+          if (binright < onedata[curbucket][0]) break;
+          const maxleft = Math.max(binleft, onedata[curbucket][0]);
+          const curBinWidth = onedata[curbucket][1] - onedata[curbucket][0];
+          if (binright <= onedata[curbucket][1]) {
+            if (curBinWidth !== 0)
+              count += ((binright - maxleft) / curBinWidth) * onedata[curbucket][2];
+            break;
+          } else if (curBinWidth !== 0)
+            count += ((onedata[curbucket][1] - maxleft) / curBinWidth) * onedata[curbucket][2];
+        }
+        newOneData.push([(binleft + binright) / 2, count, data[i][1]]);
+      }
+      newOneData.push([max + binWidth / 2, 0, data[i][1]]);
+      newdata.push(newOneData);
+    }
+    const newStatisticData = JSON.parse(JSON.stringify(state.statisticData[param.index]));
+    newStatisticData.data = newdata;
+    state.statisticData.splice(param.index, 1, newStatisticData);
   },
 };
 

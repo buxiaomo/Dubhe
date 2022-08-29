@@ -17,14 +17,12 @@
 
 package org.dubhe.data.constant;
 
+import cn.hutool.core.collection.CollectionUtil;
 import lombok.Getter;
 import org.dubhe.data.machine.constant.FileStateCodeConstant;
 import org.dubhe.data.machine.enums.FileStateEnum;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @description 用于映射前端文件筛选与后端文件状态
@@ -69,7 +67,26 @@ public enum FileTypeEnum {
     /**
      * 已完成
      */
-    FINISHED_FILE(302,"已完成");
+    FINISHED_FILE(302,"已完成"),
+
+    /**
+     * 有标注信息
+     */
+    HAVE_ANNOTATION(303,"有标注信息"),
+
+    /**
+     * 无标注信息
+     */
+    NO_ANNOTATION(304,"无标注信息"),
+    /**
+     * 手动标注
+     */
+    MANUAL_ANNOTATION_TYPE(401, "手动标注"),
+    /**
+     * 自动标注
+     */
+    AUTO_ANNOTATION_TYPE(402, "自动标注")
+    ;
 
     static Set<Integer> ALL_STATUS = new HashSet<Integer>() {{
         addAll(FileStateEnum.getAllValue());
@@ -115,6 +132,40 @@ public enum FileTypeEnum {
         add(FileStateCodeConstant.ANNOTATION_COMPLETE_FILE_STATE);
     }};
 
+    /**
+     * 有标注信息
+     */
+    static Set<Integer> HAVE_ANNOTATION_STATUS = new HashSet<Integer>() {{
+        add(FileStateCodeConstant.MANUAL_ANNOTATION_FILE_STATE);
+        add(FileStateCodeConstant.AUTO_TAG_COMPLETE_FILE_STATE);
+        add(FileStateCodeConstant.ANNOTATION_COMPLETE_FILE_STATE);
+        add(FileStateCodeConstant.TARGET_COMPLETE_FILE_STATE);
+    }};
+
+    /**
+     * 无标注信息
+     */
+    static Set<Integer> NO_ANNOTATION_STATUS = new HashSet<Integer>() {{
+        add(FileStateCodeConstant.NOT_ANNOTATION_FILE_STATE);
+        add(FileStateCodeConstant.ANNOTATION_NOT_DISTINGUISH_FILE_STATE);
+    }};
+
+    /**
+     * 手动标注
+     */
+    static Set<Integer> MANUAL_ANNOTATION_TYPE_STATUS = new HashSet<Integer>(){{
+        add(FileStateCodeConstant.MANUAL_ANNOTATION_FILE_STATE);
+        add(FileStateCodeConstant.ANNOTATION_COMPLETE_FILE_STATE);
+    }};
+
+    /**
+     * 自动标注
+     */
+    static Set<Integer> AUTO_ANNOTATION_TYPE_STATUS = new HashSet<Integer>(){{
+        add(FileStateCodeConstant.AUTO_TAG_COMPLETE_FILE_STATE);
+        add(FileStateCodeConstant.TARGET_COMPLETE_FILE_STATE);
+    }};
+
     private static final Map<Integer, Set<Integer>> TYPE_STATUS_MAP = new HashMap<Integer, Set<Integer>>() {{
         put(All.value, ALL_STATUS);
         put(UNFINISHED.value, UNFINISHED_STATUS);
@@ -125,6 +176,10 @@ public enum FileTypeEnum {
         put(AUTO_TRACK_FINISHED.value, AUTO_TRACK_FINISHED_STATUS);
         put(UNFINISHED_FILE.value, UNFINISHED_FILE_STATUS);
         put(FINISHED_FILE.value, FINISHED_FILE_STATUS);
+        put(HAVE_ANNOTATION.value, HAVE_ANNOTATION_STATUS);
+        put(NO_ANNOTATION.value, NO_ANNOTATION_STATUS);
+        put(MANUAL_ANNOTATION_TYPE.value, MANUAL_ANNOTATION_TYPE_STATUS);
+        put(AUTO_ANNOTATION_TYPE.value, AUTO_ANNOTATION_TYPE_STATUS);
     }};
 
     FileTypeEnum(int value, String msg) {
@@ -142,7 +197,31 @@ public enum FileTypeEnum {
      * @return Set 符合条件的文件类型集合
      */
     public static Set<Integer> getStatus(Integer type) {
-        return TYPE_STATUS_MAP.get(type);
+        Set<Integer> result = TYPE_STATUS_MAP.get(type);
+        return CollectionUtil.isEmpty(result)?new HashSet<Integer>():result;
+    }
+
+    public static Set<Integer> getStatus(List<Integer> types) {
+        Set<Integer> result = new HashSet<>();
+        if (CollectionUtil.isNotEmpty(types)) {
+            types.stream().forEach(integer -> {
+                result.addAll(getStatus(integer));
+            });
+        }
+        return result;
+    }
+
+    /**
+     * 自动标注文件状态校验 用户web端接口调用时参数校验
+     *
+     * @param value 文件状态Integer值
+     * @return      参数校验结果
+     */
+    public static boolean autoFileStatusIsValid(Integer value) {
+        if (Arrays.asList(FileTypeEnum.All.value, FileTypeEnum.HAVE_ANNOTATION.value, FileTypeEnum.NO_ANNOTATION.value).contains(value)) {
+            return true;
+        }
+        return false;
     }
 
 }

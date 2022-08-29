@@ -46,6 +46,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -174,4 +175,11 @@ public class PtTrainJobController {
     public DataResponseBody getTrainJobModel(@Validated PtTrainModelDTO ptTrainModelDTO) {
         return new DataResponseBody(ptTrainJobService.getTrainJobModel(ptTrainModelDTO));
     }
+
+    @GetMapping("/defaultAtlasParams")
+    @ApiOperation("根据炼知算法默认生成重组任务参数")
+    public DataResponseBody getDefaultAtlasParam(@RequestParam Integer atlasAlgorithmType) {
+        return new DataResponseBody(ptTrainJobService.getDefaultAtlasParam(atlasAlgorithmType));
+    }
+    
 }

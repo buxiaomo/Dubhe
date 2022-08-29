@@ -26,12 +26,15 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 import org.dubhe.biz.base.annotation.DataPermission;
 import org.dubhe.data.domain.entity.Dataset;
+import org.dubhe.data.domain.vo.DatasetVersionQueryVO;
+
+import java.util.List;
 
 /**
  * @description 数据集管理 Mapper 接口
  * @date 2020-04-10
  */
-@DataPermission(ignoresMethod = {"insert", "selectById", "selectCountByPublic", "selectList"})
+@DataPermission(ignoresMethod = {"insert", "selectById", "selectCountByPublic", "selectList", "dataVersionListVO"})
 public interface DatasetMapper extends BaseMapper<Dataset> {
 
     /**
@@ -82,6 +85,7 @@ public interface DatasetMapper extends BaseMapper<Dataset> {
     @Select("SELECT count(1) FROM data_dataset where label_group_id = #{labelGroupId}")
     int getCountByLabelGroupId(@Param("labelGroupId") Long labelGroupId);
 
+
     /**
      * 数据集数据删除
      *
@@ -99,5 +103,9 @@ public interface DatasetMapper extends BaseMapper<Dataset> {
      */
     @Delete("delete from data_dataset where  id = #{datasetId}")
     void deleteInfoById(@Param("datasetId") Long datasetId);
+
+    List<DatasetVersionQueryVO> dataVersionListVO(@Param("annotateType") Integer annotateType,
+                                                  @Param("module") Integer module, @Param("ids") List<Long> ids,
+                                                  @Param("currentUserId") Long currentUserId);
 
 }

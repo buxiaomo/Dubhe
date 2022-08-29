@@ -152,7 +152,7 @@ export default {
 
     // label编辑事件
     const handleEdit = (labelId, item) => {
-      return editLabel(labelId, item).then(() => {
+      return editLabel(labelId, item, datasetId).then(() => {
         props.updateLabels(datasetId);
         Message.success({ message: '标签修改成功' });
       });

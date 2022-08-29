@@ -23,15 +23,13 @@ import org.dubhe.algorithm.domain.dto.PtTrainAlgorithmCreateDTO;
 import org.dubhe.algorithm.domain.dto.PtTrainAlgorithmDeleteDTO;
 import org.dubhe.algorithm.domain.dto.PtTrainAlgorithmQueryDTO;
 import org.dubhe.algorithm.domain.dto.PtTrainAlgorithmUpdateDTO;
+import org.dubhe.algorithm.domain.vo.PtTrainAlgorithmQueryVO;
 import org.dubhe.algorithm.service.PtTrainAlgorithmService;
-import org.dubhe.biz.base.annotation.ApiVersion;
 import org.dubhe.biz.base.constant.Permissions;
-import org.dubhe.biz.base.dto.ModelOptAlgorithmCreateDTO;
-import org.dubhe.biz.base.dto.TrainAlgorithmSelectAllBatchIdDTO;
-import org.dubhe.biz.base.dto.TrainAlgorithmSelectAllByIdDTO;
-import org.dubhe.biz.base.dto.TrainAlgorithmSelectByIdDTO;
+import org.dubhe.biz.base.dto.*;
 import org.dubhe.biz.base.vo.DataResponseBody;
 import org.dubhe.biz.base.vo.TrainAlgorithmQureyVO;
+import org.dubhe.biz.dataresponse.factory.DataResponseFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -121,4 +119,25 @@ public class PtTrainAlgorithmController {
     public DataResponseBody getInferenceAlgorithm() {
         return new DataResponseBody(ptTrainAlgorithmService.getInferenceAlgorithm());
     }
+
+    @GetMapping("/listIdByName")
+    @ApiOperation("根据名称查询算法")
+    @PreAuthorize(Permissions.DEVELOPMENT_ALGORITHM)
+    public DataResponseBody listIdByName(@Validated TrainAlgorithmSelectByNameDTO trainAlgorithmSelectByNameDTO) {
+        return new DataResponseBody(ptTrainAlgorithmService.listIdByName(trainAlgorithmSelectByNameDTO.getAlgorithmName()));
+    }
+
+    @ApiOperation("根据名称获取算法信息")
+    @GetMapping("/findAlgorithmByName")
+    public DataResponseBody findAlgorithmByName(@RequestParam String name) {
+        return DataResponseFactory.success(ptTrainAlgorithmService.findAlgorithmByName(name));
+    }
+
+    @GetMapping("/getAll")
+    @ApiOperation("获取所有算法(我的算法和预置算法)")
+    @PreAuthorize(Permissions.DEVELOPMENT_ALGORITHM)
+    public DataResponseBody getAll(@RequestParam(required = false) String algorithmUsage) {
+        return DataResponseFactory.success(ptTrainAlgorithmService.getAll(algorithmUsage));
+    }
+
 }

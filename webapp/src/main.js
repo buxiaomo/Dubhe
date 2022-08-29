@@ -40,6 +40,8 @@ import './boot';
 // 可视化icon
 import './assets/VisualIcon/iconfont.css';
 import './assets/styles/index.scss';
+// 本地 Icon
+import './svgs';
 
 Vue.use(Element);
 Vue.use(VueCompositionAPI);

@@ -66,12 +66,6 @@ public class PtModelInfo extends BaseEntity {
     private String modelDescription;
 
     /**
-     * 模型分类(目标检测、目标分类)
-     */
-    @TableField(value = "model_type")
-    private String modelClassName;
-
-    /**
      * 模型地址
      */
     @TableField(value = "url")
@@ -118,5 +112,23 @@ public class PtModelInfo extends BaseEntity {
      */
     @TableField(value = "tags")
     private String tags;
+
+    /**
+     * 炼制模型结构名称
+     */
+    @TableField(value = "struct_name")
+    private String structName;
+
+    /**
+     * 炼制模型尺寸
+     */
+    @TableField(value = "model_size")
+    private Integer modelSize;
+
+    /**
+     * 模型分类(目标检测、目标分类)
+     */
+    @TableField(value = "model_type")
+    private String modelClassName;
 
 }

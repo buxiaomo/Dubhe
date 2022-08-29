@@ -44,16 +44,17 @@ export default {
 <style lang="scss" scoped>
 .experiment-config {
   position: fixed;
-  right: -18px;
   top: 100px;
+  right: -18px;
   z-index: 1000;
+
   .left-round-button {
-    margin-bottom: 12px;
-    box-shadow: 0 3px 3px rgba(0, 0, 0, 0.08);
-    border-radius: 16px 0 0 16px;
-    text-align: left;
     min-width: 160px;
     padding-left: 16px;
+    margin-bottom: 12px;
+    text-align: left;
+    border-radius: 16px 0 0 16px;
+    box-shadow: 0 3px 3px rgba(0, 0, 0, 0.08);
   }
 }
 </style>

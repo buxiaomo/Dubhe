@@ -20,6 +20,7 @@
       action="fakeApi"
       title="导入文本"
       accept=".txt"
+      v-bind="uploadProps"
       dataType="text"
       :hash="true"
       :visible="uploadDialogVisible"
@@ -35,8 +36,8 @@
           <!--tabs页和工具栏-->
           <div class="classify-tab">
             <el-tabs :value="lastTabName" @tab-click="handleTabClick">
-              <el-tab-pane :label="countInfoTxt.unfinished" name="unfinished" />
-              <el-tab-pane :label="countInfoTxt.finished" name="finished" />
+              <el-tab-pane :label="countInfoTxt.noAnnotation" name="noAnnotation" />
+              <el-tab-pane :label="countInfoTxt.haveAnnotation" name="haveAnnotation" />
             </el-tabs>
             <SearchBox
               ref="searchBox"
@@ -127,7 +128,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              v-if="lastTabName === 'finished' && !!showLabel"
+              v-if="isFinished && !!showLabel"
               show-overflow-tooltip
               prop="labelId"
               label="标签"
@@ -136,16 +137,18 @@
             >
               <template slot-scope="scope">
                 <el-tag
+                  v-for="labelId in scope.row.labelId"
+                  :key="labelId"
                   class="vm dib ellipsis"
-                  :style="getStyle(scope.row)"
-                  :color="getColor(scope.row)"
+                  :style="getStyle(labelId)"
+                  :color="getColor(labelId)"
                 >
-                  {{ getName(scope.row) }}
+                  {{ getName(labelId) }}
                 </el-tag>
               </template>
             </el-table-column>
             <el-table-column
-              v-if="lastTabName === 'finished' && !!enableAuto"
+              v-if="showPrediction"
               prop="prediction"
               label="预测值"
               min-width="10%"
@@ -182,6 +185,7 @@
             :datasetInfo="datasetInfo"
             :createLabel="createLabel"
             :labelClickable="false"
+            :templateType="templateType"
           />
         </div>
       </div>
@@ -221,7 +225,8 @@ import {
   textStatusMap,
   dataTypeCodeMap,
   isStatus,
-  annotationCodeMap,
+  annotationMap,
+  matchTemplateByDataset,
 } from '@/views/dataset/util';
 import CRUD, { presenter, header, crud } from '@crud/crud';
 import SideBar from '@/views/dataset/nlp/annotation/sidebar';
@@ -239,7 +244,7 @@ const initialPageInfo = {
 };
 
 export default {
-  name: 'TextList',
+  name: 'TextListPage',
   components: {
     UploadForm,
     TextInfoModal,
@@ -254,7 +259,7 @@ export default {
       title: '文本分类',
       crudMethod: { del, list: search },
     });
-    crudObj.params = { datasetId: id, status: fileCodeMap.UNFINISHED };
+    crudObj.params = { datasetId: id, status: fileCodeMap.NO_ANNOTATION };
     crudObj.page.size = 10;
     return crudObj;
   },
@@ -330,10 +335,10 @@ export default {
       datasetInfo: {}, // 数据库信息
       uploadDialogVisible: false,
       showTextModal: false,
-      lastTabName: 'unfinished', // 当前选中的tab页
+      lastTabName: 'noAnnotation', // 当前选中的tab页
       crudStatusMap: {
-        unfinished: [fileCodeMap.UNFINISHED],
-        finished: [fileCodeMap.FINISHED],
+        noAnnotation: [fileCodeMap.NO_ANNOTATION],
+        haveAnnotation: [fileCodeMap.HAVE_ANNOTATION],
       },
       categoryId2Name: {},
       labels: [], // 可使用的标签
@@ -341,15 +346,25 @@ export default {
       textStatusMap,
       pageInfo: initialPageInfo,
       countInfo: {
-        unfinished: 0,
-        finished: 0,
+        noAnnotation: 0,
+        haveAnnotation: 0,
       },
       searchTxt: '',
+      uploadProps: {
+        acceptSize: 0.1, // Mb 为单位
+        acceptSizeFormat: (size) => `${size * 1000} kb`,
+      },
     };
   },
   computed: {
+    isFinished() {
+      return this.lastTabName === 'haveAnnotation';
+    },
+    showPrediction() {
+      return this.isFinished && !!this.enableAuto && this.datasetInfo?.isRadio;
+    },
     formItems() {
-      return this.lastTabName === 'unfinished' ? this.formItemsUnfinish : this.formItemsFinish;
+      return this.isFinished ? this.formItemsFinish : this.formItemsUnfinish;
     },
     uploadParams() {
       return {
@@ -361,10 +376,14 @@ export default {
       return isNil;
     },
 
+    templateType() {
+      return matchTemplateByDataset(this.datasetInfo);
+    },
+
     countInfoTxt() {
       return {
-        unfinished: `无标注信息（${this.countInfo.unfinished}）`,
-        finished: `有标注信息（${this.countInfo.finished}）`,
+        noAnnotation: `无标注信息（${this.countInfo.noAnnotation}）`,
+        haveAnnotation: `有标注信息（${this.countInfo.haveAnnotation}）`,
       };
     },
     isTable() {
@@ -372,7 +391,7 @@ export default {
     },
     // 是否禁用文件导入
     disableImport() {
-      if (this.lastTabName === 'finished') return true;
+      if (this.isFinished) return true;
       if (this.isTable && isStatus(this.datasetInfo, 'IMPORTING')) return true;
       return false;
     },
@@ -387,11 +406,14 @@ export default {
     },
     // 根据类型是否展示标签（文本分词不展示标签）
     showLabel() {
-      return this.datasetInfo.annotateType === annotationCodeMap.TEXTCLASSIFY;
+      return this.datasetInfo.annotateType === annotationMap.TextClassify.code;
+    },
+    isTextClassify() {
+      return this.datasetInfo.annotateType === annotationMap.TextClassify.code;
     },
     // TODO：目前仅文本分类支持自动标注，后续会增加
     enableAuto() {
-      return this.datasetInfo.annotateType === annotationCodeMap.TEXTCLASSIFY;
+      return this.isTextClassify;
     },
   },
   watch: {
@@ -406,8 +428,8 @@ export default {
     this.datasetId = parseInt(this.$route.params.datasetId, 10);
     // 获取未标注和已标注的数量确定展示tab页
     this.setCountInfo().then(() => {
-      if (this.countInfo.unfinished === 0 && this.countInfo.finished !== 0) {
-        this.lastTabName = 'finished';
+      if (this.countInfo.noAnnotation === 0 && this.countInfo.haveAnnotation !== 0) {
+        this.lastTabName = 'haveAnnotation';
         this.crud.params.status = this.crudStatusMap[this.lastTabName];
         this.crud.toQuery();
       }
@@ -444,8 +466,8 @@ export default {
     handleClose() {
       this.uploadDialogVisible = false;
     },
-    getStyle(item) {
-      const sLabel = this.labels.find((d) => d.id === item.labelId) || null;
+    getStyle(labelId) {
+      const sLabel = this.labels.find((d) => d.id === labelId) || null;
       // 根据亮度来决定颜色
       const color = colorByLuminance(sLabel?.color);
       return {
@@ -467,11 +489,11 @@ export default {
       };
       return style;
     },
-    getColor(item) {
-      return this.categoryId2Name[item.labelId]?.color || null;
+    getColor(labelId) {
+      return this.categoryId2Name[labelId]?.color || null;
     },
-    getName(item) {
-      return this.categoryId2Name[item.labelId]?.name || '-';
+    getName(labelId) {
+      return this.categoryId2Name[labelId]?.name || '-';
     },
     importFile() {
       if (this.isTable) {
@@ -601,14 +623,10 @@ export default {
     },
     // 查看标注
     goDetail() {
-      const query =
-        this.lastTabName === 'finished'
-          ? {
-              tab: 'finished',
-            }
-          : {};
+      const query = this.isFinished ? { tab: 'haveAnnotation' } : {};
+      const routerName = this.isTextClassify ? 'TextClassify' : 'TextAnnotation';
       this.$router.push({
-        name: 'TextAnnotation',
+        name: routerName,
         query,
         params: { current: this.pageInfo.current, datasetId: this.datasetId },
       });

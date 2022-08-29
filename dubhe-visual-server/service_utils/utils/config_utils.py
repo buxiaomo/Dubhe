@@ -25,7 +25,7 @@ class ConfigUtils:
         if not path.exists(config_name):
             raise FileNotFoundError("Configuration file not found!")
         config = configparser.RawConfigParser()
-        config.read(config_name)
+        config.read(config_name, encoding='utf-8')
         self.config = config
 
     def conf_django_debug(self):
@@ -34,6 +34,13 @@ class ConfigUtils:
             return _debug == 'True'
         except Exception:
             return True
+
+    def conf_warning_debug(self):
+        try:
+            _debug = self.config['httpserver']['WarningDebug']
+            return _debug == 'True'
+        except Exception:
+            return False
 
     def conf_logdir_base(self):
         try:

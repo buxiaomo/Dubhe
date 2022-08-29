@@ -20,14 +20,12 @@
 <script>
 import { computed } from '@vue/composition-api';
 
-import TextClassify from './textClassify';
 import TextSegmentation from './textSegmentation';
 import NER from './ner';
 
 export default {
   name: 'TextWorkSpace',
   components: {
-    TextClassify,
     TextSegmentation,
     NER,
   },

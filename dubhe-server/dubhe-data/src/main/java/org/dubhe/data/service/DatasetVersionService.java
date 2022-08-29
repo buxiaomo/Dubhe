@@ -198,4 +198,10 @@ public interface DatasetVersionService {
      */
     void insertOne(DatasetVersion datasetVersion);
 
+    /**
+     * 更新版本
+     *
+     * @param datasetVersion 数据集版本
+     */
+    void updateByEntity(DatasetVersion datasetVersion);
 }

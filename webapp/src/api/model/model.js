@@ -107,4 +107,22 @@ export function getModelById(id) {
   });
 }
 
+// 获取炼知模型结构名称列表
+export function getModelSturctNameList(params) {
+  return request({
+    url: `/${API_MODULE_NAME.MODEL}/ptModelStruct`,
+    method: 'get',
+    params,
+  });
+}
+
+// 根据名称获取模型信息
+export function getModelInfo(params) {
+  return request({
+    url: `/${API_MODULE_NAME.MODEL}/ptModelInfo/atlasModel`,
+    method: 'get',
+    params,
+  });
+}
+
 export default { list, add, edit, del };

@@ -21,6 +21,7 @@ import org.dubhe.biz.base.dto.PtModelInfoConditionQueryDTO;
 import org.dubhe.biz.base.dto.PtModelInfoQueryByIdDTO;
 import org.dubhe.biz.base.vo.PtModelInfoQueryVO;
 import org.dubhe.model.domain.dto.*;
+import org.dubhe.model.domain.entity.PtModelInfo;
 import org.dubhe.model.domain.vo.PtModelInfoByResourceVO;
 import org.dubhe.model.domain.vo.PtModelInfoCreateVO;
 import org.dubhe.model.domain.vo.PtModelInfoDeleteVO;
@@ -114,4 +115,6 @@ public interface PtModelInfoService {
      * @return 能提供服务的模型实体集合
      */
     List<PtModelInfoQueryVO> getServingModel(ServingModelDTO servingModelDTO);
+    
+    PtModelInfoQueryVO getAtlasModels(String name);
 }

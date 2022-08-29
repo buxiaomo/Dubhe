@@ -20,7 +20,9 @@
       <div :class="[showFlag ? 'sub' : 'sub1']">
         <div class="my-label">
           <div class="my-text"><span>音频</span></div>
-          <div class="circle-father"><div class="circle" /></div>
+          <div class="circle-father">
+            <div class="circle" />
+          </div>
           <div class="triangle-father">
             <div class="triangle" />
           </div>
@@ -83,7 +85,7 @@ export default {
         this.showFlag = false;
       }
     },
-    showFlag() {
+    showFlag(val) {
       this.setShowFlag([this.subname, this.showFlag]);
     },
   },
@@ -121,6 +123,29 @@ export default {
 </script>
 
 <style lang="less" scoped>
+.audioscontainer {
+  .audios-title {
+    display: flex;
+    align-items: center;
+    height: auto;
+    color: white;
+    background-color: white;
+
+    span {
+      font-weight: 700;
+      line-height: 30px;
+    }
+  }
+}
+
+.audioscontent {
+  padding: 2%;
+}
+
+.showClass {
+  display: none;
+}
+
 .my-label {
   display: flex;
   width: 100%;
@@ -176,30 +201,6 @@ export default {
   }
 }
 
-.audioscontainer {
-  .audios-title {
-    display: flex;
-    align-items: center;
-    height: auto;
-    color: white;
-    background-color: white;
-
-    span {
-      font-weight: 700;
-      // margin-left: 29%;
-      line-height: 30px;
-    }
-  }
-}
-
-.audioscontent {
-  padding: 2%;
-}
-
-.showClass {
-  display: none;
-}
-
 .sub .triangle {
   border-color: transparent transparent transparent #b8c6ff;
 }
@@ -220,8 +221,6 @@ export default {
   font-family: sans-serif;
   font-size: 12px;
   color: #fff;
-  // background: url(../../../assets/tag2.png);
-  // background: deeppink; b8c6ff
   background-size: 100% 100%;
 }
 

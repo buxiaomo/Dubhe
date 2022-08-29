@@ -13,16 +13,16 @@
  * limitations under the License.
  * =============================================================
  */
-
 import { isNil } from 'lodash';
+
 import {
   dataTypeCodeMap,
-  annotationCodeMap,
+  annotationMap,
   isPublishDataset,
   isCustomDataset,
   isIncludeStatus,
   isStatus,
-  annotationWhitelist,
+  enableAutoLabel,
   isPresetDataset,
 } from '../util';
 
@@ -30,28 +30,28 @@ export default {
   name: 'DatasetAction',
   functional: true,
   props: {
+    stopRunning: Function,
     showPublish: Function,
     uploadDataFile: Function,
     goDetail: Function,
-    getAutoAnnotateStatus: Function,
-    autoAnnotate: Function,
+    showAutoAnnotate: Function,
     gotoVersion: Function,
-    reAnnotation: Function,
-    track: Function,
+    showTrack: Function,
     dataEnhance: Function,
     topDataset: Function,
     editDataset: Function,
+    modelTypeList: Array,
     checkImport: Function, // 查询外部数据集导入状态
   },
   render(h, { data, props }) {
     const {
+      stopRunning,
       showPublish,
       uploadDataFile,
       goDetail,
-      autoAnnotate,
+      showAutoAnnotate,
       gotoVersion,
-      reAnnotation,
-      track,
+      showTrack,
       dataEnhance,
       topDataset,
       editDataset,
@@ -60,28 +60,7 @@ export default {
     const columnProps = {
       ...data,
       scopedSlots: {
-        header: () => {
-          return (
-            <span>
-              <span>操作</span>
-              <el-tooltip effect="dark" placement="top" class="ml-10">
-                <div slot="content">
-                  数据集「自动标注」功能需要关联预置标签组，
-                  <br />
-                  详见
-                  <a
-                    href={`${process.env.VUE_APP_DOCS_URL}module/dataset/intro`}
-                    class="primary"
-                    target="_blank"
-                  >
-                    说明文档
-                  </a>
-                </div>
-                <i class="el-icon-question" />
-              </el-tooltip>
-            </span>
-          );
-        },
+        header: () => <span class="ml-10">操作</span>,
         default: ({ row }) => {
           const btnProps = {
             props: {
@@ -90,6 +69,20 @@ export default {
             },
             class: 'action-button',
           };
+
+          // 停止按钮只在 自动标注中 采样中 目标跟踪中 数据增强中 显示
+          const showStopButton = isIncludeStatus(row, [
+            'AUTO_ANNOTATING',
+            'SAMPLING',
+            'TRACKING',
+            'ENHANCING',
+          ]);
+
+          const stopButton = (
+            <el-button {...btnProps} onClick={() => stopRunning(row)}>
+              停止
+            </el-button>
+          );
 
           // 查看标注按钮在 自动标注中 未采样 采样中 采样失败 目标跟踪中 数据增强中 目标跟踪失败，导入中 时不显示, 此外，类型为视频时，自动标注完成也不可查看(此时下游会进行目标跟踪)
           let showCheckButton = !isIncludeStatus(row, [
@@ -112,14 +105,14 @@ export default {
             </el-button>
           ) : (
             <el-button {...btnProps} onClick={() => goDetail(row)}>
-              查看标注
+              查看与标注
             </el-button>
           );
           // 查看标注按钮根据版本发布的状态决定是否置灰加提示
           const checkButton = isPublishDataset(row) ? (
             <el-tooltip content="当前版本生成中，请稍后刷新" placement="top">
               <el-button {...btnProps}>
-                <span style="color: #666; cursor: auto">查看标注</span>
+                <span style="color: #666; cursor: auto">查看与标注</span>
               </el-button>
             </el-tooltip>
           ) : (
@@ -127,17 +120,14 @@ export default {
           );
 
           const isAutoWhite =
-            annotationWhitelist.auto.includes(row.annotateType) &&
-            row.dataType !== dataTypeCodeMap.TABLE;
-          // 自动标注按钮只在 未标注 标注中 时显示
-          let showAutoButton = isIncludeStatus(row, ['UNANNOTATED', 'ANNOTATING']) && isAutoWhite;
-          // 如果是文本分类，只有使用了预置标签组的数据集可以进行自动标注，autoAnnotation字段
-          if (row.annotateType === annotationCodeMap.TEXTCLASSIFY && !row.autoAnnotation) {
-            showAutoButton = false;
-          }
+            enableAutoLabel(row.annotateType) && row.dataType !== dataTypeCodeMap.TABLE;
+          // 自动标注按钮只在 未标注 标注中 自动标注完成 标注完成 时显示
+          let showAutoButton =
+            isIncludeStatus(row, ['UNANNOTATED', 'ANNOTATING', 'AUTO_ANNOTATED', 'ANNOTATED']) &&
+            isAutoWhite;
           // 自动标注按钮
           const autoButton = (
-            <el-button {...btnProps} onClick={() => autoAnnotate(row)}>
+            <el-button {...btnProps} onClick={() => showAutoAnnotate(row)}>
               自动标注
             </el-button>
           );
@@ -145,12 +135,6 @@ export default {
           const showPublishEventProps = {
             on: {
               onConfirm: () => showPublish(row),
-            },
-          };
-
-          const reAnnotationEventProps = {
-            on: {
-              onConfirm: () => reAnnotation(row),
             },
           };
 
@@ -239,44 +223,14 @@ export default {
             showUploadButton = true;
           }
 
-          // 当标注完成、目标跟踪完成，以及非视频的自动标注完成时显示重新自动标注按钮 (若为视频此时下游会进行目标跟踪)
-          const judgeState =
-            isIncludeStatus(row, ['ANNOTATED', 'TRACK_SUCCEED']) ||
-            (isStatus(row, 'AUTO_ANNOTATED') && row.dataType === dataTypeCodeMap.IMAGE);
-          const isReautoWhite = annotationWhitelist.reAuto.includes(row.annotateType);
-          let showReAutoButton = judgeState && isReautoWhite;
-          // 重新自动标注按钮
-          const reAutoButton = (
-            <el-popconfirm
-              popper-class="reannotate-popconfirm"
-              placement="top-end"
-              title="提示：确认清除现有标注并重新自动标注？"
-              width="200"
-              {...reAnnotationEventProps}
-            >
-              <el-button slot="reference" {...btnProps}>
-                重新自动标注
-              </el-button>
-            </el-popconfirm>
-          );
-
-          // 当目标跟踪标注类型的数据集状态为自动标注完成 标注完成时，显示目标跟踪按钮
+          // 当目标跟踪标注类型的数据集状态为自动标注完成 标注完成 目标跟踪失败 目标跟踪完成时，显示目标跟踪按钮
           let showTrackButton =
-            row.annotateType === annotationCodeMap.TRACK &&
-            isIncludeStatus(row, ['AUTO_ANNOTATED', 'ANNOTATED']);
+            row.annotateType === annotationMap.ObjectTracking.code &&
+            isIncludeStatus(row, ['AUTO_ANNOTATED', 'ANNOTATED', 'TRACK_FAILED', 'TRACK_SUCCEED']);
           // 目标跟踪按钮
           const trackButton = (
-            <el-button {...btnProps} onClick={() => track(row, false)}>
+            <el-button {...btnProps} onClick={() => showTrack(row)}>
               目标跟踪
-            </el-button>
-          );
-
-          // 当目标跟踪失败时，显示重新目标跟踪按钮
-          let showReTrackButton = isIncludeStatus(row, ['TRACK_FAILED', 'TRACK_SUCCEED']);
-          // 重新目标跟踪按钮
-          const reTrackButton = (
-            <el-button {...btnProps} onClick={() => track(row, true)}>
-              重新目标跟踪
             </el-button>
           );
 
@@ -342,9 +296,7 @@ export default {
             showUploadButton = false;
             showCheckButton = true;
             showAutoButton = false;
-            showReAutoButton = false;
             showTrackButton = false;
-            showReTrackButton = false;
             showVersionButton = true;
             showAugmentButton = false;
             showTopButton = true;
@@ -357,9 +309,7 @@ export default {
             showUploadButton = false;
             showCheckButton = true;
             showAutoButton = false;
-            showReAutoButton = false;
             showTrackButton = false;
-            showReTrackButton = false;
             showVersionButton = true;
             showAugmentButton = false;
             showTopButton = false;
@@ -369,13 +319,11 @@ export default {
           if (row.import) {
             showUploadButton = false;
             showAutoButton = false;
-            showReAutoButton = false;
             showTrackButton = false;
-            showReTrackButton = false;
             showAugmentButton = false;
             showCheckButton = false;
             // 数据格式为自定义的,可以查看文件，其它格式的，根据数据集状态查看标注
-            if (annotationCodeMap.CUSTOM === row.annotateType) {
+            if (annotationMap.Custom.code === row.annotateType) {
               showCheckButton = true;
             } else {
               showCheckButton = !isIncludeStatus(row, [
@@ -398,6 +346,7 @@ export default {
             return count;
           };
           const leftButtonArr = [
+            showStopButton,
             showPublishButton,
             showUploadButton,
             showCheckButton,
@@ -409,8 +358,6 @@ export default {
             showAugmentButton,
             showTopButton,
             showEditButton,
-            showReAutoButton,
-            showReTrackButton,
           ];
           const leftButtonCount = buttonCount(leftButtonArr);
           const rightButtonCount = buttonCount(rightButtonArr);
@@ -421,8 +368,6 @@ export default {
                 更多<i class="el-icon-arrow-down el-icon--right"></i>
               </el-button>
               <el-dropdown-menu slot="dropdown">
-                <el-dropdown-item>{showReAutoButton && reAutoButton}</el-dropdown-item>
-                <el-dropdown-item>{showReTrackButton && reTrackButton}</el-dropdown-item>
                 <el-dropdown-item>{showVersionButton && versionButton}</el-dropdown-item>
                 <el-dropdown-item key="dataEnhance">
                   {showAugmentButton && augmentButton}
@@ -434,8 +379,6 @@ export default {
           );
           const noHideButtons = (
             <span>
-              {showReAutoButton && reAutoButton}
-              {showReTrackButton && reTrackButton}
               {showVersionButton && versionButton}
               {showAugmentButton && augmentButton}
               {showTopButton && topButton}
@@ -453,6 +396,7 @@ export default {
 
           return (
             <span>
+              {showStopButton && stopButton}
               {importDatasetButton}
               {showPublishButton && publishButton}
               {showUploadButton && uploadButton}

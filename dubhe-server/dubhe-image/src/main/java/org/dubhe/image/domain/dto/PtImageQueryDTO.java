@@ -24,6 +24,7 @@ import lombok.experimental.Accessors;
 import org.dubhe.biz.db.base.PageQueryBase;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * @description 镜像查询
@@ -46,7 +47,7 @@ public class PtImageQueryDTO extends PageQueryBase implements Serializable {
     @ApiModelProperty(value = "镜像名称或id")
     private String imageNameOrId;
 
-    @ApiModelProperty(value = "镜像项目类型(0:notebook , 1:train , 2:serving)")
-    private Integer projectType;
+    @ApiModelProperty(value = "镜像用途(0:notebook , 1:train , 2:serving, 3:terminal, 4:point-cloud)")
+    private List<Integer> imageTypes;
 
 }

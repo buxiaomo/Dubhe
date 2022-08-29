@@ -67,7 +67,7 @@ the License. * ============================================================= */
     </div>
     <div class="flex flex-between mt-50">
       <Description :columns="infoList" />
-      <el-button style="margin: auto auto 0 auto" @click="changeToLog">查看日志</el-button>
+      <el-button style="margin: auto auto 0 auto;" @click="changeToLog">查看日志</el-button>
     </div>
     <SaveModelDialog ref="saveModelRef" type="tadl" />
   </div>
@@ -97,7 +97,6 @@ export default {
     SaveModelDialog,
   },
   props: {
-    saveRefreshTime: Function,
     refreshTime: Number,
     refresh: Function,
     updateState: Function,
@@ -217,11 +216,13 @@ export default {
 .detail-container {
   padding: 32px;
   background: #fff;
-  box-shadow: 0px 2px 7px 0px rgba(209, 209, 217, 0.5);
+  box-shadow: 0 2px 7px 0 rgba(209, 209, 217, 0.5);
 }
+
 .description-items {
   width: 100%;
 }
+
 .status-box {
   div {
     margin-right: 72px;

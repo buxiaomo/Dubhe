@@ -31,6 +31,7 @@ export const API_MODULE_NAME = {
   K8S: 'k8s', // K8S
   DCM: 'dcm', // 医学dcm
   TADL: 'tadl', // TADL
+  POINT_CLOUD: 'pointCloud',
   DUBHE_PRO: 'terminal', // 天枢专业版
 };
 

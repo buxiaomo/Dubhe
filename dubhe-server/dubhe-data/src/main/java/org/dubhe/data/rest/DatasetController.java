@@ -22,6 +22,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.dubhe.biz.base.constant.Permissions;
 import org.dubhe.biz.base.vo.DataResponseBody;
+import org.dubhe.biz.base.vo.DatasetVO;
 import org.dubhe.data.constant.Constant;
 import org.dubhe.data.domain.dto.*;
 import org.dubhe.data.domain.vo.DatasetQueryDTO;
@@ -31,6 +32,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 
@@ -165,4 +167,25 @@ public class DatasetController {
         return new DataResponseBody(datasetService.getPresetDataset());
     }
 
+    @ApiOperation(value = "任务停止")
+    @PutMapping(value = "/task/{datasetId}/stop")
+    @PreAuthorize(Permissions.DATA)
+    public DataResponseBody taskStop(@PathVariable(name = "datasetId") Long datasetId) {
+        datasetService.taskStop(datasetId);
+        return new DataResponseBody();
+    }
+
+    @ApiOperation(value = "ofrecord停止")
+    @PutMapping(value = "/ofRecord/{datasetId}/stop")
+    @PreAuthorize(Permissions.DATA)
+    public DataResponseBody ofRecordStop(@PathVariable(name = "datasetId") Long datasetId,@RequestParam(name="version")String version) {
+        datasetService.ofRecordStop(datasetId, version);
+        return new DataResponseBody();
+    }
+
+    @ApiOperation("获取指定名称预置数据集(远程调用)")
+    @GetMapping(value = "/getPresetDatasetByName")
+    public DataResponseBody<DatasetVO> getPresetDatasetByName(@RequestParam String datasetName) {
+        return new DataResponseBody(datasetService.getPresetDatasetByName(datasetName));
+    }
 }

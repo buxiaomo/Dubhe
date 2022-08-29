@@ -8,7 +8,7 @@ the License. * ============================================================= */
 
 <template>
   <el-card shadow="never" class="rel app-content-section">
-    <div class="app-content-title flex flex-between" style="margin: 12px">
+    <div class="app-content-title flex flex-between" style="margin: 12px;">
       <span>当前阶段实验参数</span>
       <InfoRadio
         v-model="state.activeParamType"
@@ -23,7 +23,12 @@ the License. * ============================================================= */
       </template>
     </Description>
     <div v-else>
-      <YamlEditor ref="yamlRef" :value="state.yaml" @blur="onYamlChange" />
+      <YamlEditor
+        ref="yamlRef"
+        :value="state.yaml"
+        @blur="onYamlChange"
+        @change="(val) => onYamlChange(val, false)"
+      />
       <el-button type="primary" class="mt-10" @click="saveParamChange">保存修改</el-button>
     </div>
   </el-card>
@@ -63,6 +68,7 @@ export default {
       activeParamType: 0,
       yamlNotSaved: true,
       yaml: '',
+      yamlValidatePass: true,
     });
 
     const yamlRef = ref(null);
@@ -104,6 +110,7 @@ export default {
     };
 
     const saveParamChange = async () => {
+      if (!state.yamlValidatePass) return;
       updateExpYaml(props.experimentId, getStageOrder(props.stage), state.yaml)
         .then(() => {
           Message.success('保存成功');
@@ -134,16 +141,18 @@ export default {
     };
 
     // 直接编辑 Yaml 内容后触发解析
-    const onYamlChange = (yamlValue) => {
+    const onYamlChange = (yamlValue, showError = true) => {
       state.yamlNotSaved = true;
       try {
         const yamlLoad = yaml.load(yamlValue);
         if (!yamlLoad) return;
         propertyAssign(state, underlineShiftHump(yamlLoad), (val) => !isNull(val));
         state.yaml = yamlValue;
+        state.yamlValidatePass = true;
       } catch (err) {
         console.error(err);
-        if (err.name === 'YAMLException') {
+        state.yamlValidatePass = false;
+        if (err.name === 'YAMLException' && showError) {
           Message.error('Yaml 解析错误，请检查');
         } else {
           throw err;

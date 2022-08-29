@@ -27,13 +27,13 @@ export default {
 <style lang="scss" scoped>
 .el-statistic-title {
   margin-bottom: 4px;
-  color: rgba(0, 0, 0, 0.45);
   font-size: 14px;
+  color: rgba(0, 0, 0, 0.45);
 }
 
 .el-statistic-content {
-  color: rgba(0, 0, 0, 0.85);
   font-size: 24px;
+  color: rgba(0, 0, 0, 0.85);
 }
 
 .el-statistic-content-value {

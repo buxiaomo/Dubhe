@@ -118,4 +118,29 @@ public interface PtTrainAlgorithmService {
      * @return List<PtTrainAlgorithmQueryVO> 返回可推理算法集合
      */
     List<PtTrainAlgorithmQueryVO> getInferenceAlgorithm();
+
+    /**
+     * 根据算法名称获取算法id
+     *
+     * @param algorithmName 算法名称
+     * @return
+     */
+    List<Long> listIdByName(String algorithmName);
+
+    /**
+     * 根据算法名称获取算法信息
+     *
+     * @param algorithmName 算法名称
+     * @return {@code TrainAlgorithmQureyVO} 算法对象
+     */
+    TrainAlgorithmQureyVO findAlgorithmByName(String algorithmName);
+
+
+    /**
+     * 获取所有算法(预置算法和我的算法)
+     *
+     * @return
+     */
+    List<PtTrainAlgorithmQueryVO> getAll(String algorithmUsage);
+
 }

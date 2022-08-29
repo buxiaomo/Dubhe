@@ -43,12 +43,12 @@
 </template>
 
 <script>
-import { watch, reactive, computed } from '@vue/composition-api';
+import { watch, reactive } from '@vue/composition-api';
 
 import InfoSelect from '@/components/InfoSelect';
 import BaseModal from '@/components/BaseModal';
 import { validateName } from '@/utils/validate';
-import { medicalAnnotationMap } from './constant';
+import { annotationList } from './constant';
 
 export default {
   name: 'EditDataset',
@@ -84,13 +84,6 @@ export default {
 
     const state = reactive({
       model: buildModel(props.row),
-    });
-
-    const annotationList = computed(() => {
-      return Object.keys(medicalAnnotationMap).map((d) => ({
-        label: medicalAnnotationMap[d].name,
-        value: Number(d),
-      }));
     });
 
     const handleEditDataset = () => {

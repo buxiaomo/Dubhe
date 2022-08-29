@@ -15,35 +15,35 @@
  */
 
 <template>
-  <div v-loading="state.loading" class="app-container" style="width: 600px; margin-top: 28px;">
-    <el-form ref="formRef" :model="state.createForm" :rules="rules" label-width="100px">
+  <div v-loading="loading" class="app-container" style="width: 600px; margin-top: 28px;">
+    <el-form ref="formRef" :model="createForm" :rules="rules" label-width="100px">
       <el-form-item label="名称" prop="name">
         <el-input
-          v-model="state.createForm.name"
+          v-model="createForm.name"
           placeholder="标签组名称不能超过50字"
           maxlength="50"
           show-word-limit
-          :disabled="state.actionType === 'detail'"
+          :disabled="isDetail"
         />
       </el-form-item>
       <el-form-item label="类型" prop="labelGroupType">
         <InfoSelect
-          v-model="state.createForm.labelGroupType"
+          v-model="createForm.labelGroupType"
           placeholder="类型"
           :dataSource="labelGroupTypeList"
-          :disabled="['detail', 'edit'].includes(state.actionType)"
+          :disabled="isDetail || isEdit"
           @change="handleLabelGroupTypeChange"
         />
       </el-form-item>
       <el-form-item label="描述" prop="remark">
         <el-input
-          v-model="state.createForm.remark"
+          v-model="createForm.remark"
           type="textarea"
           placeholder="标签组描述长度不能超过100字"
           maxlength="100"
           rows="3"
           show-word-limit
-          :disabled="state.actionType === 'detail'"
+          :disabled="isDetail"
         />
       </el-form-item>
       <el-form-item label="创建方式">
@@ -52,44 +52,39 @@
           class="labels-edit-wrapper"
           type="border-card"
           :before-leave="beforeLeave"
-          @tab-click="handleClick"
+          @tab-click="handleClickTab"
         >
           <el-tab-pane label="自定义标签组" name="custom" class="dynamic-field">
-            <Exception v-if="state.createForm.labels.length === 0" />
+            <Exception v-if="labelListForm.labels.length === 0" />
             <div v-else>
-              <div v-if="state.groupType === 1">
-                <el-tag v-for="label in state.originList" :key="label.id" class="mr-10">{{
-                  label.name
-                }}</el-tag>
+              <div v-if="isPresetLabelGroup(state.labelGroupCategory)">
+                <el-tag v-for="label in state.originList" :key="label.id" class="mr-10">
+                  {{ label.name }}
+                </el-tag>
               </div>
-              <el-form v-else ref="customFormRef" :model="state.createForm" label-width="100px">
-                <DynamicField
-                  :list="state.createForm.labels"
-                  :labelGroupType="state.createForm.labelGroupType"
-                  :originList="state.originList"
-                  :keys="state.keys"
-                  :activeLabels="state.activeLabels"
-                  :add="addRow"
-                  :remove="removeLabel"
-                  :handleChange="handleLabelChange"
-                  :actionType="state.actionType"
-                  :validateDuplicate="validateDuplicate"
-                />
-              </el-form>
+              <DynamicField
+                v-else
+                ref="customFormRef"
+                :data="labelListForm"
+                :labelGroupType="Number(createForm.labelGroupType)"
+                :originList="state.originList"
+                :activeLabels="state.activeLabels"
+                :actionType="actionType"
+              />
             </div>
           </el-tab-pane>
-          <el-tab-pane label="编辑标签组" name="edit" class="code-editor">
+          <el-tab-pane label="编辑标签组" name="edit" class="code-editor" :disabled="isDetail">
             <Editor
               ref="editorRef"
               v-model="state.codeContent"
-              :readonly="state.actionType === 'detail'"
-              @change="handleCodeChange"
+              :readonly="isDetail"
+              @change="setCode"
             />
             <span class="icon-wrapper" @click="beautify">
               <IconFont type="beauty" class="format" />
             </span>
           </el-tab-pane>
-          <el-tab-pane label="导入标签组" name="upload" :disabled="state.actionType !== 'create'">
+          <el-tab-pane label="导入标签组" name="upload" :disabled="!isCreate">
             <div class="min-height-100 flex flex-center upload-tab">
               <UploadInline
                 ref="uploadFormRef"
@@ -128,24 +123,23 @@
       </el-form-item>
     </el-form>
     <div style="margin-left: 100px;">
-      <el-button type="primary" @click="handleSubmit">{{ submitTxt }}</el-button>
-      <!-- <el-button @click="goBack">{{state.cancelText}}</el-button> -->
+      <el-button type="primary" :loading="submitting" @click="handleSubmit">
+        {{ submitTxt }}
+      </el-button>
     </div>
   </div>
 </template>
 
 <script>
-import { reactive, ref, onMounted, computed } from '@vue/composition-api';
+import { reactive, ref, onMounted } from '@vue/composition-api';
 import { Message, MessageBox } from 'element-ui';
-import { pick, uniqBy } from 'lodash';
-
+import { uniqBy, cloneDeep } from 'lodash';
 import Beautify from 'js-beautify';
 
 import Editor from '@/components/editor';
 import Exception from '@/components/Exception';
 import UploadInline from '@/components/UploadForm/inline';
-import { remove, replace, duplicate } from '@/utils';
-import { labelGroupTypeMap } from '@/views/dataset/util';
+import { labelGroupTypeMap, labelGroupCategoryMap, isPresetLabelGroup } from '@/views/dataset/util';
 import { validateName, validateLabelsUtil } from '@/utils/validate';
 import { getAutoLabels } from '@/api/preparation/datalabel';
 import { add, edit, getLabelGroupDetail, importLabelGroup } from '@/api/preparation/labelGroup';
@@ -154,10 +148,36 @@ import DynamicField from './dynamicField';
 
 const defaultColor = '#FFFFFF';
 
+// 初始总表单
+const initialCreateForm = {
+  name: '',
+  labelGroupType: undefined,
+  remark: '',
+  type: labelGroupCategoryMap.REGULAR,
+};
+// 初始标签列表表单
 const initialLabels = [
   { name: '', color: defaultColor },
   { name: '', color: '#000000' },
 ];
+
+const routeMap = {
+  LabelGroupCreate: 'create',
+  LabelGroupDetail: 'detail',
+  LabelGroupEdit: 'edit',
+};
+
+const txtMap = {
+  create: '确认创建',
+  edit: '确认编辑',
+  detail: '返回',
+};
+
+const operateTypeMap = {
+  custom: 1,
+  edit: 2,
+  upload: 3,
+};
 
 export default {
   name: 'LabelGroupForm',
@@ -175,23 +195,15 @@ export default {
     const customFormRef = ref(null);
 
     const { $route, $router } = ctx.root;
-    const routeMap = {
-      LabelGroupCreate: 'create',
-      LabelGroupDetail: 'detail',
-      LabelGroupEdit: 'edit',
-    };
+    // 当前页面类型 操作的标签组id 按钮文字
+    const actionType = routeMap[$route.name] || 'create';
+    const currentLabelGroupId = actionType !== 'create' ? $route.query.id : null;
+    const submitTxt = txtMap[actionType];
+    const isCreate = actionType === 'create';
+    const isEdit = actionType === 'edit';
+    const isDetail = actionType === 'detail';
 
-    const txtMap = {
-      create: '确认创建',
-      edit: '确认编辑',
-      detail: '返回',
-    };
-
-    const operateTypeMap = {
-      1: 'custom',
-      2: 'edit',
-      3: 'upload',
-    };
+    const labelGroupTypeList = Object.values(labelGroupTypeMap);
 
     // 表单规则
     const rules = {
@@ -204,35 +216,19 @@ export default {
       ],
     };
 
-    const buildModel = (record, options) => {
-      return { ...record, ...options };
-    };
+    const loading = ref(false);
+    const submitting = ref(false);
 
-    // 生成 keys
-    const setKeys = (labels) => labels.map((label, index) => index);
-
-    // 页面类型
-    const actionType = routeMap[$route.name] || 'create';
-
+    // 总表单
+    const createForm = ref({ ...initialCreateForm });
+    // 标签列表表单
+    const labelListForm = ref({ labels: cloneDeep(initialLabels) });
     const state = reactive({
-      id: actionType !== 'create' ? $route.query.id : null,
-      actionType,
-      groupType: null, // 查询标签组详情类型
-      model: buildModel(props.row),
-      systemLabels: [], // 系统自动标注标签列表
+      labelGroupCategory: null, // 标签组类别，普通/预置
+      autoLabels: [], // 系统自动标注标签列表
       originList: [], // 记录原始返回列表
       activeLabels: [], // 当前可用标签列表
-      fileCount: undefined,
-      // counter: 动态表单项数量，keys: 每次生成唯一的表单项
-      counter: initialLabels.length - 1,
-      keys: setKeys(initialLabels),
-      createForm: {
-        labels: initialLabels,
-        name: '',
-        labelGroupType: undefined,
-        remark: '',
-        type: 0,
-      },
+      addWay: 'custom', // 默认创建类型为自定义
       codeContent: JSON.stringify(initialLabels),
       customForm: {
         labels: [
@@ -242,30 +238,12 @@ export default {
           },
         ],
       },
-      addWay: 'custom', // 默认创建类型为自定义
-      cancelText: '取消',
-      errmsg: '',
-      loading: false, // 加载详情
     });
-
-    const submitTxt = txtMap[state.actionType];
-
-    // 获取 key 值索引
-    const getIndex = (index) => state.keys.findIndex((key) => key === index);
-
-    // 根据值获取标签值
-    const getLabelGroupLabel = (value) => {
-      return (Object.values(labelGroupTypeMap).find((d) => d.value === value) || {}).label;
-    };
 
     const setCode = (code) => {
       Object.assign(state, {
         codeContent: code,
       });
-    };
-
-    const handleCodeChange = (value) => {
-      setCode(value);
     };
 
     const beautify = () => {
@@ -284,31 +262,36 @@ export default {
       $router.push({ path: '/data/labelgroup' });
     };
 
-    // 更新
-    const updateCreateForm = (next) => {
-      Object.assign(state, {
-        createForm: {
-          ...state.createForm,
-          ...next,
-        },
+    // 获取该类型下的自动标注标签
+    const fetchAutoLabels = (val) => {
+      getAutoLabels(val).then((res) => {
+        Object.assign(state, {
+          autoLabels: res,
+          activeLabels: uniqBy(res.concat(state.activeLabels), 'id'),
+        });
       });
     };
 
-    const labelGroupTypeList = Object.values(labelGroupTypeMap);
-
-    const handleLabelGroupTypeChange = () => {
+    // 类型改变 清空已填写的标签表单
+    const handleLabelGroupTypeChange = (val) => {
+      labelListForm.value.labels = cloneDeep(initialLabels);
       Object.assign(state, {
-        createForm: {
-          ...state.createForm,
-          labels: initialLabels,
+        autoLabels: [],
+        activeLabels: [],
+        addWay: 'custom', // 默认创建类型为自定义
+        codeContent: JSON.stringify(initialLabels),
+        customForm: {
+          labels: [
+            {
+              name: '',
+              color: defaultColor,
+            },
+          ],
         },
       });
-      getAutoLabels(state.createForm.labelGroupType).then((res) => {
-        Object.assign(state, {
-          activeLabels: res,
-          systemLabels: res,
-        });
-      });
+      if (val === labelGroupTypeMap.VISUAL.value) {
+        fetchAutoLabels(val);
+      }
     };
 
     const handleLabelGroupRequest = (params) => {
@@ -330,8 +313,16 @@ export default {
     };
 
     const handleSubmit = () => {
-      if (actionType === 'detail') {
+      submitting.value = true;
+      if (isDetail) {
         goBack();
+        submitting.value = false;
+        return;
+      }
+
+      if (isEdit && isPresetLabelGroup(state.labelGroupCategory)) {
+        Message.info('预置标签组不可编辑');
+        submitting.value = false;
         return;
       }
 
@@ -340,11 +331,12 @@ export default {
           switch (state.addWay) {
             // 自定标签组
             case 'custom':
-              customFormRef.value.validate((isValid) => {
+              customFormRef.value.$refs.formRef.validate((isValid) => {
                 if (isValid) {
                   const params = {
-                    ...state.createForm,
-                    operateType: 1,
+                    ...createForm.value,
+                    labels: customFormRef.value.$refs.formRef.model.labels,
+                    operateType: operateTypeMap.custom,
                   };
                   handleLabelGroupRequest(params);
                 }
@@ -368,9 +360,9 @@ export default {
                   return;
                 }
                 const editParams = {
-                  ...state.createForm,
+                  ...createForm.value,
                   labels: code,
-                  operateType: 2,
+                  operateType: operateTypeMap.edit,
                 };
                 handleLabelGroupRequest(editParams);
               } catch (err) {
@@ -380,13 +372,13 @@ export default {
               break;
             case 'upload': {
               const { uploadFiles } = uploadFormRef.value.formRef?.$refs.uploader || {};
-              const { name, remark, labelGroupType } = state.createForm;
+              const { name, remark, labelGroupType } = createForm.value;
 
               const formData = new FormData();
               formData.append('name', name);
               formData.append('remark', remark);
-              formData.append('file', uploadFiles[0].raw);
-              formData.append('operateType', 3);
+              formData.append('file', uploadFiles[0]?.raw);
+              formData.append('operateType', operateTypeMap.upload);
               formData.append('labelGroupType', labelGroupType);
 
               importLabelGroup(formData).then(() => {
@@ -421,26 +413,19 @@ export default {
     };
 
     //
-    const handleClick = (tab) => {
+    const handleClickTab = (tab) => {
       if (state.addWay === tab.name) return;
       // 切换到编辑模式
       if (tab.name === 'edit') {
         // 从自定义编辑切换过去
         if (state.addWay === 'custom') {
-          state.codeContent = JSON.stringify(state.createForm.labels);
+          state.codeContent = JSON.stringify(customFormRef.value.$refs.formRef.model.labels);
         }
       } else if (tab.name === 'custom') {
         if (state.addWay === 'edit') {
           try {
             const nextLabels = JSON.parse(editorRef.value.getValue());
-            Object.assign(state, {
-              createForm: {
-                ...state.createForm,
-                labels: nextLabels,
-              },
-              keys: setKeys(nextLabels),
-              counter: Math.max(state.counter, nextLabels.length - 1),
-            });
+            labelListForm.value.labels = nextLabels;
           } catch (err) {
             Message.error('编辑格式不合法');
             return;
@@ -450,160 +435,65 @@ export default {
       state.addWay = tab.name;
     };
 
-    const addLabel = (row) => {
-      state.createForm.labels.push(row);
-      const nextKeys = state.keys.concat(state.counter + 1);
-      Object.assign(state, {
-        keys: nextKeys,
-        counter: state.counter + 1,
-      });
-    };
-
-    // 添加一行标签
-    const addRow = () => {
-      addLabel({
-        name: '',
-        color: defaultColor,
-      });
-    };
-
-    // 用户自定义创建标签
-    const createCustomLabel = (name, index) => {
-      const updateLabel = { name, color: defaultColor };
-      updateCreateForm({
-        labels: replace(state.createForm.labels, index, updateLabel),
-      });
-    };
-
-    const validateDuplicate = (rule, value, callback) => {
-      const isDuplicate = duplicate(state.createForm.labels, (d) => {
-        if (!value.id) return false;
-        return d.id === value.id;
-      });
-      if (isDuplicate) {
-        callback(new Error('标签不能重复'));
-        return;
-      }
-      callback();
-    };
-
-    const handleLabelChange = (key, value) => {
-      const index = getIndex(key);
-
-      // 每次触发错误表单项验证
-      const errorFields = customFormRef.value.fields
-        .filter((d) => d.validateState === 'error')
-        .map((d) => d.prop);
-      customFormRef.value.validateField(errorFields);
-      // 判断是新建还是选择标签
-      const editLabel = state.systemLabels.find((d) => d.id === value);
-      // 选择已有标签
-      if (editLabel) {
-        const updateLabel = pick(editLabel, ['name', 'id', 'color']);
-        Object.assign(state, {
-          createForm: {
-            ...state.createForm,
-            labels: replace(state.createForm.labels, index, updateLabel),
-          },
-        });
-      } else {
-        // 创建用户自定义标签
-        createCustomLabel(value, index);
-      }
-    };
-
-    // 移除标签
-    const removeLabel = (k) => {
-      // 至少保留一条记录
-      if (state.keys.length === 1) return;
-      const index = getIndex(k);
-
-      Object.assign(state, {
-        keys: state.keys.filter((key) => key !== k),
-        createForm: {
-          ...state.createForm,
-          labels: remove(state.createForm.labels, index),
-        },
-      });
-    };
-
-    const setLoading = (loading) => {
-      Object.assign(state, {
-        loading,
-      });
-    };
-
-    const labelGroupType = computed(() => getLabelGroupLabel(state.groupType)) || undefined;
-
     onMounted(() => {
-      // 异常判断
-      if (actionType !== 'create') {
-        if (!state.id) {
+      if (!isCreate) {
+        // 编辑和查看的标签组不存在，跳转
+        if (!currentLabelGroupId) {
           $router.push({ path: '/data/labelgroup' });
           throw new Error('当前标签组 id 不存在');
         }
-        setLoading(true);
-        // 查询数据集详情
-        getLabelGroupDetail(state.id)
+        loading.value = true;
+        // 查询标签组详情
+        getLabelGroupDetail(currentLabelGroupId)
           .then(async (res) => {
             // 当编辑模式，且数据为空时需要提供默认数据
-            const labels =
-              res.labels.length === 0 && actionType === 'edit' ? initialLabels : res.labels;
-            const restProps =
-              state.actionType === 'detail'
-                ? {
-                    groupType: res.type || 0,
-                  }
-                : {};
-            const autoLabels = await getAutoLabels(res.labelGroupType);
+            const labels = res.labels.length === 0 && isEdit ? initialLabels : res.labels;
+            createForm.value = { ...res };
+            labelListForm.value.labels = [...labels];
             Object.assign(state, {
-              activeLabels: autoLabels,
-              systemLabels: autoLabels,
-            });
-            Object.assign(state, {
-              createForm: {
-                ...state.createForm,
-                ...res,
-                labels,
-              },
-              addWay: operateTypeMap[res.operateType] || 'custom',
+              addWay: 'custom', // 编辑标签组时不得使用upload方式
               activeLabels: uniqBy(state.activeLabels.concat(res.labels), 'id'),
               originList: res.labels.slice(),
-              keys: setKeys(labels),
-              counter: Math.max(state.counter, labels.length - 1),
               codeContent: JSON.stringify(res.labels),
-              ...restProps,
+              labelGroupCategory: res.type || labelGroupCategoryMap.REGULAR,
             });
+            fetchAutoLabels(res.labelGroupType);
           })
           .finally(() => {
-            setLoading(false);
+            loading.value = false;
           });
       }
     });
 
     return {
-      rules,
       VUE_APP_DOCS_URL: process.env.VUE_APP_DOCS_URL,
-      state,
+      rules,
+      actionType,
+      isCreate,
+      isDetail,
+      isEdit,
       submitTxt,
-      beautify,
+      labelGroupTypeList,
       editorRef,
       formRef,
       customFormRef,
-      validateDuplicate,
-      goBack,
-      handleClick,
-      handleSubmit,
-      removeLabel,
-      addRow,
-      handleLabelChange,
-      uploadError,
       uploadFormRef,
-      beforeLeave,
-      labelGroupType,
-      labelGroupTypeList,
+
+      state,
+      loading,
+      submitting,
+      createForm,
+      labelListForm,
+
+      beautify,
+      goBack,
+      handleClickTab,
+      handleSubmit,
       handleLabelGroupTypeChange,
-      handleCodeChange,
+      uploadError,
+      beforeLeave,
+      setCode,
+      isPresetLabelGroup,
     };
   },
 };

@@ -10,6 +10,9 @@
         </foreach>
         group by medicine_id,status
     </select>
+    <select id="getFileStatusListByDataset" resultType="java.lang.Integer">
+        select distinct status from data_medicine_file where medicine_id = #{datasetId} and status !=1
+    </select>
 
     <insert id="saveBatch" useGeneratedKeys="true"
             keyProperty="id">

@@ -53,7 +53,7 @@ public class DatasetVersionFileDTO {
     private String fileName;
 
     @ApiModelProperty("标签ID")
-    private Long labelId;
+    private Long[] labelId;
 
     @ApiModelProperty("预测值")
     private Double prediction;

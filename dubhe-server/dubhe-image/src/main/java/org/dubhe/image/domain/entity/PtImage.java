@@ -22,9 +22,11 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.dubhe.biz.db.entity.BaseEntity;
+import java.util.List;
 
 /**
  * @description 镜像
@@ -33,6 +35,7 @@ import org.dubhe.biz.db.entity.BaseEntity;
 @Data
 @Accessors(chain = true)
 @TableName(value = "pt_image", autoResultMap = true)
+@JsonIgnoreProperties(value = {"handler"})
 public class PtImage extends BaseEntity {
 
     /**
@@ -60,16 +63,16 @@ public class PtImage extends BaseEntity {
     private String imageTag;
 
     /**
+     * 是否为默认镜像
+     */
+    @TableField(value = "is_default")
+    private Integer isDefault;
+
+    /**
      * 镜像描述
      */
     @TableField(value = "remark")
     private String remark;
-
-    /**
-     * projectName
-     */
-    @TableField(value = "project_name")
-    private String projectName;
 
     /**
      * 镜像来源
@@ -97,4 +100,7 @@ public class PtImage extends BaseEntity {
     //镜像ssh用户
     @TableField(value = "ssh_user")
     private String sshUser;
+
+    @TableField(exist = false)
+    private List<Integer> imageTypes;
 }

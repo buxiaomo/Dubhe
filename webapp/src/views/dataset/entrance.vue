@@ -41,6 +41,18 @@
           针对医学影像 dcm 格式文件的数据标注，目前支持器官分割和病灶识别场景
         </div>
       </div>
+      <div
+        :class="['radio-label', state.entrance === 2 ? 'border-chosen' : 'border']"
+        @click="changeRadio(2)"
+      >
+        <img src="@/assets/images/dataset/pointCloudDataset.png" width="50%" />
+        <div class="mb-20 mt-20 bold">
+          3D点云
+        </div>
+        <div class="tl">
+          针对3D点云pcd、bin格式文件的数据标注, 目前支持目标检测场景
+        </div>
+      </div>
     </div>
     <div class="tc">
       <el-button type="primary" @click="handleNext">
@@ -51,20 +63,14 @@
 </template>
 <script>
 import { reactive } from '@vue/composition-api';
-import { cacheDatasetType } from './util';
+import { cacheDatasetType, pushUrl } from './util';
 
 export default {
   name: 'Entrance',
   setup(props, ctx) {
     const { $router } = ctx.root;
 
-    const redirect = (val) => {
-      if (val === 0) {
-        $router.push({ path: '/data/datasets/list' });
-      } else if (val === 1) {
-        $router.push({ path: '/data/datasets/medical' });
-      }
-    };
+    const redirect = (val) => $router.push({ path: pushUrl[val] });
 
     const state = reactive({
       entrance: 0,
@@ -101,8 +107,6 @@ export default {
   align-items: center;
   justify-content: space-between;
   width: 1000px;
-  padding-right: 125px;
-  padding-left: 125px;
   margin: 0 auto 64px;
 }
 

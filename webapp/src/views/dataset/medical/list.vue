@@ -27,6 +27,14 @@
       :handleCancel="handleEditClose"
       :handleOk="handleEditDataset"
     />
+    <AutoAnnotate
+      :key="autoAnnotateKey"
+      :visible="actionModal.show && actionModal.type === 'autoAnnotate'"
+      :loading="actionModal.showOkLoading"
+      :row="actionModal.row"
+      :handleCancel="handleCancel"
+      @ok="startAutoAnnotate"
+    />
     <!--工具栏-->
     <div class="head-container">
       <cdOperation :addProps="operationProps" :delProps="operationProps">
@@ -66,7 +74,8 @@
         <el-tab-pane label="我的数据集" name="0" />
         <el-tab-pane label="预置数据集" name="2" />
       </el-tabs>
-      <div>
+      <div class="flex flex-vertical-align">
+        <TenantSelector :datasetListType="datasetListType" class="mr-8" />
         <el-tooltip effect="dark" content="刷新" placement="top">
           <el-button
             class="filter-item with-border"
@@ -75,7 +84,6 @@
             @click="onResetFresh"
           />
         </el-tooltip>
-        <TenantSelector :datasetListType="datasetListType" style="margin: 0 3px 10px 10px;" />
       </div>
     </div>
     <!--表格渲染-->
@@ -174,7 +182,7 @@
       >
         <template slot-scope="scope">
           <el-tooltip :content="scope.row.studyInstanceUID" enterable placement="top">
-            <div class="ellipsis" style=" display: inline-block; width: 100%;">
+            <div class="ellipsis" :style="{ width: '100%' }">
               {{ scope.row.studyInstanceUID }}
             </div>
           </el-tooltip>
@@ -188,7 +196,7 @@
       >
         <template slot-scope="scope">
           <el-tooltip :content="scope.row.seriesInstanceUID" enterable placement="top">
-            <div class="ellipsis" style=" display: inline-block; width: 100%;">
+            <div class="ellipsis" :style="{ width: '100%' }">
               {{ scope.row.seriesInstanceUID }}
             </div>
           </el-tooltip>
@@ -241,8 +249,9 @@
         fixed="right"
         min-width="200"
         align="left"
+        :stopRunning="stopRunning"
         :goDetail="goDetail"
-        :autoAnnotate="autoAnnotate"
+        :autoAnnotate="showAutoAnnotate"
         :editDataset="toggleEdit"
       />
     </el-table>
@@ -269,6 +278,7 @@ import crudDataset, {
   autoAnnotate,
   queryDatasetsProgress,
   editDataset,
+  stopRunning,
 } from '@/api/preparation/medical';
 import CRUD, { presenter, header, form, crud } from '@crud/crud';
 import rrOperation from '@crud/RR.operation';
@@ -298,6 +308,7 @@ import {
   medicalFirstLevelCodeMap,
 } from './constant';
 import CreateDataset from './create-dataset';
+import AutoAnnotate from './auto-annotate';
 import TenantSelector from '../components/tenant';
 import Status from './status';
 import Action from './action';
@@ -328,6 +339,7 @@ export default {
     DropdownHeader,
     CreateDataset,
     EditDataset,
+    AutoAnnotate,
   },
   beforeRouteEnter(to, from, next) {
     // 拦截非医学场景
@@ -366,6 +378,13 @@ export default {
       progressKeys: Object.keys(medicalProgressMap),
       datasetStatusMap,
       autoTimer: {}, // 自动标注定时器
+      actionModal: {
+        show: false,
+        row: undefined,
+        showOkLoading: false,
+        type: null,
+      },
+      autoAnnotateKey: 1,
     };
   },
   computed: {
@@ -491,6 +510,25 @@ export default {
           this.onResetFresh();
         });
     },
+
+    // 停止标注
+    stopRunning(row) {
+      return stopRunning(row.id)
+        .then(() => {
+          this.$message({
+            message: '进行中的任务已停止',
+            type: 'success',
+          });
+        })
+        .catch((e) => {
+          this.$message({
+            message: e.message || '停止失败',
+            type: 'error',
+          });
+        })
+        .finally(() => this.crud.refresh());
+    },
+
     // 查看标注
     async goDetail(row) {
       if (isStatus(row, 'AUTO_ANNOTATING')) {
@@ -501,26 +539,63 @@ export default {
       });
       return null;
     },
+
+    showActionModal(row, type) {
+      this.actionModal = {
+        show: true,
+        row,
+        showOkLoading: false,
+        type,
+      };
+    },
+
+    // 显示自动标注弹窗
+    showAutoAnnotate(row) {
+      this.showActionModal(row, 'autoAnnotate');
+    },
     // 开始自动标注
-    autoAnnotate(row) {
-      this.$set(row, 'pollIng', true); // 新增响应式变量，并设置禁用操作台按钮
-      return autoAnnotate(row.id)
+    startAutoAnnotate(data) {
+      Object.assign(this.actionModal, {
+        showOkLoading: true,
+      });
+      this.$set(this.actionModal.row, 'pollIng', true); // 新增响应式变量，并设置禁用操作台按钮
+      return autoAnnotate(this.actionModal.row, data)
         .then(() => {
           this.$message({
             message: '自动标注任务开始',
             type: 'success',
           });
           // 启动自动标注轮询
-          this.poll(row, 'AUTO_ANNOTATING');
+          this.poll(this.actionModal.row, 'AUTO_ANNOTATING');
         })
         .catch((e) => {
-          row.pollIng = false;
+          this.actionModal.row.pollIng = false;
           this.$message({
             message: e.message || '自动标注任务失败',
             type: 'error',
           });
+        })
+        .finally(() => {
+          this.resetActionModal();
+          this.crud.refresh();
         });
     },
+
+    resetActionModal() {
+      if (this.actionModal.type === 'autoAnnotate') {
+        this.autoAnnotateKey += 1;
+      }
+      this.actionModal = {
+        show: false,
+        row: undefined,
+        showOkLoading: false,
+        type: null,
+      };
+    },
+    handleCancel() {
+      this.resetActionModal();
+    },
+
     // 进度条颜色
     progressFill(status) {
       const fillMap = {

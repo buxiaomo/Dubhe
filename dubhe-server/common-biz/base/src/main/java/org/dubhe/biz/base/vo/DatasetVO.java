@@ -157,4 +157,14 @@ public class DatasetVO implements Serializable {
      */
     private Integer fileCount;
 
+    /**
+     * 模板
+     */
+    private Integer templateType;
+
+    /**
+     * 所属模块
+     */
+    private Integer module;
+
 }

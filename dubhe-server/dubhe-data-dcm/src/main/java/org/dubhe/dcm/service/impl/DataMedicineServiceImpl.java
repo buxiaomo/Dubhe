@@ -1,12 +1,12 @@
 /**
  * Copyright 2020 Tianshu AI Platform. All Rights Reserved.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,9 +17,12 @@
 package org.dubhe.dcm.service.impl;
 
 import cn.hutool.core.collection.CollectionUtil;
+import cn.hutool.core.util.ObjectUtil;
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.dubhe.biz.permission.annotation.DataPermissionMethod;
@@ -38,16 +41,28 @@ import org.dubhe.biz.file.utils.MinioUtil;
 import org.dubhe.biz.log.enums.LogEnum;
 import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.cloud.authconfig.utils.JwtUtils;
+import org.dubhe.data.constant.DataTaskTypeEnum;
 import org.dubhe.data.constant.ErrorEnum;
+import org.dubhe.data.constant.TaskStatusEnum;
+import org.dubhe.data.domain.entity.Task;
 import org.dubhe.data.machine.constant.DataStateCodeConstant;
+import org.dubhe.data.machine.enums.DataStateEnum;
+import org.dubhe.data.service.TaskService;
 import org.dubhe.dcm.constant.DcmConstant;
 import org.dubhe.dcm.dao.DataMedicineMapper;
 import org.dubhe.dcm.domain.dto.*;
 import org.dubhe.dcm.domain.entity.DataMedicine;
+import org.dubhe.dcm.domain.entity.DataMedicineFile;
 import org.dubhe.dcm.domain.vo.DataMedicineCompleteAnnotationVO;
+import org.dubhe.dcm.domain.vo.DataMedicineSmallVO;
 import org.dubhe.dcm.domain.vo.DataMedicineVO;
+import org.dubhe.dcm.machine.constant.DcmDataStateCodeConstant;
+import org.dubhe.dcm.machine.enums.DcmDataStateEnum;
+import org.dubhe.dcm.machine.utils.DcmStateIdentifyUtil;
 import org.dubhe.dcm.service.DataMedicineFileService;
 import org.dubhe.dcm.service.DataMedicineService;
+import org.dubhe.dcm.service.MedicineAnnotationService;
+import org.dubhe.dcm.util.StringUtil;
 import org.dubhe.recycle.domain.dto.RecycleCreateDTO;
 import org.dubhe.recycle.domain.dto.RecycleDetailCreateDTO;
 import org.dubhe.recycle.enums.RecycleModuleEnum;
@@ -64,10 +79,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.io.File;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.dubhe.data.constant.ErrorEnum.DATASET_PUBLIC_LIMIT_ERROR;
@@ -94,6 +106,9 @@ public class DataMedicineServiceImpl extends ServiceImpl<DataMedicineMapper, Dat
      */
     @Autowired
     private RecycleService recycleService;
+
+    @Autowired
+    private TaskService taskService;
 
     @Autowired
     private MinioUtil minioUtil;
@@ -130,6 +145,12 @@ public class DataMedicineServiceImpl extends ServiceImpl<DataMedicineMapper, Dat
      */
     @Value("${data.server.userName}")
     private String dataServerUserName;
+
+    @Autowired
+    private MedicineAnnotationService medicineAnnotationService;
+
+    @Autowired
+    private DcmStateIdentifyUtil stateIdentify;
 
     /**
      * 获取DataMedicine中所有属性
@@ -200,7 +221,7 @@ public class DataMedicineServiceImpl extends ServiceImpl<DataMedicineMapper, Dat
                     Long datasetId = Long.valueOf(recycleDetailCreateDTO.getRecycleCondition());
                     DataMedicine dataMedicine = baseMapper.findDataMedicineByIdAndDeleteIsFalse(datasetId);
                     DataMedicine dataMedicineBySeriesUid = baseMapper.findDataMedicineBySeriesUid(dataMedicine.getSeriesInstanceUid());
-                    if(dataMedicineBySeriesUid != null){
+                    if (dataMedicineBySeriesUid != null) {
                         throw new BusinessException(ErrorEnum.MEDICINE_MEDICAL_ALREADY_EXISTS_RESTORE);
                     }
                     //还原数据集状态
@@ -238,7 +259,7 @@ public class DataMedicineServiceImpl extends ServiceImpl<DataMedicineMapper, Dat
         baseMapper.updateById(dataMedicineUpdate);
         dataMedicineFileService.save(dataMedicineImportDTO.getDataMedicineFileCreateList(), dataMedicineUpdate);
         //上传dcm文件到dcm服务器
-        String command = String.format(DcmConstant.DCM_UPLOAD, dataServerUserName, nfsHost, prefixPath, dcmHost, dcmPort,
+        String command = String.format(DcmConstant.DCM_UPLOAD, prefixPath, dcmHost, dcmPort,
                 prefixPath + File.separator + bucketName + File.separator + "dataset" + File.separator + "dcm" + File.separator + dataMedicineImportDTO.getId() + File.separator + "origin");
         try {
             Runtime.getRuntime().exec(new String[]{"/bin/sh", "-c", command});
@@ -318,18 +339,19 @@ public class DataMedicineServiceImpl extends ServiceImpl<DataMedicineMapper, Dat
         }
         baseMapper.updateStatusById(id, true);
         dataMedicineFileService.updateStatusById(id, true);
-        addRecycleDataByDeleteDataset(id);
+        addRecycleDataByDeleteDataset(dataMedicine);
         return true;
     }
 
     /**
      * 添加医学数据集删除回收数据
      *
-     * @param id 医学数据集ID
+     * @param dataMedicine 医学数据集
      */
     @Transactional(rollbackFor = Exception.class)
-    public void addRecycleDataByDeleteDataset(Long id) {
+    public void addRecycleDataByDeleteDataset(DataMedicine dataMedicine) {
         //删除MinIO文件
+        Long id = dataMedicine.getId();
         try {
             //落地回收详情数据文件回收信息
             List<RecycleDetailCreateDTO> detailList = new ArrayList<>();
@@ -351,7 +373,7 @@ public class DataMedicineServiceImpl extends ServiceImpl<DataMedicineMapper, Dat
                     .recycleCustom(RecycleResourceEnum.DATAMEDICINE_RECYCLE_FILE.getClassName())
                     .restoreCustom(RecycleResourceEnum.DATAMEDICINE_RECYCLE_FILE.getClassName())
                     .recycleDelayDate(NumberConstant.NUMBER_1)
-                    .recycleNote(RecycleTool.generateRecycleNote("删除医学数据集相关信息", id))
+                    .recycleNote(RecycleTool.generateRecycleNote("删除医学数据集相关信息", dataMedicine.getName(),id))
                     .detailList(detailList)
                     .build();
             recycleService.createRecycleTask(recycleCreateDTO);
@@ -534,4 +556,59 @@ public class DataMedicineServiceImpl extends ServiceImpl<DataMedicineMapper, Dat
         }
         return true;
     }
+
+    @Override
+    public List<DataMedicineSmallVO> getList() {
+        List<DataMedicineSmallVO> list = baseMapper.getList();
+        if (CollectionUtil.isNotEmpty(list)) {
+            list.stream().forEach(dataMedicineSmallVO -> {
+                dataMedicineSmallVO.setUrl(StringUtil.getDcmUrl(dataMedicineSmallVO.getId()));
+            });
+        }
+        return list;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void taskStop(Long medicalId) {
+        DataMedicine medicine = baseMapper.selectById(medicalId);
+        checkDatasetForTask(medicine);
+
+        //停止任务
+        Task task = taskService.selectRunningDcmTask(medicalId);
+        task.setStop(true);
+        taskService.updateByTaskId(task);
+
+        //更新状态
+        DcmDataStateEnum status = stateIdentify.getStatusForRollback(medicalId);
+        medicine.setStatus(status.getCode());
+        baseMapper.updateById(medicine);
+        //合并标注
+        QueryWrapper<DataMedicineFile> objectQueryWrapper = new QueryWrapper<>();
+        objectQueryWrapper.lambda().eq(DataMedicineFile::getMedicineId, medicalId);
+        List<DataMedicineFile> dataMedicineFiles = dataMedicineFileService.listFile(objectQueryWrapper);
+        List<DataMedicineFile> dataMedicineFilesOrderByAsc = dataMedicineFileService
+                .insertInstanceAndSort(dataMedicineFiles, medicalId);
+        medicineAnnotationService.mergeAnnotation(medicalId, dataMedicineFilesOrderByAsc);
+        medicine.setStop(true);
+        baseMapper.updateById(medicine);
+    }
+
+    @Override
+    public DataMedicine getOneById(Long datasetId) {
+        return baseMapper.selectById(datasetId);
+    }
+
+    public void checkDatasetForTask(DataMedicine medicine) {
+        if (ObjectUtil.isEmpty(medicine)) {
+            throw new BusinessException("数据集不存在");
+        }
+        HashSet<Integer> set = new HashSet<Integer>() {{
+            add(DcmDataStateCodeConstant.AUTOMATIC_LABELING_STATE);
+        }};
+        if (!set.contains(medicine.getStatus())) {
+            throw new BusinessException("当前数据集状态不允许操作");
+        }
+    }
+
 }

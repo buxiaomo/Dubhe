@@ -20,8 +20,10 @@
       ref="imgUploadDialog"
       action="fackApi"
       :params="uploadParams"
+      accept="unspecified"
       :limit="5000"
       :filters="uploadFilters"
+      data-type="text"
       @upload-success="onUploadSuccess"
       @close="onUploadClose"
     />
@@ -130,17 +132,17 @@
     </el-form-item>
     <el-form-item
       prop="inputPath"
-      label="上传预测图片"
+      label="上传预测文件"
       class="is-required"
       :error="inputPathErrorMsg"
     >
-      <el-button @click="onUploadDialogClick">上传图片</el-button>
+      <el-button @click="onUploadDialogClick">上传文件</el-button>
       <i v-if="!isAdd || uploaded" class="el-icon-circle-check success f18 vm" />
       <el-tooltip
         v-if="!isAdd"
         class="item"
         effect="dark"
-        content="编辑服务和 Fork 服务时，无需重新上传图片"
+        content="编辑服务和 Fork 服务时，无需重新上传文件"
         placement="right"
       >
         <i class="el-icon-warning-outline primary f18 vm" />
@@ -204,8 +206,7 @@ import { getImageNameList, getImageTagList } from '@/api/trainingImage';
 import { getInferenceAlgorithm, add as addAlgorithm } from '@/api/algorithm/algorithm';
 import { list as getSpecsNames } from '@/api/system/resources';
 import { validateNameWithHyphen } from '@/utils/validate';
-import { IMAGE_PROJECT_TYPE } from '@/views/trainingJob/utils';
-
+import { IMAGE_TYPE } from '@/views/trainingJob/utils';
 import RunParamForm from '@/components/Training/runParamForm';
 import BaseModal from '@/components/BaseModal';
 import AlgorithmForm from '@/views/algorithm/components/algorithmForm';
@@ -221,7 +222,7 @@ const defaultForm = {
   modelBranchId: null,
   imageName: null, // 镜像名称
   imageTag: null, // 镜像版本
-  inputPath: null, // 图片目录
+  inputPath: null, // 文件目录
   resourcesPoolType: 0, // 节点类型
   resourcesPoolSpecs: null, // 节点规格
   resourcesPoolNode: 1, // 节点数
@@ -317,7 +318,7 @@ export default {
           },
         ],
       },
-      uploadFilters: [invalidFileNameChar], // 上传推理脚本及上传图片共用
+      uploadFilters: [invalidFileNameChar], // 上传推理脚本及上传文件共用
 
       // 创建算法表单
       algorithmFormVisible: false,
@@ -336,12 +337,12 @@ export default {
       return this.form.modelResource === 1;
     },
     inputPathErrorMsg() {
-      return this.inputPathValid ? null : '请先上传图片';
+      return this.inputPathValid ? null : '请先上传文件';
     },
     scriptErrMsg() {
       return this.scriptValid ? '' : '请选择自定义推理脚本';
     },
-    // 批量上传图片的路径
+    // 批量上传文件的路径
     uploadParams() {
       return {
         objectPath: this.form.inputPath,
@@ -426,7 +427,7 @@ export default {
       // el-form 表单校验
       this.$refs.form.validate(validCallback);
       // 自定义校验
-      // 创建批量服务时，必须要求先上传图片
+      // 创建批量服务时，必须要求先上传文件
       this.inputPathValid = !this.isAdd || this.uploaded;
       valid = valid && this.inputPathValid;
       valid = this.validateScript() && valid;
@@ -540,7 +541,7 @@ export default {
 
     // 镜像选择
     async getImageNames(keepValue = false) {
-      this.imageNameList = await getImageNameList({ projectTypes: [IMAGE_PROJECT_TYPE.TRAIN] });
+      this.imageNameList = await getImageNameList({ imageTypes: [IMAGE_TYPE.SERVING] });
       if (!keepValue || !this.form.imageName) {
         this.form.imageTag = null;
       } else if (!this.imageNameList.includes(this.form.imageName)) {
@@ -553,7 +554,6 @@ export default {
     // 获取镜像版本列表
     async getImageTags(imageName, keepValue = false) {
       this.imageTagList = await getImageTagList({
-        projectType: IMAGE_PROJECT_TYPE.TRAIN,
         imageName,
       });
       if (keepValue && this.form.imageTag) {

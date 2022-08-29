@@ -17,6 +17,7 @@
 
 package org.dubhe.data.machine.utils.identify.setting;
 
+import cn.hutool.core.collection.CollectionUtil;
 import org.dubhe.biz.base.constant.NumberConstant;
 import org.dubhe.data.machine.constant.FileStateCodeConstant;
 import org.dubhe.data.machine.enums.DataStateEnum;
@@ -60,6 +61,7 @@ public class StateSelect {
 
     /**
      * 自动标注完成
+     * 自动标注完成或者标注未识别两个一定至少包含其中之一，
      *
      * @param stateList     数据集下文件状态的并集
      * @return              数据集状态枚举
@@ -71,25 +73,14 @@ public class StateSelect {
             add(FileStateCodeConstant.ANNOTATION_COMPLETE_FILE_STATE);
             add(FileStateCodeConstant.TARGET_COMPLETE_FILE_STATE);
         }};
-        switch (stateList.size()) {
-            case NumberConstant.NUMBER_1:
-                if (stateList.contains(FileStateCodeConstant.AUTO_TAG_COMPLETE_FILE_STATE)||
-                        stateList.contains(FileStateCodeConstant.ANNOTATION_NOT_DISTINGUISH_FILE_STATE)){
-                    return DataStateEnum.AUTO_TAG_COMPLETE_STATE;
-                }
-                return null;
-            case NumberConstant.NUMBER_2:
-            case NumberConstant.NUMBER_3:
-            case NumberConstant.NUMBER_4:
-                for (Integer fileState : stateList) {
-                    if (!states.contains(fileState)) {
-                        return null;
-                    };
-                }
+
+        if (stateList.contains(FileStateCodeConstant.AUTO_TAG_COMPLETE_FILE_STATE) || stateList.contains(FileStateCodeConstant.ANNOTATION_NOT_DISTINGUISH_FILE_STATE)) {
+            stateList.removeAll(states);
+            if (CollectionUtil.isEmpty(stateList)) {
                 return DataStateEnum.AUTO_TAG_COMPLETE_STATE;
-            default:
-                return null;
+            }
         }
+        return null;
     }
 
     /**
@@ -105,15 +96,19 @@ public class StateSelect {
 
     /**
      * 目标跟踪完成
+     * (一定包含目标跟踪完成，可以包含标注完成)
      *
      * @param stateList     数据集下文件状态的并集
      * @return              数据集状态枚举
      */
     public DataStateEnum isFinishedTrack(List<Integer> stateList) {
-        if (stateList.size() > NumberConstant.NUMBER_1 && !stateList.contains(FileStateCodeConstant.ANNOTATION_COMPLETE_FILE_STATE)) {
-            return null;
+        if (stateList.contains(FileStateCodeConstant.ANNOTATION_COMPLETE_FILE_STATE)) {
+            stateList.remove(FileStateCodeConstant.ANNOTATION_COMPLETE_FILE_STATE);
         }
-        return stateList.contains(FileStateCodeConstant.TARGET_COMPLETE_FILE_STATE)?DataStateEnum.TARGET_COMPLETE_STATE:null;
+        if (stateList.contains(FileStateCodeConstant.TARGET_COMPLETE_FILE_STATE)) {
+            stateList.remove(FileStateCodeConstant.TARGET_COMPLETE_FILE_STATE);
+        }
+        return CollectionUtil.isEmpty(stateList)?DataStateEnum.TARGET_COMPLETE_STATE:null;
     }
 
 }

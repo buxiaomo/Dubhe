@@ -17,6 +17,7 @@
 
 package org.dubhe.data.service;
 
+import com.alibaba.fastjson.JSONObject;
 import org.dubhe.data.domain.bo.TaskSplitBO;
 import org.dubhe.data.domain.dto.AnnotationDeleteDTO;
 import org.dubhe.data.domain.dto.AnnotationInfoCreateDTO;
@@ -111,7 +112,7 @@ public interface AnnotationService {
      * @param taskSplit 任务分割详情
      * @param resMap    标注内容
      */
-    void doFinishAuto(TaskSplitBO taskSplit, Map<Long, AnnotationInfoCreateDTO> resMap);
+    Map<Long, AnnotationInfoCreateDTO> doFinishAuto(TaskSplitBO taskSplit, Map<Long, AnnotationInfoCreateDTO> resMap);
 
     /**
      * 获取数据集版本文件列表
@@ -125,7 +126,7 @@ public interface AnnotationService {
      * 重新目标跟踪
      * @param datasetId  数据集ID
      */
-    void track(Long datasetId);
+    void track(Long datasetId, Long modelServiceId);
 
     /**
      * 重新自动标注，清除标记操作
@@ -134,4 +135,17 @@ public interface AnnotationService {
      */
     void deleteAnnotating(Long datasetId);
 
+    /**
+     * 标注任务完成
+     *
+     * @param taskDetail 标注结果
+     */
+    void finishAnnotation(JSONObject taskDetail);
+
+    /**
+     * 清除es中的标注信息
+     *
+     * @param datasetId 数据集id
+     */
+    void deleteEsData(Long datasetId);
 }

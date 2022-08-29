@@ -18,9 +18,11 @@
 package org.dubhe.servinggateway.config;
 
 import org.dubhe.biz.base.constant.NumberConstant;
+import org.dubhe.biz.base.exception.BusinessException;
 import org.springframework.boot.autoconfigure.web.ErrorProperties;
 import org.springframework.boot.autoconfigure.web.ResourceProperties;
 import org.springframework.boot.autoconfigure.web.reactive.error.DefaultErrorWebExceptionHandler;
+import org.springframework.boot.web.error.ErrorAttributeOptions;
 import org.springframework.boot.web.reactive.error.ErrorAttributes;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
@@ -56,19 +58,27 @@ public class JsonErrorWebExceptionHandler extends DefaultErrorWebExceptionHandle
      * 封装异常处理信息
      *
      * @param request           请求体
-     * @param includeStackTrace
+     * @param options
      * @return Map<String, Object> 返回封装后的信息
      */
     @Override
-    protected Map<String, Object> getErrorAttributes(ServerRequest request, boolean includeStackTrace) {
+    protected Map<String, Object> getErrorAttributes(ServerRequest request, ErrorAttributeOptions options) {
         // 自定义异常消息封装
         String msg = "服务暂不可用，请稍后再试！";
         Throwable error = super.getError(request);
+        Map<String, Object> errorAttributes = new HashMap<>(NumberConstant.NUMBER_6);
+        if (error instanceof BusinessException){
+            errorAttributes.put("code", HttpStatus.INTERNAL_SERVER_ERROR.value());
+            errorAttributes.put("msg", error.getMessage());
+            errorAttributes.put("data", null);
+            return errorAttributes;
+        }
+        error.printStackTrace();
         int responseStatus = ((ResponseStatusException) error).getStatus().value();
         if (responseStatus == HttpStatus.NOT_FOUND.value()) {
             msg = "服务未启动或异常，请停止检查或稍后再试！";
         }
-        Map<String, Object> errorAttributes = new HashMap<>(NumberConstant.NUMBER_6);
+
         errorAttributes.put("code", responseStatus);
         errorAttributes.put("msg", msg);
         errorAttributes.put("data", null);

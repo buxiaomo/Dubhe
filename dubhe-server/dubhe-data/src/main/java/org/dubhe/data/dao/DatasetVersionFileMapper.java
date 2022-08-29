@@ -310,4 +310,19 @@ public interface DatasetVersionFileMapper extends BaseMapper<DatasetVersionFile>
      * @return List<FileUploadBO>
      */
     List<FileUploadBO> getFileUploadContent(@Param("datasetId")Long datasetId, @Param("fileIds")List<Long> fileIds);
+
+    /**
+     * 获取数据集文件数量
+     *
+     * @param datasetId         数据集id
+     * @param annotationStatus  标注状态
+     * @param versionName       版本名称
+     * @param labelIds          标签id
+     * @return
+     */
+    Long getVersionFileCountByStatusVersionAndLabelId(@Param("datasetId") Long datasetId,
+                                                      @Param("annotationStatus") Set<Integer> annotationStatus,
+                                                      @Param("versionName") String versionName,
+                                                      @Param("labelIds") List<Long> labelIds);
+
 }

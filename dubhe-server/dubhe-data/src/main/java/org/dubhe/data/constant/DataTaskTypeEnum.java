@@ -65,7 +65,11 @@ public enum DataTaskTypeEnum {
     /**
      * csv导入
      */
-    CSV_IMPORT(10, "csv导入")
+    CSV_IMPORT(10, "csv导入"),
+    /**
+     * 删除Redis任务
+     */
+    REDIS_CLEAR(12, "删除Redis任务")
     ;
 
     DataTaskTypeEnum(Integer value, String msg) {

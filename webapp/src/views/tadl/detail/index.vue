@@ -17,7 +17,6 @@ the License. * ============================================================= */
         :enablePause="enablePause"
         :enableStart="enableStart"
         :refreshTime="state.refreshTime"
-        :saveRefreshTime="saveRefreshTime"
         :updateState="updateState"
         :refresh="refresh"
         :command="command"
@@ -29,13 +28,13 @@ the License. * ============================================================= */
       />
     </div>
     <el-drawer title="Search Space" :visible.sync="state.searchSpaceVisible">
-      <TextEditor :txt="state.searchSpace" class="my-auto f1" style="max-height: unset" />
+      <TextEditor :txt="state.searchSpace" class="my-auto f1" style="max-height: unset;" />
     </el-drawer>
     <el-drawer title="Best Selected Space" :visible.sync="state.selectedSpaceVisible">
-      <TextEditor :txt="state.selectedSpace" class="my-auto f1" style="max-height: unset" />
+      <TextEditor :txt="state.selectedSpace" class="my-auto f1" style="max-height: unset;" />
     </el-drawer>
     <el-drawer title="Experiment Config" :visible.sync="state.expConfigVisible">
-      <TextEditor :txt="state.expConfig" class="my-auto f1" style="max-height: unset" />
+      <TextEditor :txt="state.expConfig" class="my-auto f1" style="max-height: unset;" />
     </el-drawer>
     <div class="stage-content">
       <el-tabs
@@ -105,6 +104,7 @@ import {
   extractData,
   extractScatterData,
   extractSeriesData,
+  STAGE_SEQUENCE,
 } from '../util';
 import DetailDashboard from './components/detailDashboard';
 import Config from './components/config';
@@ -124,6 +124,7 @@ export default {
     const { params = {} } = $route;
 
     const [refreshTime, saveRefreshTime] = useLocalStorage('refreshTime', 10);
+    const [cachedRefreshTime, saveCachedRefreshTime] = useLocalStorage('cachedRefreshTime', 10);
 
     const { experimentId } = params;
     const logContainer = ref(null);
@@ -142,6 +143,7 @@ export default {
       stageYamlMap: {}, // 分阶段 yaml 配置
       stageMetricMap: {}, // 基本Metric 展示
       refreshTime, // 刷新时间
+      cachedRefreshTime, // 缓存上一次的刷新时间
       searchSpace: '',
       selectedSpace: '',
       expConfig: '',
@@ -378,6 +380,11 @@ export default {
 
     let refresher = setRefresher(props.refreshTime);
     const command = (cmd) => {
+      // 缓存上一个刷新频率用于恢复
+      if (state.refreshTime > 0) {
+        saveCachedRefreshTime(state.refreshTime);
+        updateState({ cachedRefreshTime: state.refreshTime });
+      }
       saveRefreshTime(cmd);
       updateState({ refreshTime: cmd });
       clearInterval(refresher);
@@ -388,7 +395,12 @@ export default {
       Object.assign(state, {
         prevActiveStage: tab.name,
       });
-      command(0);
+      // 切换回当前阶段的tab页，从缓存恢复原来的刷新频率
+      if (STAGE_SEQUENCE[tab.name] === state.detail.runStage) {
+        command(state.cachedRefreshTime);
+      } else {
+        command(0);
+      }
       updateState({ activePath: [tab.name, 'general'] });
     };
 
@@ -442,72 +454,85 @@ export default {
 
 .stage-content {
   margin: 30px 0;
+
   .stage-tabs {
     .el-tabs__header {
-      border: none;
       margin: 0;
+      border: none;
     }
+
     .el-tabs__nav {
       border: none;
     }
+
     .el-tabs__item.is-active {
-      background-color: #fff;
       color: $primaryColor;
+      background-color: #fff;
     }
+
     .el-tabs__item {
-      background-color: $primaryColor;
-      color: #fff;
-      margin-left: 2px;
       margin-right: 10px;
+      margin-left: 2px;
+      color: #fff;
+      background-color: $primaryColor;
       border-top-left-radius: 6px;
       border-top-right-radius: 6px;
     }
   }
+
   .app-content-section {
     margin-bottom: 30px;
   }
+
   .stage-card {
     .el-tabs__header {
       margin: 0;
     }
+
     .el-tabs__nav-wrap {
-      background-color: #fff;
       padding-left: 16px;
       margin-bottom: 10px;
+      background-color: #fff;
+
       &::after {
         height: 0;
       }
     }
   }
 }
+
 .app-content-title {
-  color: rgba(0, 0, 0, 0.85);
-  font-weight: 500;
-  font-size: 18px;
-  line-height: 28px;
   overflow: hidden;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 28px;
+  color: rgba(0, 0, 0, 0.85);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .app-descriptions-header {
   display: flex;
   align-items: center;
   margin-bottom: 20px;
+
   .app-descriptions-title {
     flex: auto;
     overflow: hidden;
-    color: rgba(0, 0, 0, 0.85);
-    font-weight: 700;
     font-size: 16px;
+    font-weight: 700;
     line-height: 1.5715;
-    white-space: nowrap;
+    color: rgba(0, 0, 0, 0.85);
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
+
 .app-container {
   padding: 30px 32px;
+
   .detail-header {
-    box-shadow: 0px 2px 7px 0px rgba(209, 209, 217, 0.5);
+    box-shadow: 0 2px 7px 0 rgba(209, 209, 217, 0.5);
   }
 }
 </style>

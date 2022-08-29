@@ -22,6 +22,7 @@ import lombok.experimental.Accessors;
 import org.dubhe.biz.base.constant.MagicNumConstant;
 import org.hibernate.validator.constraints.Length;
 
+import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.List;
@@ -43,5 +44,9 @@ public class PtImageUpdateDTO implements Serializable {
     @ApiModelProperty("镜像描述")
     @Length(max = MagicNumConstant.BINARY_TEN_EXP, message = "镜像描述-输入长度不能超过1024个字符")
     private String remark;
+
+    @ApiModelProperty(value = "镜像用途", required = true)
+    @NotEmpty(message = "镜像用途(0:notebook , 1:train , 2:serving, 3:terminal, 4:point-cloud)不能为空")
+    private List<Integer> imageTypes;
 
 }

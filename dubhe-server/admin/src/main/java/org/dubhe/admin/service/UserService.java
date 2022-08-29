@@ -26,6 +26,7 @@ import org.dubhe.biz.base.dto.TeamDTO;
 import org.dubhe.biz.base.dto.UserDTO;
 import org.dubhe.biz.base.vo.DataResponseBody;
 import org.dubhe.cloud.authconfig.service.AdminUserService;
+import org.springframework.security.core.Authentication;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -239,4 +240,6 @@ public interface UserService extends AdminUserService, IService<User> {
      * @return org.dubhe.admin.domain.vo.UserConfigCreateVO 用户配置 VO
      */
     UserConfigCreateVO createOrUpdateUserConfig(UserConfigDTO userConfigDTO);
+    
+    String encryptUserForVis(Authentication authentication);
 }

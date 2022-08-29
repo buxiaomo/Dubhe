@@ -21,12 +21,12 @@
       <el-table
         :data="data"
         :fit="choice"
-        :default-sort="{ prop: 'accuracy', order: 'descending' }"
+        :default-sort="{ prop: 'keys[0]', order: 'descending' }"
         :header-cell-style="{ background: 'rgb(224, 231, 250)', color: '#606266' }"
         :row-class-name="tableRowClassName"
         :row-style="{ height: '10px' }"
         :cell-style="{ padding: '8px 0' }"
-        style="font-size: 12px;"
+        style="font-size: 12px; fit: true; align: center;"
         @cell-mouse-enter="highlight"
         @cell-mouse-leave="unhighlight"
       >
@@ -34,6 +34,7 @@
         <el-table-column
           v-for="(item, index) in keys"
           :key="index"
+          sortable
           :prop="item"
           :label="item"
           align="center"
@@ -109,7 +110,7 @@ export default {
     getSelected(val) {
       this.selected = val;
     },
-    getGlobalChange() {
+    getGlobalChange(val) {
       this.localAxisType = this.getAxisType;
       this.drawPara(this.selected);
     },
@@ -169,24 +170,23 @@ export default {
         .append('g')
         .attr('transform', `translate(${-margin.left},${margin.top})`);
 
-      function quantP(v) {
+      const quantP = function(v) {
         return parseFloat(v) === v || v === '';
-      }
-
-      const maxData = d3.max(data, (d) => {
+      };
+      const maxData = d3.max(data, function(d) {
         return +d[colorItem];
       });
-      const minData = d3.min(data, (d) => {
+      const minData = d3.min(data, function(d) {
         return +d[colorItem];
       });
       const dimensions = d3.keys(data[0]);
       x.domain(dimensions);
-      dimensions.forEach((d) => {
-        const vals = data.map((p) => {
+      dimensions.forEach(function(d) {
+        const vals = data.map(function(p) {
           return p[d];
         });
         if (vals.every(quantP)) {
-          const tmp = d3.extent(data, (p) => {
+          const tmp = d3.extent(data, function(p) {
             return +p[d];
           });
           if (_this.localAxisType[d] === 'log') {
@@ -221,33 +221,16 @@ export default {
           y[d] = d3
             .scalePoint()
             .domain(
-              vals.filter((v, i) => {
+              vals.filter(function(v, i) {
                 return vals.indexOf(v) === i;
               })
             )
             .range([height, 0], 1);
         }
       });
-      const extents = dimensions.map(() => {
+      const extents = dimensions.map(function(p) {
         return [0, 0];
       });
-      function position(d) {
-        const v = dragging[d];
-        return v == null ? x(d) : v;
-      }
-
-      function transition(g) {
-        return g.transition().duration(500);
-      }
-
-      // Returns the path for a given data point.
-      function path(d) {
-        return line(
-          dimensions.map((p) => {
-            return [position(p), y[p](d[p])];
-          })
-        );
-      }
       // Add grey background lines for context.
       const background = svg
         .append('g')
@@ -275,11 +258,11 @@ export default {
         .enter()
         .append('path')
         .attr('d', path)
-        .attr('stroke', (d) => {
+        .attr('stroke', function(d) {
           return colorMap(d[colorItem]);
         })
         .attr('fill', 'none')
-        .on('mouseover', function _nonName(d) {
+        .on('mouseover', function(d, i) {
           this.parentNode.appendChild(this);
           d3.select(this)
             .transition()
@@ -287,131 +270,12 @@ export default {
             .attr('stroke-width', '2px');
           _this.setFocusData(JSON.parse(JSON.stringify(d)));
         })
-        .on('mouseout', function _nonName() {
+        .on('mouseout', function(d, i) {
           d3.select(this)
             .transition()
             .duration('50')
             .attr('stroke-width', '1px');
         });
-
-      function goBrush() {
-        d3.event.sourceEvent.stopPropagation();
-      }
-
-      function localSelectedData() {
-        const tempData = [];
-        foreground.each((d) => {
-          const isTrue = dimensions.every((p, i) => {
-            if (extents[i][0] === 0 && extents[i][0] === 0) {
-              return true;
-            }
-            return extents[i][1] <= d[p] && d[p] <= extents[i][0];
-          });
-          if (isTrue === true) {
-            tempData.push(d);
-          }
-        });
-        _this.setGlobalSelectedDatas(JSON.parse(JSON.stringify(tempData)));
-      }
-      function brushStart(selectionName) {
-        foreground.style('display', 'none');
-
-        const dimensionsIndex = dimensions.indexOf(selectionName);
-
-        extents[dimensionsIndex] = [0, 0];
-
-        foreground.style('display', (d) => {
-          return dimensions.every((p, i) => {
-            if (extents[i][0] === 0 && extents[i][0] === 0) {
-              return true;
-            }
-            return extents[i][1] <= d[p] && d[p] <= extents[i][0];
-          })
-            ? null
-            : 'none';
-        });
-        localSelectedData();
-      }
-
-      // Handles a brush event, toggling the display of foreground lines.
-      function brushParallelChart() {
-        for (let i = 0; i < dimensions.length; i += 1) {
-          if (d3.event.target === y[dimensions[i]].brush) {
-            extents[i] = d3.event.selection.map(y[dimensions[i]].invert, y[dimensions[i]]);
-          }
-        }
-        foreground.style('display', (d) => {
-          return dimensions.every((p, i) => {
-            if (extents[i][0] === 0 && extents[i][0] === 0) {
-              return true;
-            }
-            return extents[i][1] <= d[p] && d[p] <= extents[i][0];
-          })
-            ? null
-            : 'none';
-        });
-        localSelectedData();
-      }
-
-      function brushEnd() {
-        if (!d3.event.sourceEvent) return; // Only transition after input.
-        if (!d3.event.selection) return; // Ignore empty selections.
-        for (let i = 0; i < dimensions.length; i += 1) {
-          if (d3.event.target === y[dimensions[i]].brush) {
-            extents[i] = d3.event.selection.map(y[dimensions[i]].invert, y[dimensions[i]]);
-            d3.select(this)
-              .transition()
-              .call(d3.event.target.move, extents[i].map(y[dimensions[i]]));
-          }
-        }
-        localSelectedData();
-      }
-      //   brush for ordinal cases
-      function brushParallel() {
-        for (let i = 0; i < dimensions.length; i += 1) {
-          if (d3.event.target === y[dimensions[i]].brush) {
-            const yScale = y[dimensions[i]];
-            const selected = yScale.domain().filter((d) => {
-              const s = d3.event.selection;
-              return s[0] <= yScale(d) && yScale(d) <= s[1];
-            });
-            const temp = selected.sort();
-            extents[i] = [temp[temp.length - 1], temp[0]];
-          }
-        }
-        foreground.style('display', (d) => {
-          return dimensions.every((p, i) => {
-            if (extents[i][0] === 0 && extents[i][0] === 0) {
-              return true;
-            }
-            return extents[i][1] <= d[p] && d[p] <= extents[i][0];
-          })
-            ? null
-            : 'none';
-        });
-      }
-      function brushEndOrdinal() {
-        if (!d3.event.sourceEvent) return; // Only transition after input.
-        if (!d3.event.selection) return; // Ignore empty selections.
-        for (let i = 0; i < dimensions.length; i += 1) {
-          if (d3.event.target === y[dimensions[i]].brush) {
-            const yScale = y[dimensions[i]];
-            const selected = yScale.domain().filter((d) => {
-              const s = d3.event.selection;
-              return s[0] <= yScale(d) && yScale(d) <= s[1];
-            });
-            const temp = selected.sort();
-            extents[i] = [temp[temp.length - 1], temp[0]];
-            if (selected.length > 1) {
-              d3.select(this)
-                .transition()
-                .call(d3.event.target.move, extents[i].map(y[dimensions[i]]));
-            }
-          }
-        }
-        localSelectedData();
-      }
-
       // draw legned
       const minMaxFormat = d3.format('.2f');
       const legendBox = svg
@@ -433,7 +297,7 @@ export default {
         .attr('y', (d, i) => i)
         .attr('width', 7)
         .attr('height', 10)
-        .style('fill', (d) => colorMap(linear(d)));
+        .style('fill', (d, i) => colorMap(linear(d)));
 
       legendBox
         .append('g')
@@ -453,39 +317,39 @@ export default {
         .attr('x', '8px')
         .attr('y', '-3px');
       // Add a group element for each dimension.
-      const g = svg
+      var g = svg
         .selectAll('.dimension')
         .data(dimensions)
         .enter()
         .append('g')
         .attr('class', 'dimension')
-        .attr('transform', (d) => {
+        .attr('transform', function(d) {
           return `translate(${x(d)})`;
         })
         .call(
           d3
             .drag()
-            .subject((d) => {
+            .subject(function(d) {
               return {
                 x: x(d),
               };
             })
-            .on('start', (d) => {
+            .on('start', function(d) {
               dragging[d] = x(d);
               background.attr('visibility', 'hidden');
             })
-            .on('drag', (d) => {
+            .on('drag', function(d) {
               dragging[d] = Math.min(width, Math.max(0, d3.event.x));
               foreground.attr('d', path);
-              dimensions.sort((a, b) => {
+              dimensions.sort(function(a, b) {
                 return position(a) - position(b);
               });
               x.domain(dimensions);
-              g.attr('transform', (d) => {
+              g.attr('transform', function(d) {
                 return `translate(${position(d)})`;
               });
             })
-            .on('end', function _nonName(d) {
+            .on('end', function(d) {
               delete dragging[d];
               transition(d3.select(this)).attr('transform', `translate(${x(d)})`);
               transition(foreground).attr('d', path);
@@ -501,7 +365,7 @@ export default {
       const g2 = svg.selectAll('.dimension');
       g2.append('g')
         .attr('class', 'axis')
-        .each(function _nonName(d) {
+        .each(function(d) {
           d3.select(this).call(d3.axisLeft(y[d]).tickSize(3));
         })
         // text does not show up because previous line breaks somehow
@@ -510,10 +374,10 @@ export default {
         .attr('fill', 'white')
         .style('text-anchor', 'middle')
         .attr('y', height + 18)
-        .text((d) => {
+        .text(function(d) {
           return d;
         });
-      d3.selectAll('.dimension').each(function _nonName(d) {
+      d3.selectAll('.dimension').each(function(d, i) {
         const t = d3
           .select(this)
           .select('text.axisText')
@@ -522,7 +386,7 @@ export default {
         d3.select(this)
           .append('rect')
           .attr('class', 'backgroundRect')
-          .attr('x', () => {
+          .attr('x', (i) => {
             return -(t.width + 10) / 2;
           })
           .attr('y', height + 10)
@@ -542,7 +406,7 @@ export default {
       // Add and store a brush for each axis.
       g2.append('g')
         .attr('class', 'brush')
-        .each(function _nonName(d) {
+        .each(function(d) {
           if (_this.items.indexOf(d) <= -1) {
             d3.select(this).call(
               (y[d].brush = d3
@@ -574,6 +438,142 @@ export default {
         .selectAll('rect')
         .attr('x', -8)
         .attr('width', 16);
+
+      function position(d) {
+        const v = dragging[d];
+        return v == null ? x(d) : v;
+      }
+
+      function transition(g) {
+        return g.transition().duration(500);
+      }
+
+      // Returns the path for a given data point.
+      function path(d) {
+        return line(
+          dimensions.map(function(p) {
+            return [position(p), y[p](d[p])];
+          })
+        );
+      }
+
+      function goBrush() {
+        d3.event.sourceEvent.stopPropagation();
+      }
+
+      function localSelectedData() {
+        const tempData = [];
+        foreground.each(function(d) {
+          const isTrue = dimensions.every(function(p, i) {
+            if (extents[i][0] === 0 && extents[i][0] === 0) {
+              return true;
+            }
+            return extents[i][1] <= d[p] && d[p] <= extents[i][0];
+          });
+          if (isTrue === true) {
+            tempData.push(d);
+          }
+        });
+        _this.setGlobalSelectedDatas(JSON.parse(JSON.stringify(tempData)));
+      }
+      function brushStart(selectionName) {
+        foreground.style('display', 'none');
+
+        const dimensionsIndex = dimensions.indexOf(selectionName);
+
+        extents[dimensionsIndex] = [0, 0];
+
+        foreground.style('display', function(d) {
+          return dimensions.every(function(p, i) {
+            if (extents[i][0] === 0 && extents[i][0] === 0) {
+              return true;
+            }
+            return extents[i][1] <= d[p] && d[p] <= extents[i][0];
+          })
+            ? null
+            : 'none';
+        });
+        localSelectedData();
+      }
+
+      // Handles a brush event, toggling the display of foreground lines.
+      function brushParallelChart() {
+        for (let i = 0; i < dimensions.length; ++i) {
+          if (d3.event.target === y[dimensions[i]].brush) {
+            extents[i] = d3.event.selection.map(y[dimensions[i]].invert, y[dimensions[i]]);
+          }
+        }
+        foreground.style('display', function(d) {
+          return dimensions.every(function(p, i) {
+            if (extents[i][0] === 0 && extents[i][0] === 0) {
+              return true;
+            }
+            return extents[i][1] <= d[p] && d[p] <= extents[i][0];
+          })
+            ? null
+            : 'none';
+        });
+        localSelectedData();
+      }
+
+      function brushEnd() {
+        if (!d3.event.sourceEvent) return; // Only transition after input.
+        if (!d3.event.selection) return; // Ignore empty selections.
+        for (let i = 0; i < dimensions.length; ++i) {
+          if (d3.event.target === y[dimensions[i]].brush) {
+            extents[i] = d3.event.selection.map(y[dimensions[i]].invert, y[dimensions[i]]);
+            d3.select(this)
+              .transition()
+              .call(d3.event.target.move, extents[i].map(y[dimensions[i]]));
+          }
+        }
+        localSelectedData();
+      }
+      //   brush for ordinal cases
+      function brushParallel() {
+        for (let i = 0; i < dimensions.length; ++i) {
+          if (d3.event.target === y[dimensions[i]].brush) {
+            var yScale = y[dimensions[i]];
+            const selected = yScale.domain().filter(function(d) {
+              const s = d3.event.selection;
+              return s[0] <= yScale(d) && yScale(d) <= s[1];
+            });
+            const temp = selected.sort();
+            extents[i] = [temp[temp.length - 1], temp[0]];
+          }
+        }
+        foreground.style('display', function(d) {
+          return dimensions.every(function(p, i) {
+            if (extents[i][0] === 0 && extents[i][0] === 0) {
+              return true;
+            }
+            return extents[i][1] <= d[p] && d[p] <= extents[i][0];
+          })
+            ? null
+            : 'none';
+        });
+      }
+      function brushEndOrdinal() {
+        if (!d3.event.sourceEvent) return; // Only transition after input.
+        if (!d3.event.selection) return; // Ignore empty selections.
+        for (let i = 0; i < dimensions.length; ++i) {
+          if (d3.event.target === y[dimensions[i]].brush) {
+            var yScale = y[dimensions[i]];
+            const selected = yScale.domain().filter(function(d) {
+              const s = d3.event.selection;
+              return s[0] <= yScale(d) && yScale(d) <= s[1];
+            });
+            const temp = selected.sort();
+            extents[i] = [temp[temp.length - 1], temp[0]];
+            if (selected.length > 1) {
+              d3.select(this)
+                .transition()
+                .call(d3.event.target.move, extents[i].map(y[dimensions[i]]));
+            }
+          }
+        }
+        localSelectedData();
+      }
     },
     getRowDatas(row) {
       const selectedRowData = JSON.parse(JSON.stringify(row));
@@ -582,12 +582,12 @@ export default {
     unhighlight(d) {
       d3.select('.foreground')
         .selectAll('path')
-        .each(function _nonName(s) {
+        .each(function(s) {
           let orderedD = {};
           let orderedS = {};
           Object.keys(d)
             .sort()
-            .forEach((key) => {
+            .forEach(function(key) {
               orderedD[key] = d[key];
               orderedS[key] = s[key];
             });
@@ -602,12 +602,12 @@ export default {
       this.setFocusData(JSON.parse(JSON.stringify(d)));
       d3.select('.foreground')
         .selectAll('path')
-        .each(function _nonName(s) {
+        .each(function(s) {
           let orderedD = {};
           let orderedS = {};
           Object.keys(d)
             .sort()
-            .forEach((key) => {
+            .forEach(function(key) {
               orderedD[key] = d[key];
               orderedS[key] = s[key];
             });
@@ -619,10 +619,10 @@ export default {
           }
         });
     },
-    tableRowClassName({ row }) {
+    tableRowClassName({ row, rowIndex }) {
       const d = JSON.stringify(row);
       const selectedDatas = JSON.parse(JSON.stringify(this.localSelectedDatas));
-      for (let i = 0; i < selectedDatas.length; i += 1) {
+      for (let i = 0; i < selectedDatas.length; i++) {
         const t = JSON.stringify(selectedDatas[i]);
         if (t === d) {
           return 'success-row';
@@ -631,7 +631,7 @@ export default {
       return '';
     },
     leftTransform(leftDim, dimensions) {
-      d3.selectAll('.dimension').each(function _nonName(d) {
+      d3.selectAll('.dimension').each(function(d) {
         if (dimensions[0] === d) {
           d3.select(this).attr('transform', `translate(${leftDim})`);
         }

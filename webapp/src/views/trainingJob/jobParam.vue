@@ -28,6 +28,11 @@
     >
       <el-table-column prop="id" label="ID" width="80" sortable="custom" fixed />
       <el-table-column prop="paramName" label="任务模板名称" fixed />
+      <el-table-column prop="trainType" label="任务类型" width="160">
+        <template slot-scope="scope">
+          <div>{{ TRAINING_TYPE_MAP[scope.row.trainType] }}</div>
+        </template>
+      </el-table-column>
       <el-table-column prop="algorithmName" label="算法名称" />
       <el-table-column prop="dataSourceName" label="数据集来源" />
       <el-table-column prop="resourcesPoolType" label="节点类型">
@@ -43,6 +48,7 @@
           {{ resourcesPoolTypeMap[scope.row.resourcesPoolType] }}
         </template>
       </el-table-column>
+      <el-table-column v-if="isAdmin" prop="createUserName" label="创建者" min-width="100" />
       <el-table-column label="操作" width="200" fixed="right">
         <template slot-scope="scope">
           <el-button
@@ -100,12 +106,14 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex';
 import CRUD, { presenter, header, crud } from '@crud/crud';
 import pagination from '@crud/Pagination';
 import crudParams, { del as deleteParams, edit as editParams } from '@/api/trainingJob/params';
 import BaseModal from '@/components/BaseModal';
 import DropdownHeader from '@/components/DropdownHeader';
 import JobForm from '@/components/Training/jobForm';
+import { TRAINING_TYPE_MAP } from './utils';
 import jobDetail from './components/jobDetail';
 
 export default {
@@ -145,9 +153,11 @@ export default {
       filterParams: {
         resourcesPoolType: undefined,
       },
+      TRAINING_TYPE_MAP,
     };
   },
   computed: {
+    ...mapGetters(['isAdmin']),
     resourcesPoolTypeList() {
       const arr = [{ label: '全部', value: null }];
       for (const key in this.resourcesPoolTypeMap) {
@@ -164,7 +174,7 @@ export default {
     filter(column, value) {
       this.filterParams[column] = value || undefined;
       this.crud.query[column] = value;
-      this.crud.refresh();
+      this.crud.toQuery();
     },
     // handle 操作
     onRowClick(itemObj) {
@@ -180,8 +190,10 @@ export default {
         path: '/training/jobadd',
         name: 'jobAdd',
         params: {
-          from: 'param',
           paramsInfo: paramsDataObj,
+        },
+        query: {
+          from: 'param',
         },
       });
     },

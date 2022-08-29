@@ -58,10 +58,6 @@ public class PtModelInfoCreateDTO implements Serializable {
     @Length(max = PtModelUtil.NUMBER_TWO_HUNDRED_FIFTY_FIVE, message = "模型描述-输入长度不能超过256个字符")
     private String modelDescription;
 
-    @ApiModelProperty("模型分类")
-    @Length(max = PtModelUtil.NUMBER_ONE_HUNDRED_TWENTY_EIGHT, message = "模型分类-输入长度不能超过128个字符")
-    private String modelClassName;
-
     @ApiModelProperty("模型地址")
     @Length(max = PtModelUtil.NUMBER_ONE_HUNDRED_TWENTY_EIGHT, message = "模型地址-输入长度不能超过128个字符")
     private String modelAddress;
@@ -88,4 +84,16 @@ public class PtModelInfoCreateDTO implements Serializable {
     @Max(value = PtModelUtil.NUMBER_TWO, message = "模型类型错误")
     private Integer modelResource;
 
+    @ApiModelProperty("模型分类")
+    @Length(max = PtModelUtil.NUMBER_ONE_HUNDRED_TWENTY_EIGHT, message = "模型分类-输入长度不能超过128个字符")
+    private String modelClassName;
+
+    @ApiModelProperty("炼制模型结构名")
+    private String structName;
+
+    @ApiModelProperty("炼制模型尺寸")
+    private Integer modelSize;
+
+    @ApiModelProperty("炼知模型重组任务类型")
+    private Integer jobType = 1;
 }

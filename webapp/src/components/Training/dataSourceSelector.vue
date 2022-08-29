@@ -17,40 +17,47 @@
 <template>
   <div>
     <el-select
-      v-model="algoUsage"
-      placeholder="请选择数据集用途"
+      v-model="algoScenes"
+      placeholder="请选择场景"
       filterable
-      @change="onAlgorithmUsageChange"
+      clearable
+      class="w-240"
+      @change="onAlgorithmSceneChange"
     >
-      <el-option :value="null" label="全部" />
       <el-option
-        v-for="item in algorithmUsageList"
+        v-for="item in algorithmSceneList"
         :key="item.id"
-        :value="item.auxInfo"
+        :value="item.id"
         :label="item.auxInfo"
       />
     </el-select>
     <el-select
+      v-if="update"
       v-model="dataSource"
       placeholder="请选择您挂载的数据集"
       filterable
       value-key="id"
+      clearable
+      class="w-240"
       @change="onDataSourceChange"
     >
       <el-option v-for="item in datasetIdList" :key="item.id" :value="item" :label="item.name" />
     </el-select>
     <el-select
+      v-if="algoScenes === ALGORITHM_SCESE_ENUM.NORMAL"
       v-model="dataSourceVersion"
       placeholder="请选择您挂载的数据集版本"
       value-key="versionUrl"
       filterable
+      clearable
+      class="w-240"
       @change="onDataSourceVersionChange"
     >
       <el-option
         v-for="(item, index) in datasetVersionList"
         :key="index"
         :value="item"
-        :label="item.versionName"
+        :label="item.versionName || item"
       />
     </el-select>
     <el-tooltip
@@ -67,8 +74,11 @@
 </template>
 
 <script>
-import { list as getAlgorithmUsages } from '@/api/algorithm/algorithmUsage';
+/* eslint-disable no-await-in-loop */
 import { getPublishedDatasets, getDatasetVersions } from '@/api/preparation/dataset';
+import { getMedicalDatasets } from '@/api/preparation/medical';
+import { getPointCloudDatasets } from '@/api/preparation/pointCloud';
+import { ALGORITHM_SCESE_ENUM } from '@/utils';
 
 export default {
   name: 'DataSourceSelector',
@@ -85,6 +95,10 @@ export default {
       type: String,
       default: null,
     },
+    dataSourceId: {
+      type: Number,
+      default: null,
+    },
     dataSourcePath: {
       type: String,
       default: null,
@@ -92,11 +106,25 @@ export default {
   },
   data() {
     return {
-      algorithmUsageList: [],
+      ALGORITHM_SCESE_ENUM,
+      algorithmSceneList: [
+        {
+          id: ALGORITHM_SCESE_ENUM.NORMAL,
+          auxInfo: '视觉/语音/文本',
+        },
+        {
+          id: ALGORITHM_SCESE_ENUM.MEDICAL,
+          auxInfo: '医学影像',
+        },
+        {
+          id: ALGORITHM_SCESE_ENUM.POINT_CLOUD,
+          auxInfo: '点云',
+        },
+      ],
       datasetIdList: [],
       datasetVersionList: [],
 
-      algoUsage: null,
+      algoScenes: null,
       dataSource: null,
       dataSourceVersion: null,
       useOfRecord: false,
@@ -104,9 +132,11 @@ export default {
       result: {
         algorithmUsage: null,
         dataSourceName: null,
+        dataSourceId: null,
         dataSourcePath: null,
         imageCounts: null,
       },
+      update: true,
     };
   },
   computed: {
@@ -121,13 +151,13 @@ export default {
     },
   },
   mounted() {
-    this.algoUsage = this.algoUsage || null;
-    this.getAlgorithmUsages();
+    this.algoScenes = this.algoScenes || null;
   },
   methods: {
     // handlers
-    onAlgorithmUsageChange(annotateType, datasetInit = false) {
+    onAlgorithmSceneChange(annotateType, datasetInit = false) {
       // 模型类别修改之后，重新获取数据集列表，清空数据集结果
+
       this.getDataSetList(annotateType, datasetInit);
       this.result.algorithmUsage = annotateType;
       if (!datasetInit) {
@@ -135,11 +165,19 @@ export default {
         this.emitResult();
       }
     },
+
     async onDataSourceChange(dataSource) {
-      // 数据集选项发生变化时，获取版本列表，同时清空数据集版本、路径、OfRecord 相关信息
-      this.datasetVersionList = await getDatasetVersions(dataSource.id);
-      this.result.dataSourceName = null;
-      this.result.dataSourcePath = null;
+      if (dataSource && dataSource.id) {
+        // 数据集选项发生变化时，获取版本列表，同时清空数据集版本、路径、OfRecord 相关信息
+        this.datasetVersionList = await getDatasetVersions(dataSource.id);
+        this.result.dataSourceId = dataSource.id;
+        if (this.algoScenes === ALGORITHM_SCESE_ENUM.NORMAL) {
+          this.result.dataSourceName = null;
+        } else {
+          this.result.dataSourceName = dataSource.name;
+          this.result.dataSourcePath = dataSource.url;
+        }
+      }
       this.dataSourceVersion = null;
       this.useOfRecord = false;
       this.emitResult();
@@ -163,36 +201,52 @@ export default {
         : this.dataSourceVersion.versionUrl;
       this.emitResult();
     },
-    // getters
-    getAlgorithmUsages() {
-      const params = {
-        isContainDefault: true,
-        current: 1,
-        size: 1000,
-      };
-      getAlgorithmUsages(params).then((res) => {
-        this.algorithmUsageList = res.result;
-      });
-    },
     /**
      * 用于获取数据集列表
      * @param {String} annotateType
      * @param {Boolean} init 表示是否根据传入的数据集信息进行初始化
      */
     async getDataSetList(annotateType, init) {
-      const params = {
-        size: 1000,
-        annotateType: annotateType || undefined,
+      let params;
+      let data = {
+        result: null,
       };
-      const data = await getPublishedDatasets(params);
-      this.datasetIdList = data.result;
+      // 根据不同用途查询版本号
+      switch (this.algoScenes) {
+        case ALGORITHM_SCESE_ENUM.NORMAL:
+          params = {
+            size: 1000,
+            annotateType: null,
+          };
+          data = await getPublishedDatasets(params);
+          this.datasetIdList = data.result;
+          break;
+        case ALGORITHM_SCESE_ENUM.MEDICAL:
+          data = await getMedicalDatasets();
+          this.datasetIdList = data;
+          break;
+        case ALGORITHM_SCESE_ENUM.POINT_CLOUD:
+          params = {
+            size: 1000,
+            annotateType: null,
+          };
+          data = await getPointCloudDatasets(params);
+          this.datasetIdList = data.result;
+          break;
+        default:
+          data = {
+            result: null,
+          };
+      }
       this.datasetVersionList = [];
       if (!init || !this.dataSourceName) {
         this.dataSource = this.dataSourceVersion = this.result.dataSourceName = this.result.dataSourcePath = null;
       } else {
         // 根据传入的数据集信息进行初始化
         this.dataSource = this.datasetIdList.find(
-          (dataset) => dataset.name === this.dataSourceName.split(':')[0]
+          (dataset) =>
+            // 由于数据集名称可修改，故新增dataSourceId字段寻找对应数据集，保留dataset.name === this.dataSourceName.split(':')[0]兼容旧数据
+            dataset.id === this.dataSourceId || dataset.name === this.dataSourceName.split(':')[0]
         );
         if (!this.dataSource) {
           // 无法在数据集列表中找到同名的数据集
@@ -200,11 +254,13 @@ export default {
           this.result.dataSourceName = this.result.dataSourcePath = null;
           return;
         }
+        // 修改后数据未生效
         this.datasetVersionList = await getDatasetVersions(this.dataSource.id);
         // 首先尝试使用 versionUrl 进行数据集路径匹配
         this.dataSourceVersion = this.datasetVersionList.find(
           (dataset) => dataset.versionUrl === this.dataSourcePath
         );
+
         if (!this.dataSourceVersion) {
           // 无法匹配上时使用 versionOfRecordUrl 进行数据集路径匹配
           this.dataSourceVersion = this.datasetVersionList.find(
@@ -213,19 +269,26 @@ export default {
           this.dataSourceVersion && (this.useOfRecord = true);
         }
         // 如果二者都不能匹配上，说明原有的数据集版本目前不存在
-        if (!this.dataSourceVersion) {
+        if (this.algoScenes === ALGORITHM_SCESE_ENUM.NORMAL && !this.dataSourceVersion) {
           this.$message.warning('原有数据集版本不存在，请重新选择');
           this.result.dataSourcePath = null;
         }
       }
     },
     // 外部调用接口方法
-    updateAlgorithmUsage(usage, init = false) {
+    updateAlgorithmUsage(scene, init = false) {
+      // result初始化，以防用户直接修改是否使用OFRecord时，dataSourceName为null
+      this.initResult();
       // 如果新的算法用途与原有的一致，则不做任何修改
-      if (init || this.algoUsage !== usage) {
-        this.algoUsage = usage || null;
-        this.onAlgorithmUsageChange(usage, init);
+      if (init || this.algoScenes !== scene) {
+        this.algoScenes = scene || null;
+        this.onAlgorithmSceneChange(scene, init);
       }
+    },
+    initResult() {
+      this.result.algorithmUsage = this.algorithmUsage;
+      this.result.dataSourceName = this.dataSourceName;
+      this.result.dataSourcePath = this.dataSourcePath;
     },
     reset() {
       Object.assign(this.result, {
@@ -234,7 +297,7 @@ export default {
         dataSourcePath: null,
         imageCounts: null,
       });
-      this.algoUsage = null;
+      this.algoScenes = null;
       this.dataSource = null;
       this.dataSourceVersion = null;
       this.useOfRecord = false;

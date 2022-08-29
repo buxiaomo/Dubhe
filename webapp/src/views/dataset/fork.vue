@@ -16,7 +16,7 @@
 
 <script>
 import NProgress from 'nprogress'; // progress bar
-import { getDatasetType } from './util';
+import { getDatasetType, pushUrl } from './util';
 
 export default {
   name: 'DatasetFork',
@@ -27,13 +27,7 @@ export default {
     const datasetListType = getDatasetType();
     // 全局触发progres，这里需要完成
     NProgress.done();
-    if (datasetListType === 0) {
-      next('/data/datasets/list');
-    } else if (datasetListType === 1) {
-      next('/data/datasets/medical');
-    } else {
-      next('/data/datasets/entrance');
-    }
+    next(pushUrl[datasetListType] || '/data/datasets/entrance');
   },
 };
 </script>

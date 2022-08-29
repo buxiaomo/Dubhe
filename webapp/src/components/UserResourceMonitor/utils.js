@@ -15,6 +15,7 @@
  */
 
 import { K8S_BUSINESS_LABEL_MAP, memFormatter, K8S_BUSINESS_LABEL_ENUM, emitter } from '@/utils';
+import { cacheDatasetType, getDatasetType } from '@/views/dataset/util';
 
 // 获取资源信息列定义列表
 export const getResourceInfoColumns = ({ type }) => {
@@ -74,6 +75,15 @@ export const getResourceInfoColumns = ({ type }) => {
 // 资源监控到资源页面跳转方法
 // 针对已经在当前页面，无法通过 push 进行页面刷新的情况，通过事件来触发，需要各模块手动添加支持
 // router 实例由调用方提供
+function jumpToDatasetService({ taskName }, router) {
+  emitter.emit('jumpToDatasetService', taskName);
+  router.push({
+    name: 'ModelDataService',
+    params: {
+      name: taskName,
+    },
+  });
+}
 function jumpToNotebook({ taskName }, router) {
   emitter.emit('jumpToNotebook', taskName);
   router.push({
@@ -118,13 +128,24 @@ function jumpToTerminal({ taskName }, router) {
     hash: `#${taskName}`,
   });
 }
+function jumpToPointCloud({ taskName }, router) {
+  emitter.emit('jumpToPointCloud', taskName);
+  // 区分与其他数据集
+  if (getDatasetType !== 2) cacheDatasetType(2);
+  router.push({
+    name: 'PointCloud',
+    params: { name: taskName },
+  });
+}
 
 // 跳转方法集合 Map
 export const jumpFuncMap = {
+  [K8S_BUSINESS_LABEL_ENUM.DATASET_SERVICE]: jumpToDatasetService,
   [K8S_BUSINESS_LABEL_ENUM.NOTEBOOK]: jumpToNotebook,
   [K8S_BUSINESS_LABEL_ENUM.TRAINING]: jumpToTraining,
   [K8S_BUSINESS_LABEL_ENUM.MODEL_OPTIMIZE]: jumpToModelOptimize,
   [K8S_BUSINESS_LABEL_ENUM.SERVING]: jumpToServing,
   [K8S_BUSINESS_LABEL_ENUM.BATCH_SERVING]: jumpToBatchServing,
   [K8S_BUSINESS_LABEL_ENUM.TERMINAL]: jumpToTerminal,
+  [K8S_BUSINESS_LABEL_ENUM.POINT_CLOUD]: jumpToPointCloud,
 };

@@ -40,7 +40,11 @@ public enum LabelGroupTypeEnum {
     /**
      * 音频
      */
-    AUDIO(4, "音频");
+    AUDIO(4, "音频"),
+    /**
+     * 点云
+     */
+    POINT_CLOUD(5,"点云");
 
     LabelGroupTypeEnum(Integer value, String msg) {
         this.value = value;
@@ -68,6 +72,9 @@ public enum LabelGroupTypeEnum {
                 break;
             case AUDIO:
                 labelGroupTypeEnum = LabelGroupTypeEnum.AUDIO;
+                break;
+            case POINT_CLOUD:
+                labelGroupTypeEnum = LabelGroupTypeEnum.POINT_CLOUD;
                 break;
             default:
                 labelGroupTypeEnum = LabelGroupTypeEnum.VISUAL;

@@ -114,6 +114,7 @@ the License. * ============================================================= */
 <script>
 import { Message, MessageBox } from 'element-ui';
 import { reactive, toRefs, computed, nextTick, ref } from '@vue/composition-api';
+import { cloneDeep } from 'lodash';
 
 import {
   uploadSizeFomatter,
@@ -291,6 +292,8 @@ export default {
     // 文件移除处理
     const onFileRemove = () => {
       baseForm.algorithm_path = null;
+      resetBaseForm();
+      refs.createPageFormRef.resetForm();
       refs.algorithmPathRef.validate('manual');
     };
 
@@ -336,8 +339,8 @@ export default {
         if (!data.active && data.type === 'create') {
           uploadRef.value.formRef.reset();
           data.loading = false;
-          resetBaseForm();
         }
+        resetBaseForm();
         initState();
       });
     };
@@ -368,6 +371,7 @@ export default {
         } else {
           data.form.stage[params.stage_order - 1] = { ...params, yaml };
         }
+        refs.createPageFormRef.clearValidate();
         data.active -= 1;
         if (data.active === 0) {
           propertyAssign(baseForm, data.form, (val) => !isNull(val));
@@ -435,7 +439,8 @@ export default {
           data.submitting = true;
           const apiFunction = data.type === 'create' ? uploadStrategy : updateStrategy;
           data.form.zipPath = data.zipPath;
-          apiFunction(underlineShiftHump(data.form))
+          const submitForm = cloneDeep(data.form);
+          apiFunction(underlineShiftHump(submitForm))
             .then(() => {
               initState();
               ctx.emit('submit-success');

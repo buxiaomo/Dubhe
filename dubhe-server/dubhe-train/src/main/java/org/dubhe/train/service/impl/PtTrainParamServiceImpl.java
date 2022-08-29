@@ -22,6 +22,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.apache.commons.collections4.CollectionUtils;
 import org.dubhe.biz.base.constant.MagicNumConstant;
 import org.dubhe.biz.base.constant.StringConstant;
 import org.dubhe.biz.base.constant.SymbolConstant;
@@ -31,8 +32,10 @@ import org.dubhe.biz.base.enums.DatasetTypeEnum;
 import org.dubhe.biz.base.enums.ModelResourceEnum;
 import org.dubhe.biz.base.exception.BusinessException;
 import org.dubhe.biz.base.service.UserContextService;
+import org.dubhe.biz.base.utils.CommandUtil;
 import org.dubhe.biz.base.utils.StringUtils;
 import org.dubhe.biz.base.vo.DataResponseBody;
+import org.dubhe.biz.base.vo.NoteBookVO;
 import org.dubhe.biz.base.vo.PtModelBranchQueryVO;
 import org.dubhe.biz.base.vo.PtModelInfoQueryVO;
 import org.dubhe.biz.base.vo.TrainAlgorithmQureyVO;
@@ -40,14 +43,19 @@ import org.dubhe.biz.db.utils.PageUtil;
 import org.dubhe.biz.log.enums.LogEnum;
 import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.biz.permission.annotation.DataPermissionMethod;
+import org.dubhe.biz.permission.base.BaseService;
+import org.dubhe.cloud.authconfig.service.AdminClient;
 import org.dubhe.train.client.AlgorithmClient;
 import org.dubhe.train.client.ModelBranchClient;
 import org.dubhe.train.client.ModelInfoClient;
+import org.dubhe.train.client.NoteBookClient;
 import org.dubhe.train.config.TrainJobConfig;
 import org.dubhe.train.dao.PtTrainParamMapper;
 import org.dubhe.train.domain.dto.*;
 import org.dubhe.train.domain.entity.PtTrainParam;
 import org.dubhe.train.domain.vo.PtTrainParamQueryVO;
+import org.dubhe.train.enums.ResourcesPoolTypeEnum;
+import org.dubhe.train.inner.RunCommandInnerService;
 import org.dubhe.train.service.PtTrainParamService;
 import org.dubhe.train.utils.ImageUtil;
 import org.springframework.beans.BeanUtils;
@@ -55,7 +63,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.annotation.Resource;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -83,6 +93,15 @@ public class PtTrainParamServiceImpl implements PtTrainParamService {
     @Autowired
     private UserContextService userContextService;
 
+    @Resource
+    private RunCommandInnerService runCommandInnerService;
+
+    @Resource
+    private NoteBookClient noteBookClient;
+
+    @Resource
+    private AdminClient adminClient;
+
     /**
      * 参数列表展示
      *
@@ -98,6 +117,10 @@ public class PtTrainParamServiceImpl implements PtTrainParamService {
         //根据任务参数名称模糊搜索
         if (ptTrainParamQueryDTO.getParamName() != null) {
             query.like("param_name", ptTrainParamQueryDTO.getParamName());
+        }
+        //根据任务类型筛查
+        if (ptTrainParamQueryDTO.getTrainType() != null) {
+            query.eq("train_type", ptTrainParamQueryDTO.getTrainType());
         }
         //根据类型筛选
         if (ptTrainParamQueryDTO.getResourcesPoolType() != null) {
@@ -129,18 +152,45 @@ public class PtTrainParamServiceImpl implements PtTrainParamService {
         TrainAlgorithmSelectAllBatchIdDTO trainAlgorithmSelectAllBatchIdDTO = new TrainAlgorithmSelectAllBatchIdDTO();
         trainAlgorithmSelectAllBatchIdDTO.setIds(algorithmIds);
         DataResponseBody<List<TrainAlgorithmQureyVO>> dataResponseBody = algorithmClient.selectAllBatchIds(trainAlgorithmSelectAllBatchIdDTO);
-        List<TrainAlgorithmQureyVO> ptTrainAlgorithms = null;
-        if (dataResponseBody.succeed()) {
-            ptTrainAlgorithms = dataResponseBody.getData();
+        if (!dataResponseBody.succeed()) {
+            throw new BusinessException("查询算法失败");
         }
-        //获取算法id对应的算法名称并封装至map集合中
-        Map<Long, String> ptTrainAlgorithmMap = ptTrainAlgorithms.stream().collect(Collectors.toMap(TrainAlgorithmQureyVO::getId, TrainAlgorithmQureyVO::getAlgorithmName, (o, n) -> n));
+        List<TrainAlgorithmQureyVO>  ptTrainAlgorithms = dataResponseBody.getData();
+
+        Map<Long, String> idUserNameMap = new HashMap<>();
+        List<Long> userIds = ptTrainParams.getRecords().stream().map(PtTrainParam::getCreateUserId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        if (CollectionUtils.isNotEmpty(userIds)) {
+            DataResponseBody<List<UserDTO>> result = adminClient.getUserList(userIds);
+            if (result.getData() != null) {
+                idUserNameMap = result.getData().stream().collect(Collectors.toMap(UserDTO::getId, UserDTO::getUsername, (o, n) -> n));
+            }
+        }
+        Map<Long, String> finalIdUserNameMap = idUserNameMap;
+        //获取算法id对应的算法VO并封装至map集合中
+        Map<Long, TrainAlgorithmQureyVO> ptTrainAlgorithmMap = ptTrainAlgorithms.stream().collect(Collectors.toMap(TrainAlgorithmQureyVO::getId, Function.identity()));
         ptTrainParamQueryResult = ptTrainParams.getRecords().stream().map(x -> {
             PtTrainParamQueryVO ptTrainParamQueryVO = new PtTrainParamQueryVO();
             BeanUtils.copyProperties(x, ptTrainParamQueryVO);
-            ptTrainParamQueryVO.setAlgorithmName(ptTrainAlgorithmMap.get(x.getAlgorithmId()));
+            TrainAlgorithmQureyVO trainAlgorithmQureyVO = ptTrainAlgorithmMap.get(x.getAlgorithmId());
+            ptTrainParamQueryVO.setAlgorithmName(trainAlgorithmQureyVO.getAlgorithmName());
             //获取镜像名称与版本
             getImageNameAndImageTag(x, ptTrainParamQueryVO);
+
+            BaseTrainJobDTO baseTrainJobDTO = new BaseTrainJobDTO();
+            BeanUtils.copyProperties(ptTrainParamQueryVO, baseTrainJobDTO);
+            if (ResourcesPoolTypeEnum.isGpuCode(ptTrainParamQueryVO.getResourcesPoolType())) {
+                baseTrainJobDTO.setGpuNum(ptTrainParamQueryVO.getResourcesPoolNode());
+            }
+            String runCommand =  CommandUtil.buildPythonCommand(ptTrainParamQueryVO.getRunCommand(),
+                    ptTrainParamQueryVO.getRunParams());
+            ptTrainParamQueryVO.setDisplayRunCommand(runCommandInnerService.buildDisplayRunCommand(baseTrainJobDTO,ptTrainParamQueryVO.getCreateUserId(),
+                    trainAlgorithmQureyVO.getIsTrainModelOut(), trainAlgorithmQureyVO.getIsTrainOut(),
+                    trainAlgorithmQureyVO.getIsVisualizedLog(), runCommand));
+            ptTrainParamQueryVO.setRunCommand(runCommand);
+            //获取模板化创建人用户名
+            if (BaseService.isAdmin(userContextService.getCurUser()) && x.getCreateUserId() != null) {
+                ptTrainParamQueryVO.setCreateUserName(finalIdUserNameMap.getOrDefault(x.getCreateUserId(), null));
+            }
             return ptTrainParamQueryVO;
         }).collect(Collectors.toList());
         return PageUtil.toPage(page, ptTrainParamQueryResult);
@@ -313,6 +363,9 @@ public class PtTrainParamServiceImpl implements PtTrainParamService {
         String images = imageUtil.getImageUrl(ptTrainParamUpdateDTO, userContextService.getCurUser());
         //添加镜像url
         ptTrainParam.setImageName(images);
+        if (ptTrainParamUpdateDTO.getRunParams() == null) {
+            ptTrainParam.setRunParams(null);
+        }
         try {
             //任务参数未修改成功，抛出异常，并返回失败信息
             ptTrainParamMapper.updateById(ptTrainParam);
@@ -369,18 +422,36 @@ public class PtTrainParamServiceImpl implements PtTrainParamService {
      * @return PtTrainAlgorithm     算法
      */
     private TrainAlgorithmQureyVO checkCreateTrainParam(PtTrainParamCreateDTO ptTrainParamCreateDTO, UserContext user) {
-        //算法id校验
-        TrainAlgorithmSelectAllByIdDTO trainAlgorithmSelectAllByIdDTO = new TrainAlgorithmSelectAllByIdDTO();
-        trainAlgorithmSelectAllByIdDTO.setId(ptTrainParamCreateDTO.getAlgorithmId());
-        DataResponseBody<TrainAlgorithmQureyVO> dataResponseBody = algorithmClient.selectAllById(trainAlgorithmSelectAllByIdDTO);
-        TrainAlgorithmQureyVO ptTrainAlgorithm = null;
-        if (dataResponseBody.succeed()) {
-            ptTrainAlgorithm = dataResponseBody.getData();
+
+        if (ptTrainParamCreateDTO.getAlgorithmId() == null && ptTrainParamCreateDTO.getNotebookId() == null) {
+            LogUtil.error(LogEnum.BIZ_TRAIN, "Neither algorithm's id  nor notebook's id can be null  at the same time");
+            throw new BusinessException("算法ID或者notebookId不能同时为空！");
         }
-        if (ptTrainAlgorithm == null) {
-            LogUtil.error(LogEnum.BIZ_TRAIN, "Algorithm ID  {} does not exist", ptTrainParamCreateDTO.getAlgorithmId());
-            throw new BusinessException("算法不存在或已被删除");
+
+        TrainAlgorithmQureyVO ptTrainAlgorithm = new TrainAlgorithmQureyVO();
+        if (ptTrainParamCreateDTO.getAlgorithmId() != null) {
+            //算法id校验
+            TrainAlgorithmSelectAllByIdDTO trainAlgorithmSelectAllByIdDTO = new TrainAlgorithmSelectAllByIdDTO();
+            trainAlgorithmSelectAllByIdDTO.setId(ptTrainParamCreateDTO.getAlgorithmId());
+            DataResponseBody<TrainAlgorithmQureyVO> dataResponseBody = algorithmClient.selectAllById(trainAlgorithmSelectAllByIdDTO);
+            if (dataResponseBody.succeed()) {
+                ptTrainAlgorithm = dataResponseBody.getData();
+            }
+            if (ptTrainAlgorithm == null) {
+                LogUtil.error(LogEnum.BIZ_TRAIN, "Algorithm ID  {} does not exist", ptTrainParamCreateDTO.getAlgorithmId());
+                throw new BusinessException("算法不存在或已被删除");
+            }
+        } else if (ptTrainParamCreateDTO.getNotebookId() != null) {
+            //notebook 信息
+            NoteBookVO noteBook = getNoteBook(ptTrainParamCreateDTO.getNotebookId());
+            ptTrainAlgorithm.setImageName(noteBook.getK8sImageName());
+            ptTrainAlgorithm.setIsTrainOut(true);
+            ptTrainAlgorithm.setIsTrainModelOut(true);
+            //默认可视化输出不输出 python 文件中可以不用接受这个参数
+            ptTrainAlgorithm.setIsVisualizedLog(false);
+            ptTrainAlgorithm.setCodeDir(noteBook.getK8sPvcPath());
         }
+
         //任务参数名称校验
         QueryWrapper<PtTrainParam> query = new QueryWrapper<>();
         query.eq("param_name", ptTrainParamCreateDTO.getParamName());
@@ -390,6 +461,27 @@ public class PtTrainParamServiceImpl implements PtTrainParamService {
             throw new BusinessException("任务参数名称已存在");
         }
         return ptTrainAlgorithm;
+    }
+
+    /**
+     * 获取notebook
+     *
+     * @param id
+     * @return
+     */
+    private NoteBookVO getNoteBook(Long id) {
+        DataResponseBody<NoteBookVO> dataResponseBody = noteBookClient.getNoteBook(id);
+        if (dataResponseBody.succeed()) {
+            NoteBookVO data = dataResponseBody.getData();
+            if (data == null) {
+                LogUtil.info(LogEnum.BIZ_TRAIN, "There is no such notebook, id is ", id);
+                throw new BusinessException("无此NoteBook");
+            }
+            return dataResponseBody.getData();
+        } else {
+            LogUtil.info(LogEnum.BIZ_TRAIN, "NoteBook service unreachable! Msg is {}", dataResponseBody.getMsg());
+            throw new BusinessException("NoteBook服务调用失败，请稍后重试~");
+        }
     }
 
     /**

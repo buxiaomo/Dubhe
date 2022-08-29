@@ -84,4 +84,14 @@ public interface DataMedicineFileService {
      * @param datasetId         医学数据集Id
      */
     void deleteByDatasetId(Long datasetId);
+
+    List<Integer> getFileStatusListByDataset(Long datasetId);
+
+    /**
+     * 清理已有的标注数据
+     *
+     * @param datasetId
+     */
+    void deleteAnnotation(Long datasetId);
+
 }

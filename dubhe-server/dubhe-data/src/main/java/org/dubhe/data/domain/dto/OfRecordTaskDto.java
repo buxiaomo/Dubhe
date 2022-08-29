@@ -35,4 +35,5 @@ public class OfRecordTaskDto {
     private Integer partNum;
     private Long datasetVersionId;
     private String reTaskId;
+    private int algorithm;
 }

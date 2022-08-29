@@ -94,15 +94,17 @@ public class EnhanceTaskSplitBO implements Serializable {
      */
     private String reTaskId;
 
+    private Integer algorithm;
+
     public EnhanceTaskSplitBO() {
     }
 
-    public EnhanceTaskSplitBO(Long taskId, List<File> files, Long datasetId, String versionName, Map<Long, DatasetVersionFile> datasetVersionFilesMap, Integer enhanceType,FileUtil fileUtil) {
+    public EnhanceTaskSplitBO(Long id, List<File> files, Long datasetId, String versionName, Map<Long, DatasetVersionFile> datasetVersionFilesMap, Integer enhanceType, FileUtil fileUtil) {
 
         this.enhanceFilePath = fileUtil.getOriginFileAbsPath(datasetId,null,false);
         this.enhanceAnnotationPath = fileUtil.getNfsWriteAnnotationAbsPath(datasetId);
         this.priority = Constant.DEFAULT_PRIORITY;
-        this.id = taskId;
+        this.id = id;
         this.datasetId = datasetId;
         this.versionName = versionName;
         this.type = enhanceType;

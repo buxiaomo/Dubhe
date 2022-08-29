@@ -12,7 +12,7 @@ spring:
       config:
         enabled: true
         server-addr: 127.0.0.1:8848
-        namespace: dubhe-server-cloud-prod
+        namespace: dubhe-prod
         shared-configs[0]:
           data-id: common-biz.yaml
           group: dubhe
@@ -23,7 +23,7 @@ spring:
           refresh: true
       discovery:
         enabled: true
-        namespace: dubhe-server-cloud-dev
+        namespace: dubhe-prod
         group: dubhe
         server-addr: 127.0.0.1:8848
 

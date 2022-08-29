@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 """
- Copyright 2020 Tianshu AI Platform. All Rights Reserved.
+ Copyright 2021 Tianshu AI Platform. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import json
 from backend.component.Graph.parse_json import Proxy_json
 from backend.component.Graph.graph import Node
 from backend.component.Graph.graph_read import get_data
-
 # Base_RATE = 16
 # nodes保留每个节点的单独信息，以节点全称为key进行索引
 
@@ -383,7 +382,6 @@ def preprocess(s_data):
 def get_s_graph_data(s_data):
     res, g = preprocess(s_data)
     return res
-
 
 def get_c_graph_data(c_data):
     res, g = preprocess(c_data)

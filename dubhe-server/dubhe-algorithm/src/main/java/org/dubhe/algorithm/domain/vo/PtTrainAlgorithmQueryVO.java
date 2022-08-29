@@ -60,9 +60,6 @@ public class PtTrainAlgorithmQueryVO implements Serializable {
     @ApiModelProperty(value = "运行命令")
     private String runCommand;
 
-    @ApiModelProperty(value = "运行参数")
-    private JSONObject runParams;
-
     @ApiModelProperty(value = "算法用途")
     private String algorithmUsage;
 
@@ -80,9 +77,6 @@ public class PtTrainAlgorithmQueryVO implements Serializable {
 
     @ApiModelProperty(value = "可视化日志（1是，0否）")
     private Boolean isVisualizedLog;
-
-    @ApiModelProperty(value = "算法是否支持推理（1可推理，0不可推理）")
-    private Boolean inference;
 
     @ApiModelProperty(value = "创建人")
     private Long createUserId;

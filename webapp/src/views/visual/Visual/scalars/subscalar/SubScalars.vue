@@ -14,148 +14,6 @@
  * =============================================================
  */
 
-<template>
-  <div v-show="subshow" class="scalars-container">
-    <div class="scalars-title" @click="showContent()">
-      <div :class="[show ? 'sub' : 'sub1']">
-        <div class="my-label">
-          <div class="my-text">
-            <span>{{ info }}</span>
-          </div>
-          <div class="circle-father"><div class="circle" /></div>
-          <div class="triangle-father">
-            <div class="triangle" />
-          </div>
-        </div>
-      </div>
-      <div class="line1" />
-      <div :class="['line2', show ? 'linestyle' : '']" />
-    </div>
-    <div :class="[show ? 'showClass' : '']">
-      <div class="scalarscontent">
-        <el-row :gutter="20">
-          <scalar-container
-            v-for="item in data"
-            v-show="isshow[item.run]"
-            :key="item.index"
-            :content="item"
-            :subname="subname"
-          />
-        </el-row>
-      </div>
-    </div>
-  </div>
-</template>
-<script>
-import { createNamespacedHelpers } from 'vuex';
-import { ScalarContainer } from '../scalarcontainer';
-
-const {
-  mapGetters: mapScalarGetters,
-  mapActions: mapScalarActions,
-  mapMutations: mapScalarMutations,
-} = createNamespacedHelpers('Visual/scalar');
-const { mapState: mapLayoutStates } = createNamespacedHelpers('Visual/layout');
-export default {
-  components: {
-    ScalarContainer,
-  },
-  props: {
-    subname: String,
-    index: Number,
-    value: Array,
-  },
-  data() {
-    return {
-      data: {},
-      show: true,
-      isshow: {},
-      subshow: true,
-      info: '',
-    };
-  },
-  computed: {
-    ...mapScalarGetters(['detailData', 'categoryInfo', 'initshowrun', 'showFlag', 'subisshow']),
-    ...mapLayoutStates(['userSelectRunFile']),
-  },
-  watch: {
-    userSelectRunFile(val) {
-      let flag = 1;
-      for (let i = 0; i < Object.keys(this.isshow).length; i += 1) {
-        if (val.indexOf(Object.keys(this.isshow)[i]) > -1) {
-          this.isshow[Object.keys(this.isshow)[i]] = true;
-          flag -= 1;
-        } else {
-          this.isshow[Object.keys(this.isshow)[i]] = false;
-        }
-      }
-      if (flag === 1) {
-        this.setsubisshow([this.subname, false]);
-        this.subshow = this.subisshow[this.subname];
-      } else {
-        this.setsubisshow([this.subname, true]);
-        this.subshow = this.subisshow[this.subname];
-      }
-    },
-  },
-  created() {
-    this.info = this.subname;
-    if (this.info.length > 10) {
-      this.info = `${this.info.slice(0, 7)}...`;
-    }
-    this.isshow = this.initshowrun[this.subname];
-    if (!(this.subname in this.showFlag)) {
-      if (this.index === 0) {
-        this.setshowFlag([this.subname, false]);
-        this.show = this.showFlag[this.subname];
-      } else {
-        this.setshowFlag([this.subname, true]);
-        this.show = this.showFlag[this.subname];
-      }
-    } else {
-      this.show = this.showFlag[this.subname];
-    }
-
-    if (!this.showFlag[this.subname]) {
-      this.getData([this.subname, this.value]);
-      this.setFreshInfo([this.subname, this.showFlag[this.subname]]);
-      this.data = this.detailData[this.subname];
-    }
-
-    if (!(this.subname in this.subisshow)) {
-      this.setsubisshow([this.subname, true]);
-    } else {
-      this.subshow = this.subisshow[this.subname];
-    }
-  },
-  methods: {
-    ...mapScalarActions(['getData']),
-    ...mapScalarMutations([
-      'setDetailData',
-      'setshowrun',
-      'back',
-      'setFreshInfo',
-      'setshowFlag',
-      'setsubisshow',
-    ]),
-    showContent() {
-      if (this.showFlag[this.subname]) {
-        this.setshowFlag([this.subname, false]);
-        this.show = this.showFlag[this.subname];
-        this.setFreshInfo([this.subname, this.showFlag[this.subname]]);
-        this.getData([this.subname, this.value]);
-        this.data = this.detailData[this.subname];
-      } else {
-        this.setshowFlag([this.subname, true]);
-        this.show = this.showFlag[this.subname];
-        this.setFreshInfo([this.subname, this.showFlag[this.subname]]);
-      }
-    },
-  },
-};
-</script>
->
-
 <style lang="less" scoped>
 .scalars-container {
   margin-bottom: 0.5%;
@@ -288,3 +146,161 @@ export default {
   cursor: pointer;
 }
 </style>
+<template>
+  <div v-show="subshow" class="scalars-container">
+    <div class="scalars-title" @click="showContent()">
+      <div :class="[show ? 'sub' : 'sub1']">
+        <div class="my-label">
+          <div class="my-text">
+            <span>{{ info }}</span>
+          </div>
+          <div class="circle-father">
+            <div class="circle" />
+          </div>
+          <div class="triangle-father">
+            <div class="triangle" />
+          </div>
+        </div>
+      </div>
+      <div class="line1" />
+      <div :class="['line2', show ? 'linestyle' : '']" />
+    </div>
+    <div :class="[show ? 'showClass' : '']">
+      <div class="scalarscontent">
+        <el-row :gutter="20">
+          <scalar-container
+            v-for="item in data"
+            v-show="isshow[item.run]"
+            :key="item.index"
+            :content="item"
+            :subname="subname"
+          />
+        </el-row>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { createNamespacedHelpers } from 'vuex';
+import { ScalarContainer } from '../scalarcontainer';
+
+const {
+  mapGetters: mapScalarGetters,
+  mapActions: mapScalarActions,
+  mapMutations: mapScalarMutations,
+} = createNamespacedHelpers('Visual/scalar');
+const { mapGetters: mapLayoutGetters, mapState: mapLayoutStates } = createNamespacedHelpers(
+  'Visual/layout'
+);
+export default {
+  components: {
+    ScalarContainer,
+  },
+  props: {
+    subname: String,
+    index: Number,
+    value: Array,
+  },
+  data() {
+    return {
+      data: [],
+      show: true,
+      isshow: {},
+      subshow: true,
+      info: '',
+    };
+  },
+  computed: {
+    ...mapScalarGetters(['detailData', 'categoryInfo', 'initshowrun', 'showFlag', 'subisshow']),
+    ...mapLayoutStates(['userSelectRunFile']),
+    ...mapLayoutGetters(['getTimer']),
+  },
+  watch: {
+    userSelectRunFile(val) {
+      let flag = 1;
+      for (let i = 0; i < Object.keys(this.isshow).length; i += 1) {
+        if (val.indexOf(Object.keys(this.isshow)[i]) > -1) {
+          this.$set(this.isshow, Object.keys(this.isshow)[i], true);
+          flag -= 1;
+        } else {
+          this.$set(this.isshow, Object.keys(this.isshow)[i], false);
+        }
+      }
+      // 对象的深度拷贝
+      let tt = {};
+      tt = this.isshow;
+      this.isshow = {};
+      this.isshow = tt;
+      if (flag === 1) {
+        this.setsubisshow([this.subname, false]);
+        this.subshow = this.subisshow[this.subname];
+      } else {
+        this.setsubisshow([this.subname, true]);
+        this.subshow = this.subisshow[this.subname];
+      }
+    },
+    getTimer() {
+      const isshow = this.initshowrun[this.subname];
+      const keys = Object.keys(isshow);
+      for (let i = 0; i < keys.length; i++) {
+        this.$set(this.isshow, keys[i], isshow[keys[i]]);
+      }
+      this.data = this.detailData[this.subname];
+    },
+  },
+  created() {
+    this.info = this.subname;
+    if (this.info.length > 10) {
+      this.info = `${this.info.slice(0, 7)}...`;
+    }
+    this.isshow = this.initshowrun[this.subname];
+    if (!(this.subname in this.showFlag)) {
+      if (this.index === 0) {
+        this.setshowFlag([this.subname, false]);
+        this.show = this.showFlag[this.subname];
+      } else {
+        this.setshowFlag([this.subname, true]);
+        this.show = this.showFlag[this.subname];
+      }
+    } else {
+      this.show = this.showFlag[this.subname];
+    }
+
+    if (!this.showFlag[this.subname]) {
+      this.getData([this.subname, this.value]);
+      this.setFreshInfo([this.subname, this.showFlag[this.subname]]);
+      this.data = this.detailData[this.subname];
+    }
+
+    if (!(this.subname in this.subisshow)) {
+      this.setsubisshow([this.subname, true]);
+    } else {
+      this.subshow = this.subisshow[this.subname];
+    }
+  },
+  methods: {
+    ...mapScalarActions(['getData']),
+    ...mapScalarMutations([
+      'setDetailData',
+      'setshowrun',
+      'back',
+      'setFreshInfo',
+      'setshowFlag',
+      'setsubisshow',
+    ]),
+    showContent() {
+      if (this.showFlag[this.subname]) {
+        this.setshowFlag([this.subname, false]);
+        this.show = this.showFlag[this.subname];
+        this.setFreshInfo([this.subname, this.showFlag[this.subname]]);
+        this.getData([this.subname, this.value]);
+        this.data = this.detailData[this.subname];
+      } else {
+        this.setshowFlag([this.subname, true]);
+        this.show = this.showFlag[this.subname];
+        this.setFreshInfo([this.subname, this.showFlag[this.subname]]);
+      }
+    },
+  },
+};
+</script>

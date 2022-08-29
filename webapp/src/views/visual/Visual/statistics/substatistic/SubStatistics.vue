@@ -14,264 +14,6 @@
  * =============================================================
  */
 
-<template>
-  <div class="statistics-container">
-    <div class="statistics-title" @click="showContent()">
-      <div :class="[showFlag ? 'sub1' : 'sub']">
-        <div class="my-label">
-          <div class="my-text">
-            <span>{{ categoryName }}</span>
-          </div>
-          <div class="circle-father"><div class="circle" /></div>
-          <div class="triangle-father">
-            <div class="triangle" />
-          </div>
-        </div>
-      </div>
-      <div class="line1" />
-      <div :class="['line2', showFlag ? '' : 'linestyle']" />
-    </div>
-    <div :class="[showFlag ? '' : 'showClass']">
-      <div>
-        <div v-for="(oneRunData, runIdx) in runData" :key="runIdx" :class="['statistics-content']">
-          <div
-            v-for="(item, index) in oneRunData"
-            v-show="getDataSetsState[item[0]]"
-            :id="[idArray[item[4]]]"
-            :key="index"
-            class="allStatisticContainer"
-          >
-            <statisticContainer
-              :data="item[2]"
-              :ttlabel="item[0]"
-              :tag="item[1]"
-              :itemp="item[4]"
-              :componentName="componentName"
-              :runColor="getStatisticColor[item[3] % 5]"
-              :divId="idArray[item[4]]"
-              :parentComponent="parentComponent"
-              checked="false"
-              class="statisticContaierContent"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-<script>
-import { createNamespacedHelpers } from 'vuex';
-import { statisticContainer } from '../drawStatistic';
-
-const {
-  mapGetters: mapStatisticGetters,
-  mapActions: mapStatisticActions,
-  mapMutations: mapStatisticMutations,
-} = createNamespacedHelpers('Visual/statistic');
-const { mapState: mapLayoutStates } = createNamespacedHelpers('Visual/layout');
-export default {
-  components: {
-    statisticContainer,
-  },
-  props: {
-    categoryInfo: String,
-  },
-  data() {
-    return {
-      showFlag: '',
-      componentName: this.categoryInfo,
-      categoryName: '',
-      allData: [],
-      runData: [],
-      idArray: [],
-      parentComponent: true,
-    };
-  },
-  computed: {
-    ...mapStatisticGetters([
-      'getInitStateFlag',
-      'getBinNum',
-      'getDistData',
-      'getHistData',
-      'getMode',
-      'getShowStatisticFlag',
-      'getDataSets',
-      'getDataSetsState',
-      'getStatisticColor',
-      'getHistShow',
-      'getDistShow',
-    ]),
-    ...mapLayoutStates(['userSelectRunFile']),
-  },
-  watch: {
-    getMode(curMode) {
-      if (this.categoryInfo === 'histogram') {
-        if (curMode === '三维') {
-          this.componentName = 'threed';
-        } else {
-          this.componentName = 'orthographic';
-        }
-      }
-    },
-    getBinNum() {
-      if (this.categoryInfo === 'histogram') {
-        this.manageHistData(true);
-      }
-    },
-    getHistData(data) {
-      if (this.categoryInfo === 'histogram') {
-        this.allData = data;
-        this.idArray = [];
-        for (let i = 0; i < this.allData.length; i += 1) {
-          this.idArray.push(`myHistogramScale${i}`);
-        }
-        this.setRunData();
-      }
-    },
-    getDistData(data) {
-      if (this.categoryInfo === 'distribution') {
-        this.allData = data;
-        this.idArray = [];
-        for (let i = 0; i < this.allData.length; i += 1) {
-          this.idArray.push(`myDistributionScale${i}`);
-        }
-        this.setRunData();
-      }
-    },
-    userSelectRunFile() {
-      this.setDatasetsShow();
-    },
-    getHistShow(val) {
-      if (this.categoryInfo === 'histogram') {
-        this.showFlag = val;
-        if (val) {
-          document.getElementsByClassName('statistics-container')[0].scrollIntoView(true);
-        }
-      }
-    },
-    getDistShow(val) {
-      if (this.categoryInfo === 'distribution') {
-        this.showFlag = val;
-        if (val) {
-          this.setDistData();
-          document.getElementsByClassName('statistics-container')[1].scrollIntoView(true); // 书签滑到页面最顶端
-        }
-      }
-    },
-  },
-  created() {
-    if (this.categoryInfo === 'histogram') {
-      this.categoryName = '直方图';
-      this.showFlag = true;
-      this.setHistShow(true); // 初始默认
-      this.setHistData();
-    } else {
-      this.categoryName = '分布图';
-      this.showFlag = false;
-      this.setDistShow(false);
-    }
-  },
-  mounted() {
-    window.addEventListener('scroll', this.handleScroll, true); // 监听滑动条
-    this.setDatasetsShow();
-  },
-  methods: {
-    ...mapStatisticActions(['featchAllDistData', 'featchAllHistData']),
-    ...mapStatisticMutations([
-      'manageHistData',
-      'setDataSetsState',
-      'setInitStateFlag',
-      'setHistShow',
-      'setDistShow',
-    ]),
-    showContent() {
-      if (this.categoryInfo === 'histogram') {
-        this.setHistShow(!this.showFlag);
-      } else {
-        this.setDistShow(!this.showFlag);
-      }
-    },
-    setHistData() {
-      if (this.getMode === '三维') {
-        this.componentName = 'threed';
-      } else {
-        this.componentName = 'orthographic';
-      }
-      // 如果第一个页面标记为true，不用再重新获取数据
-      if (this.getInitStateFlag) {
-        this.setInitStateFlag(false);
-        return;
-      }
-      if (!this.getInitStateFlag && this.getHistData.length === 0) {
-        this.featchAllHistData();
-        return;
-      }
-      // 有数据
-      this.allData = this.getHistData;
-      this.idArray = [];
-      for (let i = 0; i < this.allData.length; i += 1) {
-        this.idArray.push(`myHistogramScale${i}`);
-      }
-      this.setRunData();
-    },
-    setDistData() {
-      this.componentName = 'overlook';
-      if (this.getDistData.length === 0) {
-        this.featchAllDistData();
-        return;
-      }
-      this.allData = this.getDistData;
-      this.idArray = [];
-      for (let i = 0; i < this.allData.length; i += 1) {
-        this.idArray.push(`myDistributionScale${i}`);
-      }
-      this.setRunData();
-    },
-    handleScroll() {
-      // 页面滑动过程中修改histDist标志，高亮右侧控制面板
-      if (document.getElementsByClassName('statistics-container')[1] !== undefined) {
-        const curDistHeight = document
-          .getElementsByClassName('statistics-container')[1]
-          .getBoundingClientRect().top;
-        if (curDistHeight < window.innerHeight * 0.7) {
-          this.setDistShow(true);
-        } else if (curDistHeight > window.innerHeight) {
-          this.setHistShow(true);
-        }
-      }
-    },
-    setDatasetsShow() {
-      const stateTemp = [];
-      for (let i = 0; i < this.getDataSets.length; i += 1) {
-        stateTemp[this.getDataSets[i]] = false;
-      }
-      for (let i = 0; i < this.userSelectRunFile.length; i += 1) {
-        stateTemp[this.userSelectRunFile[i]] = true;
-      }
-      // userselectRunFiles没有保存状态，statistic保存run状态
-      this.setDataSetsState(stateTemp);
-    },
-    setRunData() {
-      // 按run对得到的数据再处理一下
-      if (this.allData.length === 0) {
-        this.runData = [];
-        return;
-      }
-      let count = 0;
-      const runDataTemp = [[this.allData[0]]];
-      for (let i = 1; i < this.allData.length; i += 1) {
-        if (this.allData[i][0] !== this.allData[i - 1][0]) {
-          count += 1;
-          runDataTemp.push([]);
-        }
-        runDataTemp[count].push(this.allData[i]);
-      }
-      this.runData = runDataTemp;
-    },
-  },
-};
-</script>
-
 <style lang="less" scoped>
 .statistics-container {
   margin-bottom: 0.5%;
@@ -295,7 +37,6 @@ export default {
     margin-left: 1%;
 
     .allStatisticContainer {
-      // width: 24%; // 一行放四个
       width: 31%; // 一行放三个
       height: 100%;
       margin: 0.8%;
@@ -421,3 +162,267 @@ export default {
   background-color: #b9c6ff;
 }
 </style>
+<template>
+  <div class="statistics-container">
+    <div class="statistics-title" @click="showContent()">
+      <div :class="[showFlag ? 'sub1' : 'sub']">
+        <div class="my-label">
+          <div class="my-text">
+            <span>{{ categoryName }}</span>
+          </div>
+          <div class="circle-father">
+            <div class="circle" />
+          </div>
+          <div class="triangle-father">
+            <div class="triangle" />
+          </div>
+        </div>
+      </div>
+      <div class="line1" />
+      <div :class="['line2', showFlag ? '' : 'linestyle']" />
+    </div>
+    <div :class="[showFlag ? '' : 'showClass']">
+      <div>
+        <div v-for="(oneRunData, runIdx) in runData" :key="runIdx" :class="['statistics-content']">
+          <div
+            v-for="(item, index) in oneRunData"
+            v-show="getDataSetsState[item[0]]"
+            :id="[idArray[item[4]]]"
+            :key="index"
+            class="allStatisticContainer"
+          >
+            <statisticContainer
+              :data="item[2]"
+              :ttlabel="item[0]"
+              :tag="item[1]"
+              :itemp="item[4]"
+              :componentName="componentName"
+              :runColor="getStatisticColor[item[3] % getStatisticColor.length]"
+              :divId="idArray[item[4]]"
+              :parentComponent="parentComponent"
+              checked="false"
+              class="statisticContaierContent"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { createNamespacedHelpers } from 'vuex';
+import { statisticContainer } from '../drawStatistic';
+
+const {
+  mapGetters: mapStatisticGetters,
+  mapActions: mapStatisticActions,
+  mapMutations: mapStatisticMutations,
+} = createNamespacedHelpers('Visual/statistic');
+const { mapState: mapLayoutStates } = createNamespacedHelpers('Visual/layout');
+export default {
+  components: {
+    statisticContainer,
+  },
+  props: {
+    categoryInfo: String,
+  },
+  data() {
+    return {
+      showFlag: '',
+      componentName: this.categoryInfo,
+      categoryName: '',
+      allData: [],
+      runData: [],
+      idArray: [],
+      parentComponent: true,
+    };
+  },
+  computed: {
+    ...mapStatisticGetters([
+      'getInitStateFlag',
+      'getBinNum',
+      'getDistData',
+      'getHistData',
+      'getMode',
+      'getShowStatisticFlag',
+      'getDataSets',
+      'getDataSetsState',
+      'getStatisticColor',
+      'getHistShow',
+      'getDistShow',
+      'getUpdateFlag',
+      'getFeatchHistDataFinished',
+      'getFeatchDistDataFinished',
+    ]),
+    ...mapLayoutStates(['userSelectRunFile']),
+  },
+  watch: {
+    getUpdateFlag() {
+      if (this.categoryInfo === 'distribution' && this.getFeatchDistDataFinished && this.showFlag) {
+        this.featchAllDistData();
+      }
+      if (this.categoryInfo === 'histogram' && this.getFeatchHistDataFinished && this.showFlag) {
+        this.featchAllHistData();
+      }
+    },
+    getMode(curMode) {
+      if (this.categoryInfo === 'histogram') {
+        if (curMode === '三维') {
+          this.componentName = 'threed';
+        } else {
+          this.componentName = 'orthographic';
+        }
+      }
+    },
+    getBinNum(newBinNum) {
+      if (this.categoryInfo === 'histogram') {
+        this.manageHistData({ index: 0, length: this.getHistData.length });
+      }
+    },
+    getHistData(data) {
+      if (this.categoryInfo === 'histogram') {
+        this.allData = data;
+        this.idArray = [];
+        for (let i = 0; i < this.allData.length; i++) {
+          this.idArray.push(`myHistogramScale${i}`);
+        }
+        this.setRunData();
+      }
+    },
+    getDistData(data) {
+      if (this.categoryInfo === 'distribution') {
+        this.allData = data;
+        this.idArray = [];
+        for (let i = 0; i < this.allData.length; i++) {
+          this.idArray.push(`myDistributionScale${i}`);
+        }
+        this.setRunData();
+      }
+    },
+    userSelectRunFile() {
+      this.setDatasetsShow();
+    },
+    getHistShow(val) {
+      if (this.categoryInfo === 'histogram') {
+        this.showFlag = val;
+        if (val) {
+          this.setHistData();
+          document.getElementsByClassName('statistics-container')[0].scrollIntoView(true);
+        }
+      }
+    },
+    getDistShow(val) {
+      if (this.categoryInfo === 'distribution') {
+        this.showFlag = val;
+        if (val) {
+          this.setDistData();
+          document.getElementsByClassName('statistics-container')[1].scrollIntoView(true); // 书签滑到页面最顶端
+        }
+      }
+    },
+  },
+  created() {
+    if (this.categoryInfo === 'histogram') {
+      this.categoryName = '直方图';
+      this.showFlag = this.getHistShow;
+      if (this.showFlag) {
+        this.setHistData();
+      }
+    } else {
+      this.categoryName = '分布图';
+      this.showFlag = this.getDistShow;
+      if (this.showFlag) {
+        this.setDistData();
+      }
+    }
+  },
+  mounted() {
+    this.setDatasetsShow();
+  },
+  methods: {
+    ...mapStatisticActions(['featchAllDistData', 'featchAllHistData']),
+    ...mapStatisticMutations([
+      'manageHistData',
+      'setDataSetsState',
+      'setInitStateFlag',
+      'setHistShow',
+      'setDistShow',
+      'clearHistData',
+      'clearDistData',
+    ]),
+    showContent() {
+      if (this.categoryInfo === 'histogram') {
+        this.setHistShow(!this.showFlag);
+      } else {
+        this.setDistShow(!this.showFlag);
+      }
+    },
+    setHistData() {
+      if (this.getMode === '三维') {
+        this.componentName = 'threed';
+      } else {
+        this.componentName = 'orthographic';
+      }
+      // 如果第一个页面标记为true，不用再重新获取数据
+      if (this.getInitStateFlag) {
+        this.setInitStateFlag(false);
+        return;
+      }
+      if (!this.getInitStateFlag && this.getHistData.length === 0) {
+        this.featchAllHistData();
+        return;
+      }
+      // 有数据
+      this.allData = this.getHistData;
+      this.idArray = [];
+      for (let i = 0; i < this.allData.length; i++) {
+        this.idArray.push(`myHistogramScale${i}`);
+      }
+      this.setRunData();
+    },
+    setDistData() {
+      this.componentName = 'overlook';
+      if (this.getDistData.length === 0) {
+        this.featchAllDistData();
+        return;
+      }
+      this.allData = this.getDistData;
+      this.idArray = [];
+      for (let i = 0; i < this.allData.length; i++) {
+        this.idArray.push(`myDistributionScale${i}`);
+      }
+      this.setRunData();
+    },
+    setDatasetsShow() {
+      const stateTemp = [];
+      for (let i = 0; i < this.getDataSets.length; i++) {
+        stateTemp[this.getDataSets[i]] = false;
+      }
+      for (let i = 0; i < this.userSelectRunFile.length; i++) {
+        stateTemp[this.userSelectRunFile[i]] = true;
+      }
+      // userselectRunFiles没有保存状态，statistic保存run状态
+      this.setDataSetsState(stateTemp);
+    },
+    setRunData() {
+      // 按run对得到的数据再处理一下
+      if (this.allData.length === 0) {
+        this.runData = [];
+        return;
+      }
+      let count = 0;
+      const runDataTemp = [[this.allData[0]]];
+      for (let i = 1; i < this.allData.length; i++) {
+        if (this.allData[i][0] !== this.allData[i - 1][0]) {
+          // 认为run是按顺序排放的
+          count++;
+          runDataTemp.push([]);
+        }
+        runDataTemp[count].push(this.allData[i]);
+      }
+      this.runData = runDataTemp;
+      this.setDatasetsShow();
+    },
+  },
+};
+</script>

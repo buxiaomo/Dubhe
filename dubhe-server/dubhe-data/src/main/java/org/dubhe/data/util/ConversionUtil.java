@@ -19,12 +19,17 @@ package org.dubhe.data.util;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
+import io.minio.messages.Bucket;
+import org.apache.commons.compress.utils.Lists;
 import org.apache.commons.lang.StringUtils;
+import org.apache.logging.log4j.util.Strings;
 import org.dubhe.biz.base.constant.MagicNumConstant;
 import org.dubhe.biz.file.utils.MinioUtil;
 import org.dubhe.biz.log.enums.LogEnum;
 import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.data.domain.dto.FileCreateDTO;
+import org.dubhe.data.domain.entity.Label;
 import org.dubhe.data.service.impl.FileServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,10 +37,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -154,6 +157,70 @@ public class ConversionUtil {
             newBbox[i] = bd.setScale(MagicNumConstant.SIX, BigDecimal.ROUND_HALF_UP).doubleValue();
         }
         return newBbox;
+    }
+
+    public static JSONObject buildCOCOCommon(){
+        JSONObject cocoObject =new JSONObject();
+        cocoObject.put("info",buildCOCOInfo());
+        cocoObject.put("licenses",buildCOCOLicenses());
+        return cocoObject;
+    }
+
+    private static JSONObject buildCOCOInfo(){
+        Calendar calendar = Calendar.getInstance();
+        SimpleDateFormat format = new SimpleDateFormat("yyyy/MM/dd");
+        JSONObject info = new JSONObject();
+        info.put("description","Exported from Tianshu");
+        info.put("url","");
+        info.put("version","");
+        info.put("contributor","");
+        info.put("year",calendar.get(Calendar.YEAR));
+        info.put("date_created",format.format(calendar.getTime()));
+        return info;
+    }
+
+    private static JSONArray buildCOCOLicenses(){
+        JSONObject license = new JSONObject();
+        license.put("id",0);
+        license.put("name","placeholder license");
+        license.put("url","");
+        JSONArray licenseArray = new JSONArray();
+        licenseArray.add(license);
+        return licenseArray;
+    }
+
+    public  void writeYOLOCommon(String targetDir,List<Label> labels,List<Long> labelIds){
+       // obj.data
+        StringBuilder objData= new StringBuilder();
+        objData.append("classes=").append(labels.size()).append("\n");
+        objData.append("train = data/train.txt").append("\n");
+        objData.append("names = data/obj.names").append("\n");
+        objData.append("backup = backup").append("\n");
+
+        //标签
+        List<String> labelNames= Lists.newArrayList();
+        for(Label label:labels){
+            labelNames.add(label.getName());
+            labelIds.add(label.getId());
+        }
+
+        try {
+            minioUtil.writeString(bucket, targetDir + "obj.names", Strings.join(labelNames, '\n'));
+            minioUtil.writeString(bucket, targetDir + "obj.data", objData.toString());
+        } catch (Exception e) {
+            LogUtil.error(LogEnum.BIZ_DATASET, "MinIO file write exception, {}", e);
+        }
+    }
+
+    public static String buildYoloAnnotation(Integer categoryIndex, JSONArray bboxArray,int width,int height){
+        BigDecimal[] bbox = new BigDecimal[ARRAY_LENGTH];
+        for (int j = 0; j < ARRAY_LENGTH; j++) {
+            bbox[j] = new BigDecimal(bboxArray.get(j).toString());
+        }
+        double[] newBbox = bboxCocoYolo(bbox[0].doubleValue(), bbox[1].doubleValue(),
+                bbox[2].doubleValue(), bbox[3].doubleValue(), width, height);
+
+        return categoryIndex+" "+newBbox[0]+" "+newBbox[1]+" "+newBbox[2]+" "+newBbox[3]+"\n";
     }
 
 }

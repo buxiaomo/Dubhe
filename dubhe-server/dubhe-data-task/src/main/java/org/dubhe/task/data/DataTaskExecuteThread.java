@@ -22,21 +22,27 @@ import cn.hutool.core.util.ObjectUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.support.spring.FastJsonRedisSerializer;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.dubhe.biz.base.constant.DataStateCodeConstant;
 import org.dubhe.biz.base.constant.MagicNumConstant;
 import org.dubhe.biz.base.constant.NumberConstant;
 import org.dubhe.biz.base.utils.StringUtils;
+import org.dubhe.biz.file.dto.FileDTO;
+import org.dubhe.biz.file.utils.MinioUtil;
 import org.dubhe.biz.log.enums.LogEnum;
 import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.biz.redis.utils.RedisUtils;
 import org.dubhe.biz.statemachine.dto.StateChangeDTO;
 import org.dubhe.data.constant.Constant;
 import org.dubhe.data.constant.DatasetLabelEnum;
+import org.dubhe.data.constant.FileTypeEnum;
+import org.dubhe.data.domain.bo.FileBO;
 import org.dubhe.data.domain.bo.TaskSplitBO;
 import org.dubhe.data.domain.dto.DatasetEnhanceRequestDTO;
 import org.dubhe.data.domain.dto.FileCreateDTO;
@@ -48,8 +54,13 @@ import org.dubhe.data.machine.utils.StateMachineUtil;
 import org.dubhe.data.pool.BasePool;
 import org.dubhe.data.service.*;
 import org.dubhe.data.util.TaskUtils;
+import org.dubhe.dcm.domain.entity.DataMedicine;
 import org.dubhe.dcm.domain.entity.DataMedicineFile;
+import org.dubhe.dcm.machine.enums.DcmFileStateEnum;
 import org.dubhe.dcm.service.DataMedicineFileService;
+import org.dubhe.dcm.service.DataMedicineService;
+import org.dubhe.task.constant.DataAlgorithmEnum;
+import org.dubhe.task.constant.TaskQueueNameEnum;
 import org.dubhe.task.util.TableDataUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -59,6 +70,7 @@ import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ObjectUtils;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
@@ -98,6 +110,9 @@ public class DataTaskExecuteThread implements Runnable {
     @Autowired
     private DataMedicineFileService dataMedicineFileService;
 
+    @Autowired
+    private DataMedicineService medicineService;
+
     @Resource
     private TaskUtils taskUtils;
 
@@ -109,6 +124,9 @@ public class DataTaskExecuteThread implements Runnable {
 
     @Autowired
     private TableDataUtil tableDataUtil;
+
+    @Autowired
+    private MinioUtil minioUtil;
 
     /**
      * 线程池
@@ -125,31 +143,6 @@ public class DataTaskExecuteThread implements Runnable {
      * 标注任务一次查询的数量
      */
     private static final Integer ANNOTATION_BATCH_SIZE = MagicNumConstant.SIXTEEN * MagicNumConstant.TEN_THOUSAND;
-
-    /**
-     * 文本分类算法待处理任务队列
-     */
-    private static final String TC_TASK_QUEUE = "text_classification_task_queue";
-    /**
-     * 标注算法待处理任务队列
-     */
-    private static final String ANNOTATION_TASK_QUEUE = "annotation_task_queue";
-    /**
-     * ImageNet算法待处理任务队列
-     */
-    private static final String IMAGENET_TASK_QUEUE = "imagenet_task_queue";
-    /**
-     * ofRecord算法待处理任务队列
-     */
-    private static final String OFRECORD_TASK_QUEUE = "ofrecord_task_queue";
-    /**
-     * 目标跟踪算法待处理任务队列
-     */
-    private static final String TRACK_TASK_QUEUE = "track_task_queue";
-    /**
-     * 医学标注算法待处理任务队列
-     */
-    private static final String MEDICINE_PENDING_QUEUE = "dcm_task_queue";
 
     /**
      * 启动生成任务线程
@@ -198,7 +191,7 @@ public class DataTaskExecuteThread implements Runnable {
         if (count != 0) {
             switch (task.getType()) {
                 case MagicNumConstant.ZERO:
-                    annotationExecute(NumberConstant.NUMBER_0,task);
+                    annotationExecute(task);
                     break;
                 case MagicNumConstant.ONE:
                     ofRecordExecute(task);
@@ -209,9 +202,6 @@ public class DataTaskExecuteThread implements Runnable {
                 case MagicNumConstant.THREE:
                     enhanceExecute(task);
                     break;
-                case MagicNumConstant.FIVE:
-                    videoSampleExecute(task);
-                    break;
                 case MagicNumConstant.SIX:
                     medicineExecute(task);
                     break;
@@ -220,7 +210,7 @@ public class DataTaskExecuteThread implements Runnable {
                     break;
                 case MagicNumConstant.EIGHT:
                     annotationService.deleteAnnotating(task.getDatasetId());
-                    annotationExecute(NumberConstant.NUMBER_0,task);
+                    annotationExecute(task);
                     break;
                 case MagicNumConstant.TEN:
                     csvImport(task);
@@ -254,8 +244,31 @@ public class DataTaskExecuteThread implements Runnable {
             images.add(file.getUrl().substring(file.getUrl().lastIndexOf("/") + 1, file.getUrl().length()));
         });
         jsonObject.put("images", images);
-        redisUtils.set(taskId, jsonObject);
-        redisUtils.zSet(TRACK_TASK_QUEUE, -1, taskId);
+        jsonObject.put("algorithm", DataAlgorithmEnum.TRACK.getAlgorithmType());
+        List<Label> labels = datasetLabelService.listLabelByDatasetId(task.getDatasetId());
+        if (CollectionUtil.isNotEmpty(labels)) {
+            jsonObject.put("labels", labels.stream().map(label -> label.getId().toString()).collect(Collectors.toList()));
+        }
+        String taskQueue = TaskQueueNameEnum.getTemplate(
+                TaskQueueNameEnum.TASK,
+                TaskQueueNameEnum.TaskQueueConfigEnum.TRACK,
+                String.valueOf(task.getDatasetId()),
+                task.getId().toString()
+        );
+
+        String detail = TaskQueueNameEnum.getTemplate(
+                TaskQueueNameEnum.DETAIL,
+                TaskQueueNameEnum.TaskQueueConfigEnum.TRACK,
+                String.valueOf(task.getDatasetId()),
+                task.getId().toString(),
+                taskId
+        );
+        if(task.getModelServiceId()!=null){
+            taskQueue = taskQueue.replace(TaskQueueNameEnum.TaskQueueConfigEnum.TRACK.getName(),task.getModelServiceId().toString());
+            detail = detail.replace(TaskQueueNameEnum.TaskQueueConfigEnum.TRACK.getName(),task.getModelServiceId().toString());
+        }
+        redisUtils.set(detail, jsonObject);
+        taskUtils.zAdd(taskQueue, taskId,10L);
     }
 
 
@@ -264,13 +277,36 @@ public class DataTaskExecuteThread implements Runnable {
      *
      * @param task 任务信息
      */
+    @Transactional(rollbackFor = Exception.class)
     public void textClassificationExecute(Task task) {
         int offset = 0;
+        List<TaskSplitBO> allRedisTaskBo = new ArrayList<>();
         while (true) {
-            if (!generateTextClassificationTask(offset, task)) {
+            List<File> files = fileService.listBatchFile(task.getDatasetId(), offset, ANNOTATION_BATCH_SIZE,FileTypeEnum.getStatus(task.getFileType()));
+            if (CollectionUtil.isNotEmpty(files)) {
+                //处理文件生成任务
+                DatasetVO datasetVO = datasetService.get(task.getDatasetId());
+                DatasetLabelEnum datasetLabelEnum = datasetService.getDatasetLabelType(task.getDatasetId());
+                List<TaskSplitBO> taskSplitBOList = fileService.split(files, task);
+                taskSplitBOList.stream().forEach(taskSplitBO -> {
+                    if (ObjectUtil.isNotNull(datasetLabelEnum)) {
+                        taskSplitBO.setDatasetId(datasetVO.getId());
+                        taskSplitBO.setVersionName(datasetVO.getCurrentVersionName());
+                        taskSplitBO.setLabelType(datasetLabelEnum.getType());
+                        taskSplitBO.setAlgorithm(DataAlgorithmEnum.TEXT_CLASSIFICATION.getAlgorithmType());
+                    }
+                });
+                allRedisTaskBo.addAll(taskSplitBOList);
+                offset += files.size();
+            } else {
                 break;
             }
         }
+        if (Arrays.asList(FileTypeEnum.All.getValue(), FileTypeEnum.HAVE_ANNOTATION.getValue()).contains(task.getFileType())) {
+            annotationService.deleteAnnotating(task.getDatasetId());
+            annotationService.deleteEsData(task.getDatasetId());
+        }
+        redisPipeline(allRedisTaskBo, TaskQueueNameEnum.TaskQueueConfigEnum.TEXT_CLASSIFICATION,task);
     }
 
     /**
@@ -285,6 +321,8 @@ public class DataTaskExecuteThread implements Runnable {
             datasetLabels.put(label.getId().toString(), label.getName());
         });
         DatasetVersion datasetVersion = datasetVersionService.detail(task.getDatasetVersionId());
+        // 清理已经存在的ofrecord
+        cleanOfRecord(datasetVersion.getVersionUrl() + "/ofrecord/train/");
         int partSize = MagicNumConstant.INTEGER_TWO_HUNDRED_AND_FIFTY_FIVE + 1;
         int batchSize = task.getTotal() <= partSize ? 1 : (task.getTotal() / partSize);
         Integer offset = 0;
@@ -298,6 +336,24 @@ public class DataTaskExecuteThread implements Runnable {
             if (offset == null) {
                 break;
             }
+        }
+    }
+
+    /**
+     * 清理ofRecord数据
+     *
+     * @param path
+     */
+    public void cleanOfRecord(String path) {
+        List<FileDTO> fileList = minioUtil.fileList(bucketName, path, false);
+        if (CollectionUtil.isNotEmpty(fileList)) {
+            fileList.stream().forEach(fileDTO -> {
+                try {
+                    minioUtil.del(bucketName, fileDTO.getPath());
+                } catch (Exception e) {
+                    LogUtil.error(LogEnum.BIZ_DATASET, "clean ofRecord error");
+                }
+            });
         }
     }
 
@@ -328,105 +384,114 @@ public class DataTaskExecuteThread implements Runnable {
             ofRecordTaskDto.setDatasetVersionId(task.getDatasetVersionId());
             String taskId = UUID.randomUUID().toString();
             ofRecordTaskDto.setReTaskId(taskId);
-            redisUtils.zSet(OFRECORD_TASK_QUEUE, -1, taskId);
-            redisUtils.set(taskId, ofRecordTaskDto);
+            ofRecordTaskDto.setAlgorithm(DataAlgorithmEnum.OF_RECORD.getAlgorithmType());
+
+            String taskQueue = TaskQueueNameEnum.getTemplate(
+                    TaskQueueNameEnum.TASK,
+                    TaskQueueNameEnum.TaskQueueConfigEnum.OFRECORD,
+                    String.valueOf(task.getDatasetId()),
+                    task.getId().toString()
+            );
+
+            String detail = TaskQueueNameEnum.getTemplate(
+                    TaskQueueNameEnum.DETAIL,
+                    TaskQueueNameEnum.TaskQueueConfigEnum.OFRECORD,
+                    String.valueOf(task.getDatasetId()),
+                    task.getId().toString(),
+                    taskId
+            );
+
+            taskUtils.zAdd(taskQueue,taskId,10L);
+            redisUtils.set(detail, ofRecordTaskDto);
             return offset;
         }
         return null;
     }
 
     /**
-     * 生成自动文本分类任务
-     *
-     * @param offset  偏移量
-     * @param task    任务信息
-     * @return
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public Boolean generateTextClassificationTask(int offset, Task task) {
-        List<File> files = fileService.listBatchFile(task.getDatasetId(), offset, ANNOTATION_BATCH_SIZE);
-        if (CollectionUtil.isNotEmpty(files)) {
-            //处理文件生成任务
-            DatasetVO datasetVO = datasetService.get(task.getDatasetId());
-            DatasetLabelEnum datasetLabelEnum = datasetService.getDatasetLabelType(task.getDatasetId());
-            List<TaskSplitBO> taskSplitBOList = fileService.split(files, task);
-            taskSplitBOList.stream().forEach(taskSplitBO -> {
-                if (ObjectUtil.isNotNull(datasetLabelEnum)) {
-                    taskSplitBO.setDatasetId(datasetVO.getId());
-                    taskSplitBO.setVersionName(datasetVO.getCurrentVersionName());
-                    taskSplitBO.setLabelType(datasetLabelEnum.getType());
-                }
-            });
-
-            String queue = TC_TASK_QUEUE;
-            redisPipeline(taskSplitBOList, queue);
-            if (files.size() < ANNOTATION_BATCH_SIZE) {
-                return false;
-            } else {
-                return true;
-            }
-        } else {
-            return false;
-        }
-    }
-
-    /**
      * 生成自动标注任务
      *
-     * @param offset  偏移量
      * @param task    任务信息
      * @return
      */
     @Transactional(rollbackFor = Exception.class)
-    public void annotationExecute(int offset, Task task) {
-        List<File> files = fileService.listBatchFile(task.getDatasetId(), offset, ANNOTATION_BATCH_SIZE);
-        if (CollectionUtil.isNotEmpty(files)) {
-            //处理文件生成任务
-            DatasetVO datasetVO = datasetService.get(task.getDatasetId());
-            DatasetLabelEnum datasetLabelEnum = datasetService.getDatasetLabelType(task.getDatasetId());
-            List<TaskSplitBO> taskSplitBOList = fileService.split(files, task);
-            taskSplitBOList.stream().forEach(taskSplitBO -> {
-                if (ObjectUtil.isNotNull(datasetLabelEnum)) {
-                    taskSplitBO.setDatasetId(datasetVO.getId());
-                    taskSplitBO.setVersionName(datasetVO.getCurrentVersionName());
-                    taskSplitBO.setLabelType(datasetLabelEnum.getType());
-                }
-            });
-            String queue = ANNOTATION_TASK_QUEUE;
-            if (DatasetLabelEnum.IMAGE_NET.getType().equals(taskSplitBOList.get(0).getLabelType())) {
-                queue = IMAGENET_TASK_QUEUE;
-            }
-            redisPipeline(taskSplitBOList, queue);
-            if (files.size() >= ANNOTATION_BATCH_SIZE) {
+    public void annotationExecute(Task task) {
+        int offset = NumberConstant.NUMBER_0;
+        TaskQueueNameEnum.TaskQueueConfigEnum configEnum = null;
+        List<TaskSplitBO> allRedisTaskBo = new ArrayList<>();
+        while (true) {
+            List<File> files = fileService.listBatchFile(task.getDatasetId(), offset, ANNOTATION_BATCH_SIZE, FileTypeEnum.getStatus(task.getFileType()));
+            if (CollectionUtil.isNotEmpty(files)) {
+                //处理文件生成任务
+                DatasetVO datasetVO = datasetService.get(task.getDatasetId());
+                DatasetLabelEnum datasetLabelEnum = datasetService.getDatasetLabelType(task.getDatasetId());
+                List<TaskSplitBO> taskSplitBOList = fileService.split(files, task);
+                taskSplitBOList.stream().forEach(taskSplitBO -> {
+                    if (ObjectUtil.isNotNull(datasetLabelEnum)) {
+                        taskSplitBO.setDatasetId(datasetVO.getId());
+                        taskSplitBO.setVersionName(datasetVO.getCurrentVersionName());
+                        taskSplitBO.setLabelType(datasetLabelEnum.getType());
+                        taskSplitBO.setAlgorithm(DataAlgorithmEnum.STANDARD_ANNOTATION.getAlgorithmType());
+                    }
+                });
+                configEnum = DatasetLabelEnum.IMAGE_NET.getType().equals(taskSplitBOList.get(0).getLabelType()) ?
+                        TaskQueueNameEnum.TaskQueueConfigEnum.IMAGENET :
+                        TaskQueueNameEnum.TaskQueueConfigEnum.ANNOTATION;
+                allRedisTaskBo.addAll(taskSplitBOList);
                 offset += files.size();
-                annotationExecute(offset, task);
+            } else {
+                break;
             }
         }
+        if (Arrays.asList(FileTypeEnum.All.getValue(), FileTypeEnum.HAVE_ANNOTATION.getValue()).contains(task.getFileType())) {
+            annotationService.deleteAnnotating(task.getDatasetId());
+        }
+        redisPipeline(allRedisTaskBo, configEnum, task);
     }
 
     /**
      * redis任务生成
      *
-     * @param taskSplitBOList  任务详情
-     * @param queue            队列名
+     * @param taskSplitBOList 任务详情
+     * @param configEnum      算法选择
      */
-    public void redisPipeline(List<TaskSplitBO> taskSplitBOList, String queue) {
+    public void redisPipeline(List<TaskSplitBO> taskSplitBOList,TaskQueueNameEnum.TaskQueueConfigEnum configEnum,Task task) {
+        taskSplitBOList.stream().forEach(taskSplitBO->{
+            for (FileBO fileBO : taskSplitBO.getFiles()) {
+                fileBO.setUrl(prefixPath + fileBO.getUrl());
+            }
+        });
         try{
             FastJsonRedisSerializer<Object> fastJsonRedisSerializer = new FastJsonRedisSerializer<>(Object.class);
             redisTemplate.executePipelined(new RedisCallback<Object>() {
                 @SneakyThrows
                 @Override
                 public Object doInRedis(RedisConnection redisConnection) throws DataAccessException {
-                    redisConnection.openPipeline();
-                    redisConnection.multi();
                     for (int i = 0; i < taskSplitBOList.size(); i++) {
                         String taskId = UUID.randomUUID().toString();
                         taskSplitBOList.get(i).setReTaskId(taskId);
-                        redisConnection.set(taskId.getBytes("utf-8"), fastJsonRedisSerializer.serialize(taskSplitBOList.get(i)));
-                        redisConnection.zAdd(queue.getBytes("utf-8"), i, ("\"" + taskId + "\"").getBytes("utf-8"));
+
+                        String taskQueue = TaskQueueNameEnum.getTemplate(
+                                TaskQueueNameEnum.TASK,
+                                configEnum,
+                                String.valueOf(taskSplitBOList.get(i).getDatasetId()),
+                                task.getId().toString()
+                        );
+
+                        String detail = TaskQueueNameEnum.getTemplate(
+                                TaskQueueNameEnum.DETAIL,
+                                configEnum,
+                                String.valueOf(taskSplitBOList.get(i).getDatasetId()),
+                                task.getId().toString(),
+                                taskId
+                        );
+                        if(task.getModelServiceId() != null){
+                            taskQueue = taskQueue.replace(configEnum.getName(), task.getModelServiceId().toString());
+                            detail = detail.replace(configEnum.getName(), task.getModelServiceId().toString());
+                        }
+                        redisUtils.set(detail,taskSplitBOList.get(i));
+                        taskUtils.zAdd(taskQueue, taskId,10L);
                     }
-                    redisConnection.exec();
-                    redisConnection.closePipeline();
                     return null;
                 }
             });
@@ -450,48 +515,25 @@ public class DataTaskExecuteThread implements Runnable {
         DatasetEnhanceRequestDTO datasetEnhanceRequestDTO = new DatasetEnhanceRequestDTO();
         datasetEnhanceRequestDTO.setDatasetId(task.getDatasetId());
         datasetEnhanceRequestDTO.setTypes(JSON.parseObject(task.getEnhanceType(), ArrayList.class));
-        datasetEnhanceService.commitEnhanceTask(datasetVersionFiles, task, datasetEnhanceRequestDTO);
+        String taskId = UUID.randomUUID().toString();
+        String taskQueue = TaskQueueNameEnum.getTemplate(
+                TaskQueueNameEnum.TASK,
+                TaskQueueNameEnum.TaskQueueConfigEnum.IMGPROCESS,
+                String.valueOf(task.getDatasetId()),
+                task.getId().toString()
+        );
+
+        String detail = TaskQueueNameEnum.getTemplate(
+                TaskQueueNameEnum.DETAIL,
+                TaskQueueNameEnum.TaskQueueConfigEnum.IMGPROCESS,
+                String.valueOf(task.getDatasetId()),
+                task.getId().toString(),
+                taskId
+        );
+
+        datasetEnhanceService.commitEnhanceTask(datasetVersionFiles, task, datasetEnhanceRequestDTO,taskQueue,detail,taskId);
     }
 
-    /**
-     * 采样任务
-     *
-     * @param task 任务详情
-     */
-    private void videoSampleExecute(Task task) {
-        String samplePendingQueue = "videoSample_task_queue";
-        java.io.File file = new java.io.File(prefixPath + task.getUrl());
-        int lengthInFrames = 0;
-        try {
-            FFmpegFrameGrabber ff = FFmpegFrameGrabber.createDefault(file);
-            ff.start();
-            lengthInFrames = ff.getLengthInVideoFrames();
-            ff.stop();
-        } catch (Exception e) {
-            LogUtil.error(LogEnum.BIZ_DATASET, "get frames error:{}", e);
-        }
-        List<Integer> frames = new ArrayList<>();
-        for (int i = 1; i < lengthInFrames; ) {
-            frames.add(i);
-            i += task.getFrameInterval();
-        }
-        List<List<Integer>> framesSplitTasks = CollectionUtil.split(frames, 500);
-        taskService.setTaskTotal(task.getId(), framesSplitTasks.size());
-        AtomicInteger j = new AtomicInteger(1);
-        framesSplitTasks.forEach(framesSplitTask -> {
-            JSONObject param = new JSONObject();
-            param.put("datasetId", task.getDatasetId() + ":" + j);
-            param.put("path", prefixPath + task.getUrl());
-            param.put("frames", framesSplitTask);
-            param.put("id", task.getId());
-            String taskDetails = param.toJSONString();
-            JSONObject paramKey = new JSONObject();
-            paramKey.put("datasetIdKey", task.getDatasetId() + ":" + j);
-            String detailKey = UUID.randomUUID().toString();
-            taskUtils.addTask(samplePendingQueue, taskDetails, detailKey, Integer.valueOf(String.valueOf(j)));
-            j.addAndGet(1);
-        });
-    }
 
     /**
      * 医学标注
@@ -500,15 +542,20 @@ public class DataTaskExecuteThread implements Runnable {
      */
     private void medicineExecute(Task task) {
         QueryWrapper<DataMedicineFile> wrapper = new QueryWrapper<>();
-        wrapper.lambda().eq(DataMedicineFile::getMedicineId, task.getDatasetId());
+        wrapper.lambda().eq(DataMedicineFile::getMedicineId, task.getDatasetId())
+                .in(DataMedicineFile::getStatus, DcmFileStateEnum.getFileStatusFromAutoLabelScreen(task.getFileType()));
         List<DataMedicineFile> dataMedicineFiles = dataMedicineFileService.listFile(wrapper);
+        // 如果选择的是包含标注信息的，则需要清理
+        if (Arrays.asList(FileTypeEnum.All.getValue(), FileTypeEnum.HAVE_ANNOTATION.getValue()).contains(task.getFileType())) {
+            dataMedicineFileService.deleteAnnotation(task.getDatasetId());
+        }
         List<List<DataMedicineFile>> medicalTasks = CollectionUtil.split(dataMedicineFiles, 16);
         medicalTasks.forEach(medicalTask -> {
             JSONObject jsonObject = new JSONObject();
             jsonObject.put("taskId", task.getId().toString());
             List<String> dataMedicineFilesPaths = new ArrayList<>();
             medicalTask.forEach(dataMedicineFile -> {
-                String dataMedicineFilesPath = "/nfs/" + dataMedicineFile.getUrl();
+                String dataMedicineFilesPath = prefixPath + dataMedicineFile.getUrl();
                 dataMedicineFilesPaths.add(dataMedicineFilesPath);
             });
             jsonObject.put("dcms", dataMedicineFilesPaths);
@@ -520,8 +567,30 @@ public class DataTaskExecuteThread implements Runnable {
                     .replace("origin", "annotation"));
             String detailKey = UUID.randomUUID().toString();
             jsonObject.put("reTaskId", detailKey);
-            redisUtils.set(detailKey, jsonObject);
-            taskUtils.zAdd(MEDICINE_PENDING_QUEUE, detailKey, 10L);
+            jsonObject.put("algorithm", DataAlgorithmEnum.MEDICINE_ANNOTATION.getAlgorithmType());
+
+            String taskQueue = TaskQueueNameEnum.getTemplate(
+                    TaskQueueNameEnum.TASK,
+                    TaskQueueNameEnum.TaskQueueConfigEnum.LUNG_SEGMENTATION,
+                    String.valueOf(task.getDatasetId()),
+                    task.getId().toString()
+            );
+
+            String detail = TaskQueueNameEnum.getTemplate(
+                    TaskQueueNameEnum.DETAIL,
+                    TaskQueueNameEnum.TaskQueueConfigEnum.LUNG_SEGMENTATION,
+                    String.valueOf(task.getDatasetId()),
+                    task.getId().toString(),
+                    detailKey
+            );
+            if(task.getModelServiceId()!=null){
+                taskQueue = taskQueue.replace(TaskQueueNameEnum.TaskQueueConfigEnum.LUNG_SEGMENTATION.getName()
+                        ,task.getModelServiceId().toString());
+                detail = detail.replace(TaskQueueNameEnum.TaskQueueConfigEnum.LUNG_SEGMENTATION.getName()
+                        ,task.getModelServiceId().toString());
+            }
+            redisUtils.set(detail, jsonObject);
+            taskUtils.zAdd(taskQueue, detailKey, 10L);
         });
     }
 

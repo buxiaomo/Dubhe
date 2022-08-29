@@ -21,6 +21,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
+import java.util.List;
+
 /**
  * @description 查询镜像路径
  * @date 2020-12-14
@@ -39,7 +41,10 @@ public class PtImageQueryUrlDTO {
     @ApiModelProperty(value = "镜像标签")
     private String imageTag;
 
-    @ApiModelProperty(value = "镜像项目类型(0:notebook , 1:train , 2:serving)")
-    private Integer projectType;
+    @ApiModelProperty(value = "是否为默认镜像")
+    private Boolean isDefault;
+
+    @ApiModelProperty(value = "镜像用途(0:notebook , 1:train , 2:serving, 3:terminal, 4:point-cloud)")
+    private List<Integer> imageTypes;
 
 }

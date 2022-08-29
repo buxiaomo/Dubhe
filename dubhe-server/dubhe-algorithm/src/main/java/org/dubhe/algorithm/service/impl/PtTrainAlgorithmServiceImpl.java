@@ -1,12 +1,12 @@
 /**
  * Copyright 2020 Tianshu AI Platform. All Rights Reserved.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,11 +17,15 @@
 
 package org.dubhe.algorithm.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.google.common.collect.Lists;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.map.HashedMap;
 import org.dubhe.algorithm.async.TrainAlgorithmUploadAsync;
@@ -39,9 +43,11 @@ import org.dubhe.algorithm.domain.vo.PtTrainAlgorithmQueryVO;
 import org.dubhe.algorithm.service.PtTrainAlgorithmService;
 import org.dubhe.biz.base.constant.MagicNumConstant;
 import org.dubhe.biz.base.constant.NumberConstant;
+import org.dubhe.biz.base.constant.SymbolConstant;
 import org.dubhe.biz.base.context.UserContext;
 import org.dubhe.biz.base.dto.*;
 import org.dubhe.biz.base.enums.AlgorithmSourceEnum;
+import org.dubhe.biz.base.enums.AlgorithmStatusEnum;
 import org.dubhe.biz.base.enums.DatasetTypeEnum;
 import org.dubhe.biz.base.enums.ImageTypeEnum;
 import org.dubhe.biz.base.exception.BusinessException;
@@ -149,10 +155,6 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
         if (ptTrainAlgorithmQueryDTO.getAlgorithmUsage() != null) {
             wrapper.like("algorithm_usage", ptTrainAlgorithmQueryDTO.getAlgorithmUsage());
         }
-        //根据算法是否可推理筛选
-        if (ptTrainAlgorithmQueryDTO.getInference() != null) {
-            wrapper.eq("inference", ptTrainAlgorithmQueryDTO.getInference());
-        }
         if (!StringUtils.isEmpty(ptTrainAlgorithmQueryDTO.getAlgorithmName())) {
             wrapper.and(qw -> qw.eq("id", ptTrainAlgorithmQueryDTO.getAlgorithmName()).or().like("algorithm_name",
                     ptTrainAlgorithmQueryDTO.getAlgorithmName()));
@@ -197,11 +199,10 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
     public List<Long> create(PtTrainAlgorithmCreateDTO ptTrainAlgorithmCreateDTO) {
         //获取用户信息
         UserContext user = userContext.getCurUser();
-        //获取镜像url
-        BaseImageDTO baseImageDTO = new BaseImageDTO();
-        BeanUtils.copyProperties(ptTrainAlgorithmCreateDTO, baseImageDTO);
-        if (StringUtils.isNotBlank(ptTrainAlgorithmCreateDTO.getImageName()) && StringUtils.isNotBlank(ptTrainAlgorithmCreateDTO.getImageTag())) {
-            ptTrainAlgorithmCreateDTO.setImageName(getImageUrl(baseImageDTO, user));
+        String imageName = ptTrainAlgorithmCreateDTO.getImageName();
+        String imageTag = ptTrainAlgorithmCreateDTO.getImageTag();
+        if (StringUtils.isNotBlank(imageName) && StringUtils.isNotBlank(imageTag)) {
+            ptTrainAlgorithmCreateDTO.setImageName(imageName + SymbolConstant.COLON + imageTag);
         }
         //创建算法校验DTO并设置默认值
         setAlgorithmDtoDefault(ptTrainAlgorithmCreateDTO);
@@ -348,8 +349,6 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
         }
         //算法路径
         ptTrainAlgorithm.setCodeDir(targetPath);
-        //算法文件可推理
-        ptTrainAlgorithm.setInference(true);
     }
 
     /**
@@ -457,6 +456,7 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
 
     /**
      * 根据Id查询所有数据(包含已被软删除的数据)
+     *
      * @param trainAlgorithmSelectAllByIdDTO 算法id
      * @return TrainAlgorithmQureyVO返回查询数据(包含已被软删除的数据)
      */
@@ -471,7 +471,8 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
 
     /**
      * 根据Id查询
-     * @param  trainAlgorithmSelectByIdDTO 算法id
+     *
+     * @param trainAlgorithmSelectByIdDTO 算法id
      * @return TrainAlgorithmQureyVO 返回查询数据
      */
     @Override
@@ -479,12 +480,15 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
     public TrainAlgorithmQureyVO selectById(TrainAlgorithmSelectByIdDTO trainAlgorithmSelectByIdDTO) {
         PtTrainAlgorithm ptTrainAlgorithm = ptTrainAlgorithmMapper.selectById(trainAlgorithmSelectByIdDTO.getId());
         TrainAlgorithmQureyVO trainAlgorithmQureyVO = new TrainAlgorithmQureyVO();
-        BeanUtils.copyProperties(ptTrainAlgorithm, trainAlgorithmQureyVO);
+        if (ptTrainAlgorithm != null) {
+            BeanUtils.copyProperties(ptTrainAlgorithm, trainAlgorithmQureyVO);
+        }
         return trainAlgorithmQureyVO;
     }
 
     /**
      * 根据Id批量查询
+     *
      * @param trainAlgorithmSelectAllBatchIdDTO 算法ids
      * @return List<TrainAlgorithmQureyVO> 返回查询数据
      */
@@ -507,9 +511,9 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
      * @param ptTrainAlgorithmQueryVO 镜像名称与版本
      */
     private void getImageNameAndImageTag(PtTrainAlgorithm trainAlgorithm, PtTrainAlgorithmQueryVO ptTrainAlgorithmQueryVO) {
+        String image = trainAlgorithm.getImageName();
         if (StringUtils.isNotBlank(trainAlgorithm.getImageName())) {
-            String imageNameSuffix = trainAlgorithm.getImageName().substring(trainAlgorithm.getImageName().lastIndexOf(StrUtil.SLASH) + MagicNumConstant.ONE);
-            String[] imageNameSuffixArray = imageNameSuffix.split(StrUtil.COLON);
+            String[] imageNameSuffixArray = image.split(StrUtil.COLON);
             ptTrainAlgorithmQueryVO.setImageName(imageNameSuffixArray[0]);
             ptTrainAlgorithmQueryVO.setImageTag(imageNameSuffixArray[1]);
         }
@@ -556,7 +560,10 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
         PtImageQueryUrlDTO ptImageQueryUrlDTO = new PtImageQueryUrlDTO();
         ptImageQueryUrlDTO.setImageTag(baseImageDto.getImageTag());
         ptImageQueryUrlDTO.setImageName(baseImageDto.getImageName());
-        ptImageQueryUrlDTO.setProjectType(ImageTypeEnum.TRAIN.getType());
+        List<Integer> trainImageType = new ArrayList() {{
+            add(ImageTypeEnum.TRAIN.getType());
+        }};
+        ptImageQueryUrlDTO.setImageTypes(trainImageType);
         DataResponseBody<String> dataResponseBody = imageClient.getImageUrl(ptImageQueryUrlDTO);
         if (!dataResponseBody.succeed()) {
             LogUtil.error(LogEnum.BIZ_TRAIN, " User {} gets image ,the imageName is {}, the imageTag is {}, and the result of dubhe-image service call failed", user.getUsername(), baseImageDto.getImageName(), baseImageDto.getImageTag());
@@ -572,14 +579,15 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
     }
 
     /**
-     *
      * @param modelOptAlgorithmCreateDTO 模型优化上传算法入参
      * @return PtTrainAlgorithm 新增算法信息
      */
     @Override
     public ModelOptAlgorithmQureyVO modelOptimizationUploadAlgorithm(ModelOptAlgorithmCreateDTO modelOptAlgorithmCreateDTO) {
         PtTrainAlgorithmCreateDTO ptTrainAlgorithmCreateDTO = new PtTrainAlgorithmCreateDTO();
-        ptTrainAlgorithmCreateDTO.setAlgorithmName(modelOptAlgorithmCreateDTO.getName()).setCodeDir(modelOptAlgorithmCreateDTO.getPath()).setAlgorithmUsage("模型优化").setIsTrainModelOut(false).setIsTrainOut(false).setIsVisualizedLog(false);
+        ptTrainAlgorithmCreateDTO.setAlgorithmName(modelOptAlgorithmCreateDTO.getName())
+                .setCodeDir(modelOptAlgorithmCreateDTO.getPath()).setAlgorithmUsage("5001")
+                .setIsTrainModelOut(false).setIsTrainOut(false).setIsVisualizedLog(false);
         List<Long> ids = create(ptTrainAlgorithmCreateDTO);
         PtTrainAlgorithm ptTrainAlgorithm = ptTrainAlgorithmMapper.selectById(ids.get(NumberConstant.NUMBER_0));
         ModelOptAlgorithmQureyVO modelOptAlgorithmQureyVO = new ModelOptAlgorithmQureyVO();
@@ -589,6 +597,7 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
 
     /**
      * 算法删除文件还原
+     *
      * @param dto 还原实体
      */
     @Override
@@ -616,6 +625,7 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
 
     /**
      * 查询可推理算法
+     *
      * @return List<PtTrainAlgorithmQueryVO> 返回可推理算法集合
      */
     @Override
@@ -623,7 +633,6 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
         //获取用户信息
         UserContext user = userContext.getCurUser();
         QueryWrapper<PtTrainAlgorithm> wrapper = new QueryWrapper<>();
-        wrapper.eq("inference", true).orderByDesc("id");
         List<PtTrainAlgorithm> ptTrainAlgorithms = ptTrainAlgorithmMapper.selectList(wrapper);
         List<PtTrainAlgorithmQueryVO> ptTrainAlgorithmQueryResult = new ArrayList<>();
         if (CollectionUtils.isNotEmpty(ptTrainAlgorithms)) {
@@ -653,4 +662,80 @@ public class PtTrainAlgorithmServiceImpl implements PtTrainAlgorithmService {
         return ptTrainAlgorithmQueryResult;
     }
 
+    @Override
+    public List<Long> listIdByName(String algorithmName) {
+        QueryWrapper<PtTrainAlgorithm> wrapper = new QueryWrapper<>();
+        wrapper.lambda()
+                .like(PtTrainAlgorithm::getAlgorithmName, algorithmName);
+        List<PtTrainAlgorithm> ptTrainAlgorithms = ptTrainAlgorithmMapper.selectList(wrapper);
+        List<Long> ids = Lists.newArrayList();
+        if (CollectionUtils.isEmpty(ptTrainAlgorithms)) {
+            return ids;
+        }
+        ids = ptTrainAlgorithms.stream()
+                .map(PtTrainAlgorithm::getId)
+                .collect(Collectors.toList());
+        return ids;
+    }
+
+    @Override
+    @DataPermissionMethod(dataType = DatasetTypeEnum.PUBLIC)
+    public TrainAlgorithmQureyVO findAlgorithmByName(String algorithmName) {
+
+        TrainAlgorithmQureyVO atlasTrainAlgorithmVO = new TrainAlgorithmQureyVO();
+        List<PtTrainAlgorithm> ptTrainAlgorithms = ptTrainAlgorithmMapper.selectList(new LambdaQueryWrapper<PtTrainAlgorithm>()
+                .eq(PtTrainAlgorithm::getAlgorithmName, algorithmName));
+        if (CollUtil.isNotEmpty(ptTrainAlgorithms)) {
+            BeanUtils.copyProperties(ptTrainAlgorithms.get(0), atlasTrainAlgorithmVO);
+            //获取镜像名称与版本
+            if (StrUtil.isNotBlank(ptTrainAlgorithms.get(0).getImageName())) {
+                String imageNameSuffix = ptTrainAlgorithms.get(0).getImageName().substring(ptTrainAlgorithms.get(0).getImageName().lastIndexOf(StrUtil.SLASH) + MagicNumConstant.ONE);
+                String[] imageNameSuffixArray = imageNameSuffix.split(StrUtil.COLON);
+                atlasTrainAlgorithmVO.setImageName(imageNameSuffixArray[0]);
+                atlasTrainAlgorithmVO.setImageTag(imageNameSuffixArray[1]);
+            }
+        }
+        return atlasTrainAlgorithmVO;
+    }
+
+    @Override
+    @DataPermissionMethod(dataType = DatasetTypeEnum.PUBLIC)
+    public List<PtTrainAlgorithmQueryVO> getAll(String algorithmUsage) {
+        List<PtTrainAlgorithmQueryVO> all = new ArrayList<>();
+        all.addAll(getAlgorithmListBySource(AlgorithmSourceEnum.MINE.getStatus(), algorithmUsage));
+        all.addAll(getAlgorithmListBySource(AlgorithmSourceEnum.PRE.getStatus(), algorithmUsage));
+        return all;
+    }
+
+    public List<PtTrainAlgorithmQueryVO> getAlgorithmListBySource(Integer algorithmSource, String algorithmUsage) {
+        List<PtTrainAlgorithmQueryVO> result = new ArrayList<>();
+        //获取用户信息
+        UserContext user = userContext.getCurUser();
+        // 获取我的算法
+        QueryWrapper<PtTrainAlgorithm> ptTrainAlgorithmQueryWrapper = new QueryWrapper<>();
+        //判断算法来源
+        if (AlgorithmSourceEnum.MINE.getStatus().equals(algorithmSource)) {
+            if (!BaseService.isAdmin(user)) {
+                ptTrainAlgorithmQueryWrapper.lambda().eq(PtTrainAlgorithm::getCreateUserId, userContext.getCurUserId());
+            }
+        }
+        if (StringUtils.isNotEmpty(algorithmUsage)) {
+            ptTrainAlgorithmQueryWrapper.lambda().eq(PtTrainAlgorithm::getAlgorithmUsage, algorithmUsage);
+        }
+        ptTrainAlgorithmQueryWrapper.lambda().eq(PtTrainAlgorithm::getAlgorithmStatus, AlgorithmStatusEnum.SUCCESS.getCode());
+        ptTrainAlgorithmQueryWrapper.lambda().eq(PtTrainAlgorithm::getAlgorithmSource, algorithmSource);
+        List<PtTrainAlgorithm> ptTrainAlgorithmList = ptTrainAlgorithmMapper.selectList(ptTrainAlgorithmQueryWrapper);
+        if (CollectionUtil.isNotEmpty(ptTrainAlgorithmList)) {
+            result = ptTrainAlgorithmList.stream().map(x -> {
+                PtTrainAlgorithmQueryVO ptTrainAlgorithmQueryVO = new PtTrainAlgorithmQueryVO();
+                BeanUtils.copyProperties(x, ptTrainAlgorithmQueryVO);
+                //获取镜像名称与版本
+                getImageNameAndImageTag(x, ptTrainAlgorithmQueryVO);
+                return ptTrainAlgorithmQueryVO;
+            }).collect(Collectors.toList());
+        }
+        return result;
+    }
+
 }
+

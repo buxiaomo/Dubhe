@@ -73,6 +73,23 @@ export function setPrecast(params) {
   });
 }
 
+// 设置notebook默认镜像-获取默认镜像
+export function getDefaultImage(params) {
+  return request({
+    url: `/${API_MODULE_NAME.IMAGE}/ptImage/imageDefault`,
+    method: 'get',
+    params,
+  });
+}
+
+// 设置notebook默认镜像
+export function setDefaultImage(params) {
+  return request({
+    url: `/${API_MODULE_NAME.IMAGE}/ptImage/imageDefault`,
+    method: 'put',
+    params,
+  });
+}
 export function getTerminalImageList() {
   return request({
     url: `/${API_MODULE_NAME.IMAGE}/ptImage/terminalImageList`,

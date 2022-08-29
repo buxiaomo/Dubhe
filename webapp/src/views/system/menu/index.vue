@@ -122,6 +122,15 @@ the License for the specific language governing permissions and * limitations un
             show-word-limit
           />
         </el-form-item>
+        <el-form-item v-if="isLink" label="外链 ID" prop="componentName">
+          <el-input
+            v-model="form.componentName"
+            class="short-item"
+            placeholder="外链 ID"
+            maxlength="50"
+            show-word-limit
+          />
+        </el-form-item>
         <el-form-item v-if="!isLink" label="权限标识" prop="permission">
           <el-input
             v-model="form.permission"

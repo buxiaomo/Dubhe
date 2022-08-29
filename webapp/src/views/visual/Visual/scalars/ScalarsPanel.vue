@@ -14,109 +14,6 @@
  * =============================================================
  */
 
-<template>
-  <div class="temp">
-    <div class="information">
-      <el-card>
-        <div class="infoTitle">
-          <div><span class="icon iconfont">&#xe634;</span>控制面板</div>
-        </div>
-        <div class="infoContent">
-          <div class="scroll">
-            <span>Smooth({{ smooth }})</span>
-            <el-slider v-model="smooth" :max="0.9" :step="0.1" class="rangeNumber" />
-          </div>
-          <div class="select">
-            <span>Y-axis:</span>
-            <el-select v-model="yselect" class="modeselect">
-              <el-option value="linear" label="linear" />
-              <el-option value="log-linear" label="log-linear" />
-            </el-select>
-          </div>
-          <div class="action">
-            <span>视图操作</span>
-            <el-button class="button" round size="small" @click="startmerge()">合并</el-button>
-            <el-button class="button" round size="small" @click="startback()">还原</el-button>
-          </div>
-        </div>
-      </el-card>
-    </div>
-  </div>
-</template>
-<script>
-import { createNamespacedHelpers } from 'vuex';
-
-const { mapMutations: mapScalarMutations, mapGetters: mapScalarGetters } = createNamespacedHelpers(
-  'Visual/scalar'
-);
-const { mapMutations: mapCustomMutations } = createNamespacedHelpers('Visual/custom');
-export default {
-  data() {
-    return {
-      checked: true,
-      xradio: 0,
-    };
-  },
-  computed: {
-    ...mapScalarGetters([
-      'categoryInfo',
-      'smoothvalue',
-      'yaxis',
-      'checkeditem',
-      'checkedorder',
-      'backednumber',
-    ]),
-    smooth: {
-      get() {
-        return this.smoothvalue;
-      },
-      set(value) {
-        this.setsmoothvalue(value);
-      },
-    },
-    yselect: {
-      get() {
-        return this.yaxis;
-      },
-      set(value) {
-        this.setyaxis(value);
-      },
-    },
-  },
-  created() {},
-  methods: {
-    ...mapScalarMutations(['setsmoothvalue', 'setyaxis', 'merge', 'back']),
-    ...mapCustomMutations(['cleanScalar']),
-    startmerge() {
-      if (Object.keys(this.checkeditem).length > 2) {
-        this.$alert('选择图表种类至多为两种', '警告', {
-          confirmButtonText: '确定',
-        });
-      } else if (this.checkedorder.length > 6) {
-        this.$alert('选择图表数量至多为六幅', '警告', {
-          confirmButtonText: '确定',
-        });
-      } else if (this.checkedorder.length < 2) {
-        this.$alert('请选择至少两幅图表', '提示', {
-          confirmButtonText: '确定',
-        });
-      } else {
-        this.merge();
-      }
-    },
-    startback() {
-      if (this.backednumber.length > 0) {
-        this.back();
-      } else {
-        this.$alert('未选中可还原的图表', '提示', {
-          confirmButtonText: '确定',
-        });
-      }
-    },
-  },
-};
-</script>
-
 <style lang="less" scoped>
 .information {
   margin-bottom: 6%;
@@ -192,7 +89,117 @@ export default {
   width: 75%;
   margin-left: 5%;
 }
+</style>
+<template>
+  <div class="temp">
+    <div class="information">
+      <el-card>
+        <div class="infoTitle">
+          <div><span class="icon iconfont">&#xe634;</span>控制面板</div>
+        </div>
+        <div class="infoContent">
+          <div class="scroll">
+            <span>Smooth({{ smooth }})</span>
+            <el-slider v-model="smooth" :max="0.9" :step="0.1" class="rangeNumber" />
+          </div>
+          <div class="select">
+            <span>Y-axis:</span>
+            <el-select v-model="yselect" class="modeselect">
+              <el-option value="linear" label="linear" />
+              <el-option value="log-linear" label="log-linear" />
+            </el-select>
+          </div>
+          <div class="action">
+            <span>视图操作</span>
+            <el-button class="button" round size="small" @click="startmerge()"> 合并</el-button>
+            <el-button class="button" round size="small" @click="startback()">还原 </el-button>
+          </div>
+        </div>
+      </el-card>
+    </div>
+    <div class="information">
+      <el-card>
+        <div class="infoTitle">
+          <div><span class="icon iconfont">&#xe636;</span>数据信息栏</div>
+        </div>
+        <div class="infoContent">
+          <div class="infoItem">暂无信息</div>
+        </div>
+      </el-card>
+    </div>
+  </div>
+</template>
+<script>
+import { createNamespacedHelpers } from 'vuex';
 
+const { mapMutations: mapScalarMutations, mapGetters: mapScalarGetters } = createNamespacedHelpers(
+  'Visual/scalar'
+);
+const { mapMutations: mapCustomMutations } = createNamespacedHelpers('Visual/custom');
+export default {
+  data() {
+    return {
+      checked: true,
+      xradio: 0,
+    };
+  },
+  computed: {
+    ...mapScalarGetters([
+      'categoryInfo',
+      'smoothvalue',
+      'yaxis',
+      'checkeditem',
+      'checkedorder',
+      'backednumber',
+    ]),
+    smooth: {
+      get() {
+        return this.smoothvalue;
+      },
+      set(value) {
+        this.setsmoothvalue(value);
+      },
+    },
+    yselect: {
+      get() {
+        return this.yaxis;
+      },
+      set(value) {
+        this.setyaxis(value);
+      },
+    },
+  },
+  created() {},
+  methods: {
+    ...mapScalarMutations(['setsmoothvalue', 'setyaxis', 'merge', 'back']),
+    ...mapCustomMutations(['cleanScalar']),
+    startmerge() {
+      if (Object.keys(this.checkeditem).length > 2) {
+        this.$alert('选择种类超出限制', '警告', {
+          confirmButtonText: '确定',
+        });
+      } else if (this.checkedorder.length > 6) {
+        this.$alert('选择数量超出限制', '警告', {
+          confirmButtonText: '确定',
+        });
+      } else if (
+        Object.keys(this.checkeditem).length === 1 &&
+        this.checkeditem[Object.keys(this.checkeditem)[0]].length > 1
+      ) {
+        this.merge();
+      } else if (Object.keys(this.checkeditem).length === 2) {
+        this.merge();
+      }
+    },
+    startback() {
+      if (this.backednumber.length > 0) {
+        this.back();
+      }
+    },
+  },
+};
+</script>
+<style scoped>
 .rangeNumber .el-slider__bar {
   background-color: #625eb3;
 }
@@ -227,11 +234,11 @@ export default {
   border-radius: 50px;
 }
 
-.information .el-input__inner:focus {
+.information .el-input.is-focus .el-input__inner {
   border-color: #8c89c7;
 }
 
-.information .el-input.is-focus .el-input__inner {
+.information .el-input__inner:focus {
   border-color: #8c89c7;
 }
 
@@ -255,6 +262,8 @@ export default {
 
 .information .el-input .el-select__caret {
   font-size: 20px;
+
+  /* color:#625eb3; */
   color: #9492cb;
 }
 

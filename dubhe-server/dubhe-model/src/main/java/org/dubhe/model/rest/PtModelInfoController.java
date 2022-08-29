@@ -19,6 +19,7 @@ package org.dubhe.model.rest;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import org.checkerframework.checker.units.qual.A;
 import org.dubhe.biz.base.constant.Permissions;
 import org.dubhe.biz.base.dto.PtModelInfoConditionQueryDTO;
 import org.dubhe.biz.base.dto.PtModelInfoQueryByIdDTO;
@@ -115,5 +116,12 @@ public class PtModelInfoController {
     @PreAuthorize(Permissions.MODEL_MODEL)
     public DataResponseBody getServingModel(@Validated ServingModelDTO servingModelDTO) {
         return new DataResponseBody(ptModelInfoService.getServingModel(servingModelDTO));
+    }
+
+    @GetMapping("/atlasModel")
+    @ApiOperation("根据名称获取炼知模型")
+    @PreAuthorize(Permissions.MODEL_MODEL)
+    public DataResponseBody getAtlasModelByName(@RequestParam String name) {
+        return new DataResponseBody(ptModelInfoService.getAtlasModels(name));
     }
 }

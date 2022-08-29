@@ -40,6 +40,10 @@ public class StateIdentifySetting {
         add(DataStateEnum.TARGET_FOLLOW_STATE);
         //增强中
         add(DataStateEnum.STRENGTHENING_STATE);
+        //采样中
+        add(DataStateEnum.SAMPLING_STATE);
+        //导入中
+        add(DataStateEnum.IN_THE_IMPORT_STATE);
     }};
 
 

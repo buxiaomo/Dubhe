@@ -93,29 +93,67 @@
             </div>
             <div v-if="getReceivedQuestionInfo && getReceivedCurInfo" class="infoItem">
               <el-row type="flex" justify="space-around" class="row-bg">
-                <el-col :span="5">
+                <el-col :span="6">
                   <el-button
+                    :icon="playAction ? 'iconfont icon-zanting' : 'iconfont icon-ziyuan74'"
                     background-color="#736FBC"
                     type="primary"
                     size="medium"
-                    :icon="playAction ? 'iconfont icon-zanting' : 'iconfont icon-ziyuan74'"
                     @click="playActionClick()"
                   />
                 </el-col>
-                <el-col :span="11">
+                <el-col :span="12">
                   <el-slider
                     v-model="curStep"
                     :min="curMin"
                     :max="curMapMax"
                     :disabled="curMapMax === 0"
+                    :show-tooltip="false"
                     input-size="small"
                     class="rangeNumber"
-                    :show-tooltip="false"
                   />
                 </el-col>
-                <el-col :span="8">
+                <el-col :span="6">
                   <div class="grid-content">
-                    <span text-align="center" class="midFont">{{ curMapStep }} / {{ curMax }}</span>
+                    <span text-align="center" class="midFont">{{ curMapStep }}/{{ curMax }}</span>
+                  </div>
+                </el-col>
+              </el-row>
+            </div>
+            <div v-if="parseInt(curDim) > 3" class="infoItem ProbabilityDensitySec">
+              <span class="ProbabilityDensity">概率密度</span>
+              <hr />
+              <el-checkbox-group v-model="checkedLabels" :max="2" class="leftInline-block">
+                <el-checkbox
+                  v-for="(item, index) in lableTypes"
+                  :key="item"
+                  :label="item"
+                  :class="'checkboxx' + index"
+                  >{{ item }}
+                </el-checkbox>
+              </el-checkbox-group>
+            </div>
+            <div v-if="parseInt(curDim) > 3" class="infoItem">
+              <el-row type="flex" justify="space-around" class="row-bg">
+                <el-col :span="6">
+                  <span style="line-height: 38px;">线条宽度</span>
+                </el-col>
+                <el-col :span="12">
+                  <el-slider
+                    v-model="curLineWidth"
+                    :min="0.4"
+                    :max="2.0"
+                    :show-tooltip="false"
+                    :step="0.1"
+                    input-size="small"
+                    class="rangeNumber"
+                  />
+                </el-col>
+                <el-col :span="6">
+                  <div class="grid-content">
+                    <span text-align="center" class="midFont"
+                      >{{ curLineWidth.toFixed(1) }} / 2.0</span
+                    >
                   </div>
                 </el-col>
               </el-row>
@@ -138,11 +176,16 @@
                 :body-style="{ padding: '0px' }"
                 class="infoCard"
                 display="none"
+                align="middle"
               >
                 <div
                   v-if="getQuestionInfo[userSelectRunFile][getCurInfo.curTag]['sample']"
                   class="showBox"
+                  type="flex"
+                  align="middle"
                 >
+                  <!-- <img v-if="getQuestionInfo[userSelectRunFile][getCurInfo.curTag]['sample_type'] == 'image' && getMessage != ''" :src="getMessage[0]+'&trainJobName='+getParams.trainJobName" class="image"> -->
+                  <!-- <AudioContainer v-if="getQuestionInfo[userSelectRunFile][getCurInfo.curTag]['sample_type'] == 'audio' && getMessage != ''" :theUrl="getMessage[0]+'&trainJobName='+getParams.trainJobName" theControlList="noMuted noSpeed onlyOnePlaying" :index="1000" /> -->
                   <div
                     v-if="
                       getQuestionInfo[userSelectRunFile][getCurInfo.curTag]['sample_type'] ==
@@ -161,32 +204,32 @@
                     "
                     class="image"
                   >
-                    <el-scrollbar style="height: 100%;">
-                      <el-image
-                        :src="getPanelSampleData['url']"
-                        :preview-src-list="[getPanelSampleData['url']]"
-                        class="image"
-                      />
-                    </el-scrollbar>
+                    <!-- <el-scrollbar style="height: 100%"> -->
+                    <el-image
+                      :src="getPanelSampleData['url']"
+                      :preview-src-list="[getPanelSampleData['url']]"
+                      class="image"
+                    />
+                    <!-- </el-scrollbar> -->
                   </div>
                   <div
                     v-if="
                       getQuestionInfo[userSelectRunFile][getCurInfo.curTag]['sample_type'] ==
                         'audio' && getMessage != ''
                     "
-                    class="image"
+                    class="audio"
                   >
-                    <el-scrollbar style="height: 100%;">
-                      <AudioContainer
-                        v-if="
-                          getQuestionInfo[userSelectRunFile][getCurInfo.curTag]['sample_type'] ==
-                            'audio' && getMessage != ''
-                        "
-                        :theUrl="getPanelSampleData['url']"
-                        theControlList="noMuted noSpeed onlyOnePlaying"
-                        :index="1000"
-                      />
-                    </el-scrollbar>
+                    <!-- <el-scrollbar style="height: 100%"> -->
+                    <customAudio
+                      v-if="
+                        getQuestionInfo[userSelectRunFile][getCurInfo.curTag]['sample_type'] ==
+                          'audio' && getMessage != ''
+                      "
+                      :theUrl="getPanelSampleData['url']"
+                      :index="1000"
+                      theControlList="noMuted noSpeed onlyOnePlaying noDownload noPadding"
+                    />
+                    <!-- </el-scrollbar> -->
                   </div>
                 </div>
                 <div style="padding: 14px;" class="imageSpan">
@@ -203,6 +246,7 @@
 
 <script>
 import { createNamespacedHelpers } from 'vuex';
+import { customAudio } from '../medias/audio/audioContainer';
 
 const {
   mapGetters: mapEmbeddingGetters,
@@ -213,7 +257,9 @@ const { mapState: mapLayoutStates, mapGetters: mapLayoutGetters } = createNamesp
   'Visual/layout'
 );
 export default {
-  components: {},
+  components: {
+    customAudio,
+  },
   data() {
     return {
       // ----------------------------- Tag选择 -----------------------------
@@ -231,7 +277,7 @@ export default {
           label: 'TSNE',
         },
       ],
-      // ----------------------------- 维度信息选择选择 -----------------------------
+      // ----------------------------- 维度信息选择选择 ---------------------
       curDim: '',
       allDims: ['2维', '3维'],
       // ----------------------------- 播放动作 -----------------------------
@@ -262,9 +308,10 @@ export default {
       'getInitStateFlag',
       'getErrorMessage',
       'getLineWidth',
+      'getIntervalChange',
     ]),
     ...mapLayoutStates(['userSelectRunFile']),
-    ...mapLayoutGetters(['getParams']),
+    ...mapLayoutGetters(['getParams', 'getTimer']),
   },
   watch: {
     curLineWidth() {
@@ -272,20 +319,25 @@ export default {
     },
     getReceivedCurInfo() {
       // 只触发一次第一次
+      if (this.getReceivedCurInfo == false) return;
       if (this.userSelectRunFile === '') {
         return;
       }
       this.setCurInfo(['received', false]); // 屏蔽别的请求
-      for (let i = 0; i < this.getCategoryInfo.curRuns.length; i += 1) {
+      for (let i = 0; i < this.getCategoryInfo.curRuns.length; i++) {
         if (this.userSelectRunFile === this.getCategoryInfo.curRuns[i]) {
           this.curTags = this.getCategoryInfo.curTags[i].slice(0);
         }
       }
-      const someIndex = 0;
-      this.curTag = this.curTags[someIndex];
+      const index = this.curTags.indexOf(this.curTag);
+
+      if (index < 0 || this.curTag == '') {
+        this.curTag = this.curTags[0];
+        this.setCurInfo(['curStep', 0]);
+        this.curStep = this.getCurInfo.curStep;
+      }
       this.curMethod = this.getCurInfo.curMethod;
       this.curDim = this.getCurInfo.curDim;
-      this.curStep = this.getCurInfo.curStep;
       this.curMax = this.getQuestionInfo[this.userSelectRunFile][this.curTag].allSteps[
         this.getQuestionInfo[this.userSelectRunFile][this.curTag].curMax
       ];
@@ -294,12 +346,13 @@ export default {
       this.curMapStep = this.getQuestionInfo[this.userSelectRunFile][this.curTag].allSteps[
         this.curStep
       ];
+      this.setCurInfo(['curMapStep', this.curMapStep]);
       const param = {
         run: this.userSelectRunFile,
         tag: this.curTag,
         step: this.curMapStep,
         method: this.curMethod.toLowerCase(),
-        dims: parseInt(this.curDim, 10),
+        dims: parseInt(this.curDim),
       };
       this.fetchDataPower(param);
     },
@@ -326,7 +379,7 @@ export default {
       this.fetchData();
     },
     getReceivedQuestionInfo() {
-      for (let i = 0; i < this.getCategoryInfo.curRuns.length; i += 1) {
+      for (let i = 0; i < this.getCategoryInfo.curRuns.length; i++) {
         if (this.userSelectRunFile === this.getCategoryInfo.curRuns[i]) {
           this.curTags = this.getCategoryInfo.curTags[i].slice(0);
         }
@@ -344,23 +397,30 @@ export default {
       }
     },
     getReceivedCurData() {
-      if (parseInt(this.curDim, 10) > 3) {
+      if (parseInt(this.curDim) > 3) {
         this.lableTypes = this.getCurData.labelType.slice(0);
       }
       const vm = this;
       if (this.playAction) {
-        setTimeout(() => {
+        setTimeout(function() {
           if (vm.playAction) {
             let curSteptmp = vm.curStep;
-            curSteptmp += 1;
+            curSteptmp++;
             if (curSteptmp > vm.curMapMax) {
               vm.playAction = false;
             } else {
-              vm.curStep += 1;
+              vm.curStep++;
             }
           }
         }, 2000);
       }
+    },
+    getIntervalChange() {
+      if (!this.getReceivedQuestionInfo) {
+        return;
+      }
+      this.setCurInfo(['received', false]); // 屏蔽别的请求
+      this.fetchOneStep(this.userSelectRunFile);
     },
     userSelectRunFile() {
       this.setMessage('');
@@ -368,32 +428,7 @@ export default {
         return;
       }
       this.setCurInfo(['received', false]); // 屏蔽别的请求
-      for (let i = 0; i < this.getCategoryInfo.curRuns.length; i += 1) {
-        if (this.userSelectRunFile === this.getCategoryInfo.curRuns[i]) {
-          this.curTags = this.getCategoryInfo.curTags[i].slice(0);
-        }
-      }
-      const someIndex = 0;
-      this.curTag = this.curTags[someIndex];
-      this.curMethod = 'PCA';
-      this.curDim = '3维';
-      this.curStep = 0;
-      this.curMax = this.getQuestionInfo[this.userSelectRunFile][this.curTag].allSteps[
-        this.getQuestionInfo[this.userSelectRunFile][this.curTag].curMax
-      ];
-      this.curMapMax = this.getQuestionInfo[this.userSelectRunFile][this.curTag].curMax;
-      this.curMin = 0;
-      this.curMapStep = this.getQuestionInfo[this.userSelectRunFile][this.curTag].allSteps[
-        this.curStep
-      ];
-      const param = {
-        run: this.userSelectRunFile,
-        tag: this.curTag,
-        step: this.curMapStep,
-        method: this.curMethod.toLowerCase(),
-        dims: parseInt(this.curDim, 10),
-      };
-      this.fetchDataPower(param);
+      this.fetchOneStep(this.userSelectRunFile);
     },
     getErrorMessage(val) {
       this.$message({
@@ -404,23 +439,21 @@ export default {
   },
   created() {
     // 每次加载的时候都会触发
-    this.curLineWidth = this.getLineWidth;
     if (!this.getInitStateFlag) {
       if (this.getReceivedCategoryInfo) {
-        this.fetchAllStep();
+        this.fetchOneStep();
       }
     } else {
       this.setInitStateFlag(false);
     }
     if (this.getReceivedQuestionInfo) {
       this.setCurInfo(['received', false]); // 屏蔽别的请求
-      for (let i = 0; i < this.getCategoryInfo.curRuns.length; i += 1) {
+      for (let i = 0; i < this.getCategoryInfo.curRuns.length; i++) {
         if (this.userSelectRunFile === this.getCategoryInfo.curRuns[i]) {
           this.curTags = this.getCategoryInfo.curTags[i].slice(0);
         }
       }
-      const someIndex = 0;
-      this.curTag = this.curTags[someIndex];
+      this.curTag = this.curTags[0];
       this.curMethod = this.getCurInfo.curMethod;
       this.curDim = this.getCurInfo.curDim;
       this.curStep = this.getCurInfo.curStep;
@@ -428,7 +461,6 @@ export default {
         this.getQuestionInfo[this.userSelectRunFile][this.curTag].curMax
       ];
       this.curMapMax = this.getQuestionInfo[this.userSelectRunFile][this.curTag].curMax;
-      // this.curMin = this.getQuestionInfo[this.userSelectRunFile][this.curTag].allSteps[0]
       this.curMin = 0;
       this.curMapStep = this.getQuestionInfo[this.userSelectRunFile][this.curTag].allSteps[
         this.curStep
@@ -438,10 +470,11 @@ export default {
         tag: this.curTag,
         step: this.curMapStep,
         method: this.curMethod.toLowerCase(),
-        dims: parseInt(this.curDim, 10),
+        dims: parseInt(this.curDim),
       };
       this.fetchDataPower(param);
     }
+    this.curLineWidth = this.getLineWidth;
   },
   methods: {
     ...mapEmbeddingMutations([
@@ -451,7 +484,7 @@ export default {
       'setInitStateFlag',
       'setLineWidth',
     ]),
-    ...mapEmbeddingActions(['fetchSampleData', 'featchData', 'fetchAllStep']),
+    ...mapEmbeddingActions(['fetchSampleData', 'featchData', 'fetchAllStep', 'fetchOneStep']),
     playActionClick() {
       this.playAction = !this.playAction; // 取非
       if (this.playAction) {
@@ -467,13 +500,12 @@ export default {
         // 只要数据未准备好就不触发请求
         return;
       }
-      // console.log('this.getCurInfo.curMethod', this.getCurInfo.curMethod)
       const param = {
         run: this.userSelectRunFile,
         tag: this.getCurInfo.curTag,
         step: this.getCurInfo.curMapStep,
         method: this.getCurInfo.curMethod.toLowerCase(),
-        dims: parseInt(this.getCurInfo.curDim, 10),
+        dims: parseInt(this.getCurInfo.curDim),
       };
       this.featchData(param);
     },
@@ -495,12 +527,12 @@ select {
 }
 
 .panel {
-  /deep/ .el-card {
+  /deep/.el-card {
     margin: 3.5% 5% 4% 0%;
     border-top: 0;
   }
 
-  /deep/ .el-card__body {
+  /deep/.el-card__body {
     padding: 0;
     border-radius: 0 0 3px 3px;
   }
@@ -527,15 +559,15 @@ select {
     }
   }
 
-  /deep/ .el-icon-circle-close {
+  /deep/.el-icon-circle-close {
     color: white;
   }
 
-  /deep/ .el-image-viewer__img {
+  /deep/.el-image-viewer__img {
     height: 100%;
   }
 
-  /deep/ .infoContent {
+  /deep/.infoContent {
     @backgroundColorList: #ef6f38, #efdd79, #c5507a, #9359b0, #525c99, #47c1d6, #b5d4e8, #15746c,
       #81c19c, #a08983;
     .backgroundcard(@className, @backgroundColorList,@i) {
@@ -546,6 +578,11 @@ select {
       }
     }
     @checkboxClass: checkboxx;
+    .loop(@i) when(@i < 10) {
+      // extract 是取出列表中的对应元素
+      .backgroundcard(@checkboxClass, extract(@backgroundColorList, @i+1), @i);
+      .loop(@i+1);
+    }
     .loop(0);
     // 选中状态下的透明度得更改
     .backgroundchecked(@className, @backgroundColorList,@i) {
@@ -556,7 +593,6 @@ select {
     }
     .loop(@i) when(@i < 10) {
       // extract 是取出列表中的对应元素
-      .backgroundcard(@checkboxClass, extract(@backgroundColorList, @i+1), @i);
       .backgroundchecked(@checkboxClass, extract(@backgroundColorList, @i+1), @i);
       .loop(@i+1);
     }
@@ -568,6 +604,19 @@ select {
       display: block;
       width: 100%;
       height: 300px;
+
+      p {
+        margin-top: 2%;
+        margin-right: 2%;
+        margin-bottom: 2%;
+        margin-left: 2%;
+      }
+    }
+
+    .audio {
+      display: block;
+      width: 100%;
+      height: 100%;
 
       p {
         margin-top: 2%;
@@ -595,10 +644,6 @@ select {
       }
     }
 
-    .el-select {
-      border-color: #8f95ad;
-    }
-
     .infoItem .el-select {
       width: 100%;
     }
@@ -620,6 +665,10 @@ select {
       border-color: #7f7cc1;
     }
 
+    .el-select {
+      border-color: #8f95ad;
+    }
+
     .el-select:hover .el-input__inner {
       border-color: #7f7cc1;
     }
@@ -628,52 +677,6 @@ select {
       font-size: 20px;
       font-weight: 900;
       color: #7f7cc1;
-    }
-
-    .imageSpan {
-      span {
-        display: block !important;
-        margin: 0 auto;
-        text-align: center;
-      }
-    }
-
-    .row-bg {
-      button {
-        color: #7f7cc1;
-        background-color: white;
-        border-color: white;
-      }
-
-      .el-slider__button {
-        width: 12px;
-        height: 12px;
-        border-color: #7f7cc1;
-      }
-
-      .el-slider__runway {
-        height: 4px;
-      }
-
-      .el-slider__bar {
-        height: 4px;
-      }
-
-      .iconfont {
-        font-size: 11px;
-      }
-
-      .grid-content {
-        height: 38px;
-        line-height: 38px;
-
-        span {
-          display: block;
-          margin: 0 auto;
-          line-height: 38px;
-          text-align: center;
-        }
-      }
     }
 
     .ProbabilityDensitySec {
@@ -692,10 +695,6 @@ select {
         color: #8f8ad7;
       }
 
-      .el-checkbox__inner {
-        border-radius: 50%;
-      }
-
       .leftInline-block {
         display: -webkit-flex; /* Safari */
         display: flex;
@@ -711,16 +710,12 @@ select {
           }
         }
 
-        .el-checkbox__inner {
-          border-color: #dcdfe6;
-        }
-
         .el-checkbox__inner:hover {
           border-color: #dcdfe6;
         }
 
-        .el-checkbox__input.is-checked .el-checkbox__inner::after {
-          border-color: white;
+        .el-checkbox__inner {
+          border-color: #dcdfe6;
         }
 
         .el-checkbox__input.is_focus .el-checkbox__inner {
@@ -737,6 +732,59 @@ select {
         border-color: #8f8ad7;
         border-width: 0.1;
         opacity: 0.6;
+      }
+
+      .el-checkbox__inner {
+        border-radius: 50%;
+      }
+    }
+
+    .row-bg {
+      button {
+        color: #7f7cc1;
+        background-color: white;
+        border-color: white;
+      }
+
+      .el-slider__button {
+        border-color: #7f7cc1;
+      }
+
+      .el-slider__runway {
+        height: 4px;
+      }
+
+      .el-slider__bar {
+        height: 4px;
+      }
+
+      .iconfont {
+        font-size: 11px;
+      }
+
+      .el-slider__button {
+        width: 12px;
+        height: 12px;
+      }
+
+      .grid-content {
+        height: 38px;
+        line-height: 38px;
+
+        span {
+          display: block;
+          margin: 0 auto;
+          line-height: 38px;
+          text-align: center;
+        }
+      }
+    }
+
+    .imageSpan {
+      span {
+        display: block !important;
+        margin: 0 auto;
+        text-align: center;
       }
     }
   }

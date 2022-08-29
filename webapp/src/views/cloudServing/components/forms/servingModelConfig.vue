@@ -205,8 +205,7 @@ import { getInferenceAlgorithm, add as addAlgorithm } from '@/api/algorithm/algo
 import { list as getSpecsNames } from '@/api/system/resources';
 import { servingConfig } from '@/config';
 import { RESOURCES_MODULE_ENUM } from '@/utils';
-import { IMAGE_PROJECT_TYPE } from '@/views/trainingJob/utils';
-
+import { IMAGE_TYPE } from '@/views/trainingJob/utils';
 import RunParamForm from '@/components/Training/runParamForm';
 import BaseModal from '@/components/BaseModal';
 import AlgorithmForm from '@/views/algorithm/components/algorithmForm';
@@ -373,6 +372,7 @@ export default {
   created() {
     // 只在组件被创建时，将 config 同步到内部 form 上
     Object.assign(this.form, this.config);
+    Object.assign(this.deployParams, this.config.deployParams);
 
     // 获取模型列表和镜像列表
     this.getModels(this.form.modelResource, true);
@@ -540,7 +540,7 @@ export default {
     // 镜像选择
     // 获取镜像名称列表
     async getImageNames(keepValue = false) {
-      this.imageNameList = await getImageNameList({ projectTypes: [IMAGE_PROJECT_TYPE.TRAIN] });
+      this.imageNameList = await getImageNameList({ imageTypes: [IMAGE_TYPE.SERVING] });
       if (!keepValue || !this.form.imageName) {
         this.form.imageTag = null;
       } else if (!this.imageNameList.includes(this.form.imageName)) {
@@ -553,8 +553,8 @@ export default {
     // 获取镜像版本列表
     async getImageTags(imageName, keepValue = false) {
       this.imageTagList = await getImageTagList({
-        projectType: IMAGE_PROJECT_TYPE.TRAIN,
         imageName,
+        imageTypes: [IMAGE_TYPE.SERVING],
       });
       if (keepValue && this.form.imageTag) {
         if (!this.imageTagList.some((image) => image.imageTag === this.form.imageTag)) {

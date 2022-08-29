@@ -19,6 +19,7 @@ package org.dubhe.data.dao;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 import org.dubhe.data.domain.entity.Task;
 
@@ -48,4 +49,18 @@ public interface TaskMapper extends BaseMapper<Task> {
     @Update("update data_task t set t.finished = t.finished + #{fileNum} WHERE t.id = #{id}")
     int finishFileNum(@Param("id") Long id, @Param("fileNum") Integer fileNum);
 
+    @Update("update data_task task set task.status=3 where task.id=#{taskId}")
+    void taskStop(@Param("taskId")Long taskId);
+
+    @Select("select max(task.id) from data_task task where task.status in (0,1,2) and task.dataset_id=#{datasetId} and (select dataset.status from data_dataset dataset where dataset.id=#{datasetId})=#{datasetStatus}")
+    Long selectTaskId(@Param("datasetId") Long datasetId,@Param("datasetStatus") Integer datasetStatus);
+
+    @Select("select max(task.id) from data_task task where task.status in (0,1,2) and task.dataset_id=#{datasetId} and (select dataset.status from data_medicine dataset where dataset.id=#{datasetId})=#{datasetStatus}")
+    Long selectDcmTaskId(@Param("datasetId") Long datasetId,@Param("datasetStatus") Integer datasetStatus);
+
+    @Select("select max(task.id) from data_task task where task.status = 3 and task.dataset_id=#{datasetId} and (select dataset.status from data_dataset dataset where dataset.id=#{datasetId})=#{datasetStatus} and task.type != 12 and task.id < #{taskId}")
+    Long selectStopTaskId(@Param("taskId") Long taskId,@Param("datasetId") Long datasetId,@Param("datasetStatus") Integer datasetStatus);
+
+    @Select("select max(task.id) from data_task task where task.status = 3 and task.dataset_id=#{datasetId} and (select dataset.status from data_medicine dataset where dataset.id=#{datasetId})=#{datasetStatus} and task.type != 12 and task.id < #{taskId}")
+    Long selectDcmStopTaskId(@Param("taskId") Long taskId,@Param("datasetId") Long datasetId,@Param("datasetStatus") Integer datasetStatus);
 }

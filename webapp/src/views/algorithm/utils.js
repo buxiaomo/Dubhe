@@ -14,17 +14,18 @@
  * =============================================================
  */
 
-import { getEmptyFormatter, ALGORITHM_RESOURCE_ENUM } from '@/utils';
+import { ALGORITHM_RESOURCE_ENUM } from '@/utils';
 
 export function getColumns({
   doEdit,
+  getModelTypeLabel,
   createTrain,
   doDownload,
   doFork,
   doDelete,
   active,
-  allAlgorithmUsageList,
   isAdmin,
+  modelTypeDropdownList,
 }) {
   const isPreset = active === String(ALGORITHM_RESOURCE_ENUM.PRESET);
   return [
@@ -43,38 +44,16 @@ export function getColumns({
       minWidth: '160px',
     },
     {
-      label: '模型类别',
-      prop: 'algorithmUsage',
-      formatter: getEmptyFormatter(),
-      minWidth: '100px',
-      dropdownList: allAlgorithmUsageList,
-    },
-    {
-      label: '是否支持推理',
-      prop: 'inference',
-      formatter(value) {
-        return value ? '支持' : '不支持';
-      },
-      minWidth: '140px',
-      dropdownList: [
-        {
-          label: '全部',
-          value: null,
-        },
-        {
-          label: '支持',
-          value: true,
-        },
-        {
-          label: '不支持',
-          value: false,
-        },
-      ],
-    },
-    {
       label: '描述',
       prop: 'description',
       minWidth: '200px',
+    },
+    {
+      label: '模型类别',
+      prop: 'algorithmUsage',
+      minWidth: '200px',
+      formatter: getModelTypeLabel,
+      dropdownList: modelTypeDropdownList,
     },
     {
       label: '创建时间',

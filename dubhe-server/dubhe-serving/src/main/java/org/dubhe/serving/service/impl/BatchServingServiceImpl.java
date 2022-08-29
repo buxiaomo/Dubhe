@@ -91,6 +91,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.io.File;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -143,11 +144,6 @@ public class BatchServingServiceImpl extends ServiceImpl<BatchServingMapper, Bat
     private ResourceCache resourceCache;
     @Value("Task:BatchServing:"+"${spring.profiles.active}_batch_serving_id_")
     private String batchServingIdPrefix;
-    /**
-     * 批量服务文件根路径
-     */
-    @Value("${serving.batchRootPath}")
-    private String batchRootPath;
 
     private final static List<String> FILE_NAMES;
 
@@ -447,7 +443,10 @@ public class BatchServingServiceImpl extends ServiceImpl<BatchServingMapper, Bat
      */
     private String getImageUrl(String imageName, String imageTag) {
         PtImageQueryUrlDTO ptImageQueryUrlDTO = new PtImageQueryUrlDTO();
-        ptImageQueryUrlDTO.setProjectType(ImageTypeEnum.TRAIN.getType());
+        List<Integer> servingImageType = new ArrayList(){{
+            add(ImageTypeEnum.SERVING.getType());
+        }};
+        ptImageQueryUrlDTO.setImageTypes(servingImageType);
         ptImageQueryUrlDTO.setImageName(imageName);
         ptImageQueryUrlDTO.setImageTag(imageTag);
         DataResponseBody<String> dataResponseBody = imageClient.getImageUrl(ptImageQueryUrlDTO);
@@ -560,7 +559,7 @@ public class BatchServingServiceImpl extends ServiceImpl<BatchServingMapper, Bat
         if (StringUtils.isNotEmpty(taskIdentify)){
             redisUtils.del(taskIdentify, batchServingIdPrefix + String.valueOf(batchServing.getId()));
         }
-        String sourcePath = k8sNameTool.getAbsolutePath(batchRootPath + batchServing.getCreateUserId() + File.separator + batchServing.getId() + File.separator);
+        String sourcePath = k8sNameTool.getAbsolutePath(ServingConstant.BATCH_ROOT_PATH + batchServing.getCreateUserId() + File.separator + batchServing.getId() + File.separator);
         String recyclePath = k8sNameTool.getAbsolutePath(batchServing.getInputPath()) + StrUtil.COMMA + k8sNameTool.getAbsolutePath(batchServing.getOutputPath()) + StrUtil.COMMA + sourcePath;
         createRecycleTask(batchServing, recyclePath, true);
         return new BatchServingDeleteVO(batchServing.getId());

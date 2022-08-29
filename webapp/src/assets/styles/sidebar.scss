@@ -16,6 +16,9 @@
 
 #app {
   .main-container {
+    // 平台最小宽度限制 1440px；滚动条保留 20px 宽度
+    min-width: calc(1440px - #{$sideBarWidth} - 20px);
+    overflow-x: auto;
     position: relative;
     min-height: 100%;
     margin-left: $sideBarWidth;
@@ -64,6 +67,7 @@
 
     .svg-icon {
       margin-right: 16px;
+      font-size: 18px;
     }
 
     .el-menu {
@@ -74,6 +78,8 @@
 
     // 一级菜单
     .el-menu-item {
+      background-color: $menuBg !important;
+
       &.is-active {
         padding-left: 16px !important;
         background-color: $menuActiveBg !important;

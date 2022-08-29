@@ -40,10 +40,6 @@ public class PtModelInfoQueryDTO extends PageQueryBase implements Serializable {
     @Length(max = PtModelUtil.NUMBER_ONE_HUNDRED_TWENTY_EIGHT, message = "模型名称-输入长度不能超过128个字符")
     private String name;
 
-    @ApiModelProperty("模型分类")
-    @Length(max = PtModelUtil.NUMBER_ONE_HUNDRED_TWENTY_EIGHT, message = "模型分类-输入长度不能超过128个字符")
-    private String modelClassName;
-
     @ApiModelProperty("模型是否为预置模型（0默认模型，1预置模型,2炼知模型）")
     @Min(value = PtModelUtil.NUMBER_ZERO, message = "模型来源错误")
     @Max(value = PtModelUtil.NUMBER_TWO, message = "模型来源错误")
@@ -51,5 +47,15 @@ public class PtModelInfoQueryDTO extends PageQueryBase implements Serializable {
 
     @ApiModelProperty("模型是否打包，0未打包， 1 已打包")
     private Integer packaged;
+
+    @ApiModelProperty("模型类别")
+    @Length(max = PtModelUtil.NUMBER_THIRTY_TWO, message = "模型类别-输入长度不能超过32个字符")
+    private String modelClassName;
+
+    @ApiModelProperty("框架类型")
+    private Integer frameType;
+
+    @ApiModelProperty("模型格式")
+    private Integer modelType;
 
 }

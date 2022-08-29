@@ -52,7 +52,7 @@
 <script>
 import { isNil } from 'lodash';
 import { computed } from '@vue/composition-api';
-import { annotationBy, annotationCodeMap } from '@/views/dataset/util';
+import { annotationBy, annotationMap, matchTemplateByDataset } from '@/views/dataset/util';
 
 import LabelList from './labelList';
 
@@ -71,17 +71,31 @@ export default {
     },
   },
   setup(props, ctx) {
-    const { TEXTSEGMENTATION, SPEECHRECOGNITION } = annotationCodeMap;
+    const { TextSegmentation, SpeechRecognition } = annotationMap;
     const attrs = computed(() => ctx.attrs);
     const listeners = computed(() => ctx.listeners);
-    const annotationType = computed(() => annotationByCode(props.datasetInfo.annotateType, 'name'));
+    const annotationType = computed(() => {
+      let templateTypeName = '';
+      switch (matchTemplateByDataset(props.datasetInfo)) {
+        case 'multiple-label':
+          templateTypeName = '(多标签)';
+          break;
+        case 'single-label':
+          templateTypeName = '(单标签)';
+          break;
+        default:
+          break;
+      }
+      return annotationByCode(props.datasetInfo.annotateType, 'name') + templateTypeName;
+    });
     const showLabelList = computed(
-      () => ![TEXTSEGMENTATION, SPEECHRECOGNITION].includes(props.datasetInfo.annotateType)
+      () =>
+        ![TextSegmentation.code, SpeechRecognition.code].includes(props.datasetInfo.annotateType)
     );
     // 不是中文分词且标签组存在时显示标签组名称
     const showLabelGroupName = computed(
       () =>
-        !(props.datasetInfo.annotateType === TEXTSEGMENTATION) &&
+        !(props.datasetInfo.annotateType === TextSegmentation.code) &&
         !isNil(props.datasetInfo.labelGroupId)
     );
     return {

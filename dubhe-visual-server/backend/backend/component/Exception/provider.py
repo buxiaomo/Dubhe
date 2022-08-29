@@ -16,7 +16,7 @@
  =============================================================
 """
 from utils.cache_io import CacheIO
-from utils.path_utils import get_file_path
+from utils.logfile_utils import get_file_path
 from .exception_read import Exception_read
 from backend.api.utils import get_api_params
 
@@ -25,8 +25,7 @@ def exception_meta_provider(file_path):
     # read from cache
     res = CacheIO(file_path).get_cache()
     if res:
-        exception_meta_data = Exception_read(data=res) \
-            .get_meta_data()
+        exception_meta_data = Exception_read(data=res).get_meta_data()
         return exception_meta_data
     else:
         raise ValueError('Parameter error, no data found')
@@ -36,8 +35,7 @@ def exception_provider(file_path, step):
     res = CacheIO(file_path).get_cache()
     if res:
         # raw_data
-        data = Exception_read(data=res, step=step) \
-            .get_data()
+        data = Exception_read(data=res, step=step).get_data()
         return data
     else:
         raise ValueError('Parameter error, no data found')
@@ -47,8 +45,7 @@ def exception_box_provider(file_path, step, limit):
     res = CacheIO(file_path).get_cache()
     if res:
         # raw_data
-        data = Exception_read(data=res, step=step) \
-            .get_outlier(limit)
+        data = Exception_read(data=res, step=step).get_outlier(limit)
         return data
     else:
         raise ValueError('Parameter error, no data found')
@@ -58,8 +55,7 @@ def exception_hist_provider(file_path, step):
     res = CacheIO(file_path).get_cache()
     if res:
         # raw_data
-        data = Exception_read(data=res, step=step) \
-            .get_histogram()
+        data = Exception_read(data=res, step=step).get_histogram()
         return data
     else:
         raise ValueError('Parameter error, no data found')

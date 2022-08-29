@@ -47,7 +47,7 @@ import { API_MODULE_NAME } from '@/config';
 import { parseTime } from '@/utils';
 import Actions from './actions';
 import Convert from './convert';
-import { dataTypeMap, annotationBy } from '../util';
+import { dataTypeMap, annotationBy, datasetExportFormatMap } from '../util';
 
 const annotationByCode = annotationBy('code');
 
@@ -96,6 +96,11 @@ export default {
         label: '标注类型',
         minWidth: 100,
         render: ({ row }) => annotationByCode(row.annotateType, 'name'),
+      },
+      {
+        prop: 'format',
+        label: '导出格式',
+        render: ({ row }) => datasetExportFormatMap[row.format] || '天枢 JSON',
       },
       {
         prop: 'isCurrent',

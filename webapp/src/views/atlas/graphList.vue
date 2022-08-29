@@ -60,7 +60,7 @@
 
 <script>
 import { list as getMeasureNames, getGraphs } from '@/api/atlas';
-import { MEASURE_STATUS_ENUM } from './util';
+import { MEASURE_STATUS_ENUM } from './utils';
 
 export default {
   name: 'GraphList',

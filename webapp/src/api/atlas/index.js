@@ -57,3 +57,18 @@ export function getGraphs(name) {
     params: { name },
   });
 }
+
+export function getCameraList() {
+  return request({
+    url: `/${API_MODULE_NAME.ATLAS}/camera`,
+    method: 'get',
+  });
+}
+
+export function startCameraStream(cameraIndexCode) {
+  return request({
+    url: `/${API_MODULE_NAME.ATLAS}/camera/start`,
+    method: 'get',
+    params: { cameraIndexCode },
+  });
+}

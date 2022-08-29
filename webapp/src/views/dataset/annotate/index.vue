@@ -39,13 +39,14 @@
       :getLabelName="getLabelName"
       :deleteAnnotation="deleteAnnotation"
       :handleConfirm="handleConfirm"
+      :handlePrev="handlePrev"
+      :handleNext="handleNext"
       :annotationType="annotationType"
       @selection="handleSelection"
       @brushStart="handleBrushStart"
       @save="handleSave"
+      @remove="handleRemoveFile"
       @selectLabel="handleSelectLabel"
-      @changeImg="handleChangeImg"
-      @nextPage="handleNextPage"
     />
     <SettingContainer
       :isTrack="isTrack"
@@ -77,6 +78,7 @@ import {
   queryLabels as queryLabelApi,
   createLabel as createLabelApi,
 } from '@/api/preparation/dataset';
+import { del } from '@/api/preparation/datafile';
 import request from '@/utils/request';
 import { API_MODULE_NAME } from '@/config';
 import {
@@ -367,6 +369,48 @@ export default {
       return null;
     };
 
+    let msgInstance = null;
+
+    const onMessageClose = () => {
+      // 清理 message 实例
+      msgInstance = null;
+    };
+
+    const findImgIndex = () => {
+      const { files, currentImgId } = state;
+      const currentImgIndex = files.findIndex((d) => d.id === currentImgId);
+      return { currentImgIndex, files };
+    };
+
+    const handlePrev = () => {
+      const { files, currentImgIndex } = findImgIndex();
+      if (currentImgIndex > 0) {
+        handleChangeImg(files[currentImgIndex - 1]);
+      } else if (!msgInstance) {
+        msgInstance = Message.warning({
+          message: '当前图片不存在或图片已经到顶了',
+          onClose: onMessageClose,
+        });
+      }
+    };
+
+    const handleNext = () => {
+      // 未标注文件全量更新，不需要切换到下一张
+      if (state.filterUnfinished) return;
+
+      const { files, currentImgIndex } = findImgIndex();
+      if (currentImgIndex > -1 && currentImgIndex < files.length - 1) {
+        handleChangeImg(files[currentImgIndex + 1]);
+        // 触发下一页数据
+        handleNextPage(files[currentImgIndex + 1], currentImgIndex + 1, files);
+      } else if (!msgInstance) {
+        msgInstance = Message.warning({
+          message: '当前图片不存在或图片已经到底了',
+          onClose: onMessageClose,
+        });
+      }
+    };
+
     // 请求指定图片信息
     const queryFile = async (id) => {
       const file =
@@ -435,6 +479,26 @@ export default {
               offset: 0,
             });
           }
+        });
+    };
+
+    // 删除当前文件
+    const handleRemoveFile = async () => {
+      const params = {
+        fileIds: [state.currentImgId],
+        datasetIds: state.datasetId,
+      };
+      await del(params)
+        .then(() => {
+          Message.success('文件删除成功');
+          updateList({
+            type: state.fileFilterType,
+            labelId: state.filterLabelId,
+            offset: 0,
+          });
+        })
+        .catch((err) => {
+          Message.error(err.message || '删除失败');
         });
     };
 
@@ -860,8 +924,11 @@ export default {
       updateList,
       handleSelectLabel,
       changeCurrentImg,
+      handleRemoveFile,
       handleChangeImg,
       handleNextPage,
+      handlePrev,
+      handleNext,
       createLabel,
       queryLabels,
       getColorLabel,

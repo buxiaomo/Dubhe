@@ -92,7 +92,7 @@ public class EsDataFileDTO implements Serializable {
     /**
      * 标签ID
      */
-    private Long labelId;
+    private Long[] labelId;
 
     /**
      * 标注信息

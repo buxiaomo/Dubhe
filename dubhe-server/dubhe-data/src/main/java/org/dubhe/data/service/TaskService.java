@@ -96,7 +96,7 @@ public interface TaskService {
      *
      * @param dataset 数据集详情
      */
-    void track(Dataset dataset);
+    void track(Dataset dataset, Long modelServiceId);
 
     /**
      * 获取数据集详情
@@ -139,4 +139,35 @@ public interface TaskService {
      */
     void updateByTaskId(Task task);
 
+    List<Task> selectByQueryWrapper(QueryWrapper<Task> queryWrapper);
+
+    void taskStop(Long taskId);
+
+    /**
+     * 获取正在运行的task(非医学的)
+     *
+     * @param datasetId 数据集Id
+     * @return
+     */
+    List<Task> selectRunningTask(Long datasetId);
+
+    /**
+     * 活医学影像数据集下正在运行的任务
+     *
+     * @param datasetId 数据集Id
+     * @return
+     */
+    Task selectRunningDcmTask(Long datasetId);
+
+    Task getOneNeedStopTask();
+
+    Long selectTaskId(Long datasetId,Integer datasetStatus);
+
+    Long selectDcmTaskId(Long datasetId,Integer datasetStatus);
+
+    Long selectStopTaskId(Long taskId,Long datasetId,Integer datasetStatus);
+
+    Long selectDcmStopTaskId(Long taskId,Long datasetId,Integer datasetStatus);
+
+    boolean isStop(Long id);
 }

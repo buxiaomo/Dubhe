@@ -139,10 +139,6 @@ public class DcmDataMedicineStateMachine extends AbstractDataMedicineState imple
     @Override
     public void autoAnnotationSaveEvent(DataMedicine medical) {
         initMemoryDataState(medical);
-        if (memoryDataMedicineState != notAnnotationDcmState) {
-
-            throw new StateMachineException(ErrorMessageConstant.DATASET_CHANGE_ERR_MESSAGE);
-        }
         memoryDataMedicineState.autoAnnotationSaveEvent(medical);
     }
 

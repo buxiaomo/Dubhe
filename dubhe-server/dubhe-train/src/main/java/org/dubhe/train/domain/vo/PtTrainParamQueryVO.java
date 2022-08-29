@@ -64,11 +64,11 @@ public class PtTrainParamQueryVO extends BaseVO implements Serializable {
     @ApiModelProperty("算法来源(1为我的算法，2为预置算法)")
     private Integer algorithmSource;
 
-    @ApiModelProperty("算法用途")
-    private String algorithmUsage;
+    @ApiModelProperty("数据集类型")
+    private String datasetType;
 
-    @ApiModelProperty("验证数据集算法用途")
-    private String valAlgorithmUsage;
+    @ApiModelProperty("验证数据集类型")
+    private String valDatasetType;
 
     @ApiModelProperty("数据来源路径")
     private String dataSourcePath;
@@ -78,6 +78,12 @@ public class PtTrainParamQueryVO extends BaseVO implements Serializable {
 
     @ApiModelProperty("运行参数(算法来源为我的算法时为调优参数，算法来源为预置算法时为运行参数)")
     private JSONObject runParams;
+
+    @ApiModelProperty("运行参数映射关系")
+    private JSONObject runParamsNameMap;
+
+    @ApiModelProperty("运行命令概览")
+    private String displayRunCommand;
 
     @ApiModelProperty("规格名称")
     private String trainJobSpecsName;
@@ -117,6 +123,9 @@ public class PtTrainParamQueryVO extends BaseVO implements Serializable {
 
     @ApiModelProperty("创建人")
     private Long createUserId;
+
+    @ApiModelProperty("创建人用户名")
+    private String createUserName;
 
     @ApiModelProperty("创建时间")
     private Timestamp createTime;

@@ -47,7 +47,11 @@ public enum ImageTypeEnum {
     /**
      * terminal镜像
      */
-    TERMINAL("terminal镜像", "terminal", 3)
+    TERMINAL("terminal镜像", "terminal", 3),
+    /**
+     * 点云镜像
+     */
+    POINT_CLOUD("点云镜像","pointCloud",4)
     ;
 
     /**
@@ -59,7 +63,7 @@ public enum ImageTypeEnum {
      */
     private String code;
     /**
-     * 镜像项目类型
+     * 镜像用途
      */
     private Integer type;
 
@@ -89,7 +93,7 @@ public enum ImageTypeEnum {
     /**
      * 根据type获取code
      *
-     * @param type  镜像项目类型
+     * @param type  镜像用途
      * @return String 镜像项目代码
      */
     public static String getType(Integer type) {

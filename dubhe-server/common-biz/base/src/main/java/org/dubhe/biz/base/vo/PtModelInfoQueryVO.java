@@ -56,11 +56,6 @@ public class PtModelInfoQueryVO implements Serializable {
     private String modelDescription;
 
     /**
-     * 模型分类
-     */
-    private String modelClassName;
-
-    /**
      * 模型地址
      */
     private String modelAddress;
@@ -89,6 +84,11 @@ public class PtModelInfoQueryVO implements Serializable {
      * 创建人ID
      */
     private Long createUserId;
+
+    /**
+     * 创建人用户名
+     */
+    private String createUserName;
 
     /**
      * 修改人ID
@@ -124,4 +124,19 @@ public class PtModelInfoQueryVO implements Serializable {
      * 是否能提供服务（true:能，false：否）
      */
     private Boolean servingModel;
+
+    /**
+     * 炼制模型结构名称
+     */
+    private String structName;
+
+    /**
+     * 炼制模型尺寸
+     */
+    private Integer modelSize;
+
+    /**
+     * 模型分类(目标检测、目标分类)
+     */
+    private String modelClassName;
 }

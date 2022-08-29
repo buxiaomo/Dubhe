@@ -14,6 +14,70 @@
  * =============================================================
  */
 
+<style scoped>
+.exceptionContainer {
+  margin: 1%;
+}
+
+.excepContainerHead1,
+.excepContainerHead2 {
+  display: flex;
+  height: 30px;
+  padding-left: 1%;
+  margin-bottom: 1%;
+  line-height: 30px;
+  color: white;
+  text-align: left;
+  border-radius: 3px;
+}
+
+.excepContainerHead1 {
+  background-color: rgba(104, 101, 182, 0.8);
+}
+
+.excepContainerHead2 {
+  background-color: rgba(104, 101, 182, 1);
+}
+
+.curStep {
+  margin-left: 5%;
+}
+
+.excepContainerContent {
+  padding: 1%;
+}
+
+.colorMatrix {
+  padding: 1% 2% 3% 2%;
+}
+
+.excepRectDiv {
+  padding: 1%;
+  border: 1px dashed grey;
+}
+
+.excepRectLegend {
+  height: 410px;
+}
+
+@media screen and (max-width: 1600px) {
+  .excepRectLegend {
+    height: 330px;
+  }
+}
+
+@media screen and (max-width: 1300px) {
+  .excepRectLegend {
+    height: 280px;
+  }
+}
+
+@media screen and (max-width: 1000px) {
+  .excepRectLegend {
+    height: 250px;
+  }
+}
+</style>
 <template>
   <div class="exceptionContainer">
     <el-card style="height: 100%;">
@@ -24,27 +88,42 @@
         </div>
         <div class="curStep">当前步：{{ myAllStep[curStepIndex] }}</div>
       </div>
-      <el-row :gutter="30" class="excepContainerContent">
-        <el-col :span="10" class="excepLeft">
-          <div :id="excepHistId" class="excepHist" />
+      <el-row :gutter="24" class="excepContainerContent">
+        <el-col :span="12">
           <div class="excepBoxStep">
             <div :id="excepBoxId" class="excepBox" />
             <div :id="excepStepAxisId" class="excepStepAxis" />
           </div>
         </el-col>
-        <el-col :span="12" class="excepRectLegend">
-          <div class="excepRectDiv" style="height: 100%;">
-            <el-scrollbar style="height: 100%;">
-              <canvas :id="excepCanvasId">
-                您的浏览器不支持 HTML5 canvas 标签。
-              </canvas>
-            </el-scrollbar>
-          </div>
-        </el-col>
-        <el-col :span="2" class="excepLegend">
-          <div :id="excepLegendId" />
+        <el-col :span="12" class="excepLeft">
+          <div :id="excepHistId" class="excepHist" />
         </el-col>
       </el-row>
+      <div class="colorMatrix">
+        <el-row>
+          <el-col v-show="!canvasScale" :span="19" :offset="1" class="excepRectLegend">
+            <div class="excepRectDiv" style="height: 100%;">
+              <el-scrollbar style="height: 100%;">
+                <canvas :id="excepCanvasId">
+                  您的浏览器不支持 HTML5 canvas 标签。
+                </canvas>
+              </el-scrollbar>
+            </div>
+          </el-col>
+          <el-col v-show="canvasScale" :span="19" :offset="1" class="excepRectLegend">
+            <div class="excepRectDiv" style="height: 100%;">
+              <el-scrollbar style="height: 100%;">
+                <canvas id="excepCanvasIdTemp">
+                  您的浏览器不支持 HTML5 canvas 标签。
+                </canvas>
+              </el-scrollbar>
+            </div>
+          </el-col>
+          <el-col :span="2" :offset="1" class="excepLegend">
+            <div :id="excepLegendId" />
+          </el-col>
+        </el-row>
+      </div>
     </el-card>
   </div>
 </template>
@@ -77,6 +156,11 @@ export default {
       myAllStep: this.oneAllStep[2].step, // step数组，用的比较多
       myBoxPercent: this.oneAllStep[2].box, // 六个百分点数组，也会被修改
       rectColor: ['#79a3da', '#fefebe', '#fe193f'], // 小：蓝色；大：红色
+      rectColorRgb: [
+        [121, 163, 218],
+        [254, 254, 180],
+        [254, 25, 63],
+      ],
       histxScale: '', // 在直方图标记up和down需要使用
       drawRectFinished: true, // 在盒线图上操作后，获取颜色矩阵并画好的标志
       getCurNewExcepBoxFlag: false, // 在盒线图图上操作后，获取新的异常数据点
@@ -84,6 +168,9 @@ export default {
       rectMin: this.oneData[3][1],
       rectMax: this.oneData[3][2],
       rectScale: 1.0,
+      canvasScale: false,
+      rectMinWidth: 15,
+      rectMinHeight: 15,
     };
   },
   computed: {
@@ -94,9 +181,60 @@ export default {
       'getLinkChecked',
       'getDq0Show',
       'getUpDownValue',
+      'getUpdateHistMatrixDataFlag',
+      'getCurRunTag',
     ]),
   },
   watch: {
+    oneAllStep(val) {
+      if (
+        this.getUpdateHistMatrixDataFlag === 'none' ||
+        this.getUpdateHistMatrixDataFlag.substr(0, 4) === 'step'
+      ) {
+        // 如果只更新了step数据
+        this.myAllStep = val[2].step;
+        this.myBoxPercent = val[2].box;
+        if (this.getUpdateHistMatrixDataFlag.substr(0, 4) === 'step') {
+          this.curExcepBox = [];
+          this.curStepIndex = this.myAllStep.indexOf(this.getCurRunTag.step);
+          if (this.curStepIndex <= 4) {
+            this.boxLeftIndex = 0;
+            this.boxRightIndex = 4;
+          } else {
+            this.boxLeftIndex = this.curStepIndex - 4;
+            this.boxRightIndex = this.curStepIndex;
+          }
+        }
+        if (this.getUpdateHistMatrixDataFlag === 'none') {
+          // 根据存下的四分位数状态恢复刷新前的选取状态
+          const dq =
+            this.myBoxPercent[this.curStepIndex][0][1] - this.myBoxPercent[this.curStepIndex][0][3];
+          if (dq !== 0) {
+            // 修改这个子组件中的数据
+            this.myBoxPercent[this.curStepIndex][0][0] =
+              this.myBoxPercent[this.curStepIndex][0][1] + this.getCurIqrTimes[3] * dq;
+            this.myBoxPercent[this.curStepIndex][0][4] =
+              this.myBoxPercent[this.curStepIndex][0][3] - this.getCurIqrTimes[4] * dq;
+            // 修改vuex中保存的数据
+            this.setAllStepBoxUp({
+              index: this.index,
+              step: this.curStepIndex,
+              up: this.myBoxPercent[this.curStepIndex][0][0],
+            });
+            this.setAllStepBoxDown({
+              index: this.index,
+              step: this.curStepIndex,
+              down: this.myBoxPercent[this.curStepIndex][0][4],
+            });
+          }
+        }
+        this.drawExcepBox();
+        this.drawExcepStepAxis();
+        d3.select(`#${this.excepBoxId}`)
+          .select(`.boxRect${this.curStepIndex}`)
+          .style('fill', '#B0B6E6');
+      }
+    },
     getCurNewData(val) {
       if (this.myOneData[0] === val[0] && this.myOneData[1] === val[1]) {
         this.myOneData = val;
@@ -106,6 +244,7 @@ export default {
         // eslint-disable-next-line
         this.rectMax = this.myOneData[3][2];
         this.rectScale = 1.0;
+        this.canvasScale = false;
         this.drawCanvasRect();
         this.drawRectFinished = true;
         this.drawExcepLedgend();
@@ -175,6 +314,9 @@ export default {
         this.fetchExcepBox(paramTemp);
         if (!getOneStepDataFlag) {
           // 没有重新获取颜色矩阵，也需要重新绘制，因为之前的path还存在
+          // 这里只重新绘制
+          this.rectScale = 1.0;
+          this.canvasScale = false;
           this.drawCanvasRect();
         }
       }
@@ -197,13 +339,18 @@ export default {
     this.drawCanvasRect();
     this.CanvasRectMouseOperator();
     this.drawExcepLedgend();
-    if (this.myAllStep.length < 4) {
+    if (this.myAllStep.length < 5) {
       this.boxRightIndex = this.myAllStep.length - 1;
+    }
+    this.curStepIndex = this.myAllStep.indexOf(this.oneData[2]);
+    if (this.curStepIndex > 5) {
+      this.boxLeftIndex = this.curStepIndex - 4;
+      this.boxRightIndex = this.curStepIndex;
     }
     this.drawExcepBox();
     this.drawExcepStepAxis();
     d3.select(`#${this.excepBoxId}`)
-      .select('.boxRect0')
+      .select(`.boxRect${this.curStepIndex}`)
       .style('fill', '#B0B6E6');
     // 当鼠标进入颜色矩阵区域禁止滑动条的滚轮操作，不在颜色矩阵区域就允许滑动条的滚轮操作
     d3.select(`#${this.excepCanvasId}`).on('mouseover', () => {
@@ -228,6 +375,35 @@ export default {
       'setDq0Show',
       'setUpDownValue',
     ]),
+    // 科学计数法
+    numberChangeToE(d) {
+      if (Math.abs(d) > 10000) {
+        let numLen = (numLen = d.toString().length - 1);
+        if (d < 0) {
+          numLen = d.toString().length - 2;
+        }
+        return `${(d / Math.pow(10, numLen)).toFixed(2)}e+${numLen}`;
+      }
+      if (Math.abs(d) < 0.001) {
+        if (d === 0) return d;
+        const dString = d.toString();
+        if (dString.indexOf('e') !== -1) return d;
+        let i = 3;
+        if (d < 0) {
+          i = 4;
+        }
+        for (; i < dString.length; i++) {
+          if (dString[i] !== '0') {
+            break;
+          }
+        }
+        if (d < 0) {
+          i -= 1;
+        }
+        return `${(d * Math.pow(10, i - 1)).toFixed(2)}e-${i - 1}`;
+      }
+      return d;
+    },
     // 画直方图
     drawExcepHist() {
       d3.select(`#${this.excepHistId}`)
@@ -250,12 +426,13 @@ export default {
         .attr('width', histSvgWidth)
         .attr('height', histSvgHeight)
         .attr('transform', `translate(${padding.left},${padding.top})`);
+      const histData = this.myOneData[4];
       this.histxScale = d3
         .scaleLinear()
-        .domain([this.myOneData[4][0], this.myOneData[4][1]])
+        .domain([histData[0], histData[1]])
         .range([0, histWidth])
         .nice();
-      const histCountMax = d3.max(this.myOneData[4][2], function _nonName(d) {
+      const histCountMax = d3.max(histData[2], function _nonName(d) {
         return d[2];
       });
       const histyScale = d3
@@ -266,17 +443,13 @@ export default {
       const histxAxis = d3
         .axisBottom()
         .scale(this.histxScale)
-        .ticks(7);
+        .ticks(7)
+        .tickFormat((d) => this.numberChangeToE(d));
       const histyAxis = d3
         .axisLeft()
         .scale(histyScale)
-        .tickFormat((d) => {
-          if (d > 10000) {
-            const numLen = d.toString().length - 1;
-            return `${d / 10 ** numLen}e+${numLen}`;
-          }
-          return d;
-        });
+        .ticks(7)
+        .tickFormat((d) => this.numberChangeToE(d));
       histSvg
         .append('g')
         .call(histxAxis)
@@ -286,7 +459,7 @@ export default {
       histSvg
         .append('g')
         .selectAll('rect')
-        .data(this.myOneData[4][2])
+        .data(histData[2])
         .enter()
         .append('g')
         .append('rect')
@@ -327,14 +500,17 @@ export default {
     },
     // 为画布添加鼠标操作，只需要初始添加一次
     CanvasRectMouseOperator() {
+      // 每次放大缩小都要重新渲染，性能太差！
       const excepCanvas = document.getElementById(this.excepCanvasId);
+      const excepCanvasTemp = document.getElementById('excepCanvasIdTemp');
       // 鼠标悬浮计算当前点的行列
       const that = this;
       function onMouseMoveFunc(e) {
-        const rectDw = 10 * that.rectScale;
-        const rectDh = 10 * that.rectScale;
+        const rectDw = that.rectMinWidth * that.rectScale;
+        const rectDh = that.rectMinHeight * that.rectScale;
         const row = Math.floor(e.layerY / rectDh);
         const col = Math.floor(e.layerX / rectDw);
+        if (row < 0 || col < 0) return;
         that.setRectCurInfo([
           that.myOneData[0],
           that.myOneData[1],
@@ -344,83 +520,143 @@ export default {
           that.myOneData[3][4][row][col],
         ]);
       }
-      excepCanvas.onmousemove = onMouseMoveFunc;
       // 鼠标滚轮放大，禁用滑动条的滚轮事件
+      // 只允许缩小，不允许大于1倍
       function onMouseWheelFunc(e) {
         if (e.wheelDelta < 0) {
           // 缩小
+          if (that.rectScale <= 0.1) return;
           that.rectScale *= 0.9;
-          that.drawCanvasRect();
-          that.setRectExcepBox();
+          that.canvasScale = true;
+          excepCanvasTemp.width = excepCanvas.width * that.rectScale;
+          excepCanvasTemp.height = excepCanvas.height * that.rectScale;
+          const excepCanvasTemp2d = excepCanvasTemp.getContext('2d');
+          excepCanvasTemp2d.drawImage(
+            excepCanvas,
+            0,
+            0,
+            excepCanvas.width,
+            excepCanvas.height,
+            0,
+            0,
+            excepCanvasTemp.width,
+            excepCanvasTemp.height
+          );
         } else {
           // 放大
+          if (that.rectScale >= 1) return; // 再大就会黑屏
           that.rectScale *= 1.1;
-          that.drawCanvasRect();
-          that.setRectExcepBox();
+          that.canvasScale = true;
+          excepCanvasTemp.width = excepCanvas.width * that.rectScale;
+          excepCanvasTemp.height = excepCanvas.height * that.rectScale;
+          const excepCanvasTemp2d = excepCanvasTemp.getContext('2d');
+          excepCanvasTemp2d.drawImage(
+            excepCanvas,
+            0,
+            0,
+            excepCanvas.width,
+            excepCanvas.height,
+            0,
+            0,
+            excepCanvasTemp.width,
+            excepCanvasTemp.height
+          );
         }
       }
-      excepCanvas.onmousewheel = onMouseWheelFunc;
       // 鼠标点击还原
       function onClickFunc() {
         that.rectScale = 1.0;
-        that.drawCanvasRect();
-        that.setRectExcepBox();
+        that.canvasScale = false;
       }
+      excepCanvas.onmousemove = onMouseMoveFunc;
       excepCanvas.onclick = onClickFunc;
+      excepCanvas.onmousewheel = onMouseWheelFunc;
+      excepCanvasTemp.onmousemove = onMouseMoveFunc;
+      excepCanvasTemp.onclick = onClickFunc;
+      excepCanvasTemp.onmousewheel = onMouseWheelFunc;
     },
+    // 重绘矩阵时，可不可以直接重用各小矩阵，只改变大小和颜色？
     // 画颜色矩阵
     drawCanvasRect() {
       const min = this.rectMin;
       const max = this.rectMax;
       const n = this.myOneData[3][0][0];
       const m = this.myOneData[3][0][1];
-      const rectDw = 10 * this.rectScale;
-      const rectDh = 10 * this.rectScale;
+      const rectDw = this.rectMinWidth * this.rectScale;
+      const rectDh = this.rectMinHeight * this.rectScale;
       const rectWidth = rectDw * m;
       const rectHeight = rectDh * n;
       const excepCanvas = document.getElementById(this.excepCanvasId);
-      excepCanvas.width = 0; // canvas画布宽高变化，就清空了原先的内容
+      // canvas画布宽高变化，就清空了原先的内容
       excepCanvas.width = rectWidth + 20;
       excepCanvas.height = rectHeight;
       const colorLinear = d3
         .scaleLinear()
         .domain([min, (min + max) / 2, max])
         .range(this.rectColor);
+      // 离散颜色映射
+      const colorMap = [];
+      const threshold = 100;
+      const minvalue = (max - min) / threshold;
+      let value = min;
+      for (let i = 0; i < threshold; i++) {
+        colorMap.push(colorLinear(value));
+        value += minvalue;
+      }
       const excepCanvas2d = excepCanvas.getContext('2d');
+      const colorMatrixData = this.myOneData[3][4];
+      // 不在[min, max]范围内的方块
+      excepCanvas2d.fillStyle = '#eeeeee';
       for (let i = 0; i < n; i += 1) {
+        const rectH = i * rectDh;
         for (let j = 0; j < m; j += 1) {
-          if (this.myOneData[3][4][i][j] >= min && this.myOneData[3][4][i][j] <= max) {
-            excepCanvas2d.fillStyle = colorLinear(this.myOneData[3][4][i][j]);
-          } else {
-            excepCanvas2d.fillStyle = '#eeeeee';
+          const t = colorMatrixData[i][j];
+          if (t < min && t > max) {
+            excepCanvas2d.fillRect(j * rectDw, rectH, rectDw, rectDh);
           }
-          excepCanvas2d.fillRect(j * rectDw, i * rectDh, rectDw, rectDh);
+        }
+      }
+      for (let k = 0; k < threshold; k++) {
+        excepCanvas2d.fillStyle = colorMap[k];
+        const leftvalue = k * minvalue + min;
+        const rightvalue = (k + 1) * minvalue + min;
+        for (let i = 0; i < n; i++) {
+          const rectH = i * rectDh;
+          for (let j = 0; j < m; j += 1) {
+            const t = colorMatrixData[i][j];
+            if (t >= leftvalue && t < rightvalue) {
+              excepCanvas2d.fillRect(j * rectDw, rectH, rectDw, rectDh);
+            }
+          }
         }
       }
       // 画白色边界
+      let lineY = 0;
       for (let i = 0; i < n; i += 1) {
-        const lineY = rectDh * i;
         excepCanvas2d.beginPath();
         excepCanvas2d.moveTo(0, lineY);
         excepCanvas2d.lineTo(rectWidth, lineY);
-        excepCanvas2d.strokeStyle = 'white';
+        excepCanvas2d.strokeStyle = 'rgba(255, 255, 255)';
         excepCanvas2d.stroke();
+        lineY += rectDh;
       }
+      let lineX = 0;
       for (let i = 0; i < m; i += 1) {
-        const lineX = rectDw * i;
         excepCanvas2d.beginPath();
         excepCanvas2d.moveTo(lineX, 0);
         excepCanvas2d.lineTo(lineX, rectHeight);
-        excepCanvas2d.strokeStyle = 'white';
+        excepCanvas2d.strokeStyle = 'rgba(255, 255, 255)';
         excepCanvas2d.stroke();
+        lineX += rectDw;
       }
+      this.setRectCurInfo([]);
     },
     // 画颜色矩阵的legend
     drawExcepLedgend() {
       d3.select(`#${this.excepLegendId}`)
         .select('svg')
         .remove();
-      const legendWidth = 100;
+      const legendWidth = 120;
       const legendHeight = 300;
       const legendRectWidth = 25;
       const legendRectHeight = 135;
@@ -539,6 +775,8 @@ export default {
             .on('end', function _nonName() {
               that.rectMin = curMin;
               that.rectMax = curMax;
+              that.rectScale = 1.0;
+              that.canvasScale = false;
               that.drawCanvasRect();
               that.setRectExcepBox();
             })
@@ -577,6 +815,8 @@ export default {
             .on('end', function _nonName() {
               that.rectMin = curMin;
               that.rectMax = curMax;
+              that.rectScale = 1.0;
+              that.canvasScale = false;
               that.drawCanvasRect();
               that.setRectExcepBox();
             })
@@ -597,23 +837,18 @@ export default {
         .attr('width', '100%')
         .attr('height', '100%')
         .attr('preserveAspectRatio', 'xMidYMid meet')
-        .attr('viewBox', `0 0 ${stepSvgWidth} ${stepSvgHeight}`); // .append('g')
+        .attr('viewBox', `0 0 ${stepSvgWidth} ${stepSvgHeight}`);
       const allStep = this.myAllStep;
       const stepArrayLen = allStep.length - 1;
       const maxStep = allStep[stepArrayLen];
       const stepXScale = d3
         .scaleLinear()
         .domain([allStep[0], maxStep])
-        .range([0, stepWidth])
-        .nice();
-      const stepXScale2 = d3
-        .scalePoint()
-        .domain(this.myAllStep)
-        .range([0, stepWidth]);
+        .range([0, stepWidth]); // .nice()
       const stepXAxis = stepSvg
         .append('g')
-        .call(d3.axisBottom().scale(stepXScale2))
-        .attr('transform', `translate(${padding.left},${padding.top})`); // .attr('class', 'axis')
+        .call(d3.axisBottom().scale(stepXScale))
+        .attr('transform', `translate(${padding.left},${padding.top})`);
       stepSvg
         .append('g')
         .append('text')
@@ -636,11 +871,9 @@ export default {
           if (d3.event.selection === null) {
             return;
           }
+          // 只算brushLeft最接近的step，右侧的加上4
           const brushLeft = stepXScale.invert(d3.event.selection[0]);
-          const brushRight = stepXScale.invert(d3.event.selection[1]);
-          if (brushLeft > maxStep && brushRight > maxStep) return;
           let leftK = 0;
-          let rightK = stepArrayLen;
           for (let i = 1; i <= stepArrayLen; i += 1) {
             if (brushLeft < allStep[i]) {
               leftK = i - 1;
@@ -650,24 +883,15 @@ export default {
               break;
             }
           }
-          for (let i = leftK + 1; i <= stepArrayLen; i += 1) {
-            if (brushRight < allStep[i]) {
-              rightK = i - 1;
-              if (brushRight - allStep[i - 1] > allStep[i] - brushRight) {
-                rightK = i;
-              }
-              break;
-            }
-          }
-          if (leftK === that.boxLeftIndex && rightK === that.boxRightIndex) {
+          if (leftK === that.boxLeftIndex) {
             return;
           }
-          if (that.curStepIndex < leftK || that.curStepIndex > rightK) {
+          if (that.curStepIndex < leftK || that.curStepIndex > leftK + 4) {
             that.curExcepBox = [];
             that.getOneStepData(leftK);
           }
           that.boxLeftIndex = leftK;
-          that.boxRightIndex = rightK;
+          that.boxRightIndex = leftK + 4 >= stepArrayLen ? stepArrayLen : leftK + 4;
           that.drawExcepBox();
           d3.select(`#${that.excepBoxId}`)
             .select(`.boxRect${that.curStepIndex}`)
@@ -761,6 +985,7 @@ export default {
             .axisLeft()
             .scale(this.boxYScale)
             .ticks(7)
+            .tickFormat((d) => this.numberChangeToE(d))
         )
         .attr('transform', `translate(${padding.left},${padding.top})`);
       const width = (dw - 10) / 2;
@@ -867,8 +1092,9 @@ export default {
       const minUp = y(q1) + top; // min往上走不能超过minUp
       const minDown = y(boxPercent[index][1][0]) + top; // min往下走不能超过minDown
       let curMinPosition = top + y(min);
-      svg
-        .append('g')
+      const ming = svg.append('g');
+      // min line的背景，扩大鼠标的选中的范围
+      ming
         .append('line')
         .attr('class', `excepDownLine${index}`)
         .attr('x1', center - width / 2)
@@ -880,7 +1106,23 @@ export default {
           return top + y(min);
         })
         .attr('stroke', 'black')
-        .attr('stroke-width', '2')
+        .attr('stroke-width', '20')
+        .attr('stroke-opacity', '0');
+
+      const minLineFront = ming
+        .append('line')
+        .attr('class', `excepDownLine${index}`)
+        .attr('x1', center - width / 2)
+        .attr('x2', center + width / 2)
+        .attr('y1', function _nonName() {
+          return top + y(min);
+        })
+        .attr('y2', function _nonName() {
+          return top + y(min);
+        })
+        .attr('stroke', 'black')
+        .attr('stroke-width', '2');
+      ming
         .on('mouseover', function _nonName() {
           d3.select(this).style('cursor', 's-resize');
         })
@@ -888,12 +1130,8 @@ export default {
           d3
             .drag()
             .on('drag', function _nonName() {
+              if (d3.event.y > minDown || d3.event.y < minUp) return;
               curMinPosition = d3.event.y;
-              if (d3.event.y > minDown) {
-                curMinPosition = minDown;
-              } else if (d3.event.y < minUp) {
-                curMinPosition = minUp;
-              }
               d3.select(this)
                 .attr('y1', curMinPosition)
                 .attr('y2', curMinPosition);
@@ -901,6 +1139,7 @@ export default {
               downText
                 .attr('y', curMinPosition + 10)
                 .text(y.invert(curMinPosition - top).toFixed(4));
+              minLineFront.attr('y1', curMinPosition).attr('y2', curMinPosition);
             })
             .on('end', function _nonName() {
               // 停止拖拽时更新js中的min和max，并向后端请求数据
@@ -915,8 +1154,24 @@ export default {
       const maxDown = y(q3) + top;
       const maxUp = y(boxPercent[index][1][5]) + top;
       let curMaxPosition = top + y(max);
-      svg
-        .append('g')
+      // max
+      const maxg = svg.append('g');
+      // max line的背景，扩大鼠标的选中的范围
+      maxg
+        .append('line')
+        .attr('class', `excepUpLineBg${index}`)
+        .attr('x1', center - width / 2)
+        .attr('x2', center + width / 2)
+        .attr('y1', function _nonName() {
+          return top + y(max);
+        })
+        .attr('y2', function _nonName() {
+          return top + y(max);
+        })
+        .attr('stroke', 'black')
+        .attr('stroke-width', '20')
+        .attr('stroke-opacity', '0');
+      const maxLineFront = maxg
         .append('line')
         .attr('class', `excepUpLine${index}`)
         .attr('x1', center - width / 2)
@@ -928,7 +1183,8 @@ export default {
           return top + y(max);
         })
         .attr('stroke', 'black')
-        .attr('stroke-width', '2')
+        .attr('stroke-width', '2');
+      maxg
         .on('mouseover', function _nonName() {
           d3.select(this).style('cursor', 's-resize');
         })
@@ -936,17 +1192,14 @@ export default {
           d3
             .drag()
             .on('drag', function _nonName() {
+              if (d3.event.y < maxUp || d3.event.y > maxDown) return;
               curMaxPosition = d3.event.y;
-              if (d3.event.y < maxUp) {
-                curMaxPosition = maxUp;
-              } else if (d3.event.y > maxDown) {
-                curMaxPosition = maxDown;
-              }
               d3.select(this)
                 .attr('y1', curMaxPosition)
                 .attr('y2', curMaxPosition);
               centerLine.attr('y2', curMaxPosition);
               upText.attr('y', curMaxPosition).text(y.invert(curMaxPosition - top).toFixed(4));
+              maxLineFront.attr('y1', curMaxPosition).attr('y2', curMaxPosition);
             })
             .on('end', function _nonName() {
               that.getOneStepBoxData('up', y.invert(curMaxPosition - top), index);
@@ -973,11 +1226,26 @@ export default {
         .style('opacity', '0.5');
       // 画异常点
       if (this.curExcepBox.length && this.curStepIndex === index) {
+        // 定为最多只画100个异常点
+        const threshold = 200;
+        let exceptionPoints = [[], []];
+        if (this.curExcepBox[0].length <= threshold) {
+          exceptionPoints = this.curExcepBox;
+        } else {
+          const len = this.curExcepBox[0].length;
+          const minv = Math.floor(len / threshold);
+          let j = 0;
+          for (let i = 0; i < threshold; i += 1) {
+            exceptionPoints[0].push(this.curExcepBox[0][j]);
+            exceptionPoints[1].push(this.curExcepBox[1][j]);
+            j += minv;
+          }
+        }
         svg
           .append('g')
           .attr('class', 'excepCircles')
           .selectAll('circle')
-          .data(this.curExcepBox[0])
+          .data(exceptionPoints[0])
           .enter()
           .append('g')
           .append('circle')
@@ -991,13 +1259,13 @@ export default {
           .on('mouseover', function _nonName(d, i) {
             // 是一维的
             let curRow = 0;
-            let curColumn = that.curExcepBox[1][i][0];
+            let curColumn = exceptionPoints[1][i][0];
             // 是二维的
             if (that.oneData[3][4].length > 1) {
               // eslint-disable-next-line
-              curRow = that.curExcepBox[1][i][0];
+              curRow = exceptionPoints[1][i][0];
               // eslint-disable-next-line
-              curColumn = that.curExcepBox[1][i][1];
+              curColumn = exceptionPoints[1][i][1];
             }
             that.setRectCurInfo([
               that.myOneData[0],
@@ -1015,12 +1283,7 @@ export default {
       if (this.curStepIndex === idx) return;
       this.drawRectFinished = false;
       this.curStepIndex = idx;
-      const param = {
-        run: this.myOneData[0],
-        tag: this.myOneData[1],
-        step: this.myAllStep[idx],
-        index: this.index,
-      };
+      const param = { step: this.myAllStep[idx] };
       this.fetchOneData(param);
     },
     getOneStepBoxData(flag, value, idx) {
@@ -1105,17 +1368,17 @@ export default {
       // 异常点有数据后,颜色矩阵边界高亮
       if (this.curExcepBox.length) {
         const n = this.myOneData[3][0][0];
-        // const m = this.myOneData[3][0][1];
-        const rectWidth = 10 * this.rectScale;
-        const rectHeight = 10 * this.rectScale;
+        const rectWidth = this.rectMinWidth * this.rectScale;
+        const rectHeight = this.rectMinHeight * this.rectScale;
         const excepCanvas = document.getElementById(this.excepCanvasId);
         const excepCanvas2d = excepCanvas.getContext('2d');
-        for (let k = 0; k < this.curExcepBox[0].length; k += 1) {
-          let leftX = this.curExcepBox[1][k][0] * rectWidth;
+        const curExcepBoxData = this.curExcepBox[1];
+        for (let k = 0, len = this.curExcepBox[0].length; k < len; k += 1) {
+          let leftX = curExcepBoxData[k][0] * rectWidth;
           let leftY = 0;
           if (n !== 1) {
-            leftX = this.curExcepBox[1][k][1] * rectWidth;
-            leftY = this.curExcepBox[1][k][0] * rectHeight;
+            leftX = curExcepBoxData[k][1] * rectWidth;
+            leftY = curExcepBoxData[k][0] * rectHeight;
           }
           excepCanvas2d.beginPath();
           excepCanvas2d.moveTo(leftX, leftY);
@@ -1139,77 +1402,22 @@ export default {
   },
 };
 </script>
-
-<style lang="less" scoped>
-.exceptionContainer {
-  margin: 1%;
+<style>
+.exceptionContainer .el-scrollbar__thumb:hover {
+  background-color: #b0b6e6;
 }
 
-.excepContainerHead1,
-.excepContainerHead2 {
-  display: flex;
-  height: 30px;
-  padding-left: 1%;
-  margin-bottom: 1%;
-  line-height: 30px;
-  color: white;
-  text-align: left;
-  border-radius: 3px;
+.exceptionContainer .el-scrollbar__thumb {
+  background-color: #b0b6e6;
 }
 
-.excepContainerHead1 {
-  background-color: rgba(104, 101, 182, 0.8);
-}
-
-.excepContainerHead2 {
-  background-color: rgba(104, 101, 182, 1);
-}
-
-.curStep {
-  margin-left: 5%;
-}
-
-.excepContainerContent {
-  padding: 1%;
-}
-
-.excepRectLegend {
-  height: 410px;
-}
-
-@media screen and (max-width: 1600px) {
-  .excepRectLegend {
-    height: 330px;
-  }
-}
-
-@media screen and (max-width: 1300px) {
-  .excepRectLegend {
-    height: 280px;
-  }
-}
-
-@media screen and (max-width: 1000px) {
-  .excepRectLegend {
-    height: 250px;
-  }
-}
-
-.exceptionContainer /deep/ .el-card__body {
+.exceptionContainer .el-card__body {
   height: 100%;
   padding: 0;
 }
 
-/* 隐藏原生滑动轴并修改el-scroll颜色 */
-.excepRectDiv /deep/ .el-scrollbar__wrap {
+/* 隐藏原生滑动轴 */
+.excepRectDiv .el-scrollbar__wrap {
   overflow: hidden;
-}
-
-.exceptionContainer /deep/ .el-scrollbar__thumb {
-  background-color: #b0b6e6;
-}
-
-.exceptionContainer /deep/ .el-scrollbar__thumb:hover {
-  background-color: #b0b6e6;
 }
 </style>

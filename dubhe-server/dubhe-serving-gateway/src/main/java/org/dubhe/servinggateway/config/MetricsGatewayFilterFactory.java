@@ -24,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.dubhe.biz.base.constant.NumberConstant;
 import org.dubhe.biz.base.exception.BusinessException;
+import org.dubhe.biz.log.enums.LogEnum;
+import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.servinggateway.constant.GatewayConstant;
 import org.reactivestreams.Publisher;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -120,20 +122,25 @@ public class MetricsGatewayFilterFactory extends AbstractGatewayFilterFactory<Me
                                             // 判断该请求是否为推理请求
                                             boolean isInference = exchange.getRequest().getPath().toString().startsWith(GatewayConstant.INFERENCE_INTERFACE_NAME);
                                             if (isInference) {
+                                                LogUtil.info(LogEnum.SERVING_GATEWAY, "Begin deal inference request filter");
                                                 // 调用请求是否成功
                                                 boolean callFailed = !HttpStatus.OK.equals(serverHttpResponse.getStatusCode());
 
                                                 // 获取路由配置
                                                 Route route = exchange.getAttribute(GATEWAY_ROUTE_ATTR);
                                                 if(route == null){
+                                                    LogUtil.error(LogEnum.SERVING_GATEWAY,"路由配置不能为空");
                                                     throw  new BusinessException("路由配置不能为空");
                                                 }
+
                                                 // 利用redis对接口调用进行计数
                                                 Map<String, Object> metadata = route.getMetadata();
                                                 String metricsKey = GatewayConstant.INFERENCE_METRICS_PREFIX + metadata.get("servingConfigId");
                                                 redisTemplate.opsForHash().increment(metricsKey, GatewayConstant.INFERENCE_CALL_COUNT, NumberConstant.NUMBER_1);
                                                 if (callFailed) {
+                                                    LogUtil.error(LogEnum.SERVING_GATEWAY, "Serving inference called failed");
                                                     redisTemplate.opsForHash().increment(metricsKey, GatewayConstant.INFERENCE_FAILED_COUNT, NumberConstant.NUMBER_1);
+                                                    throw new BusinessException("调用服务失败，调用返回：" + serverHttpResponse.getStatusCode());
                                                 } else {
                                                     boolean isJsonResponse = true;
                                                     JSONObject inferenceResult = null;
@@ -145,9 +152,12 @@ public class MetricsGatewayFilterFactory extends AbstractGatewayFilterFactory<Me
                                                     // 请求非JSON或请求失败则算作调用失败
                                                     if (!isJsonResponse || Objects.isNull(inferenceResult) ||
                                                             !Boolean.TRUE.equals(inferenceResult.getBoolean(GatewayConstant.SUCCESS))) {
+                                                        LogUtil.error(LogEnum.SERVING_GATEWAY, "Serving inference result JSON parse failed");
                                                         redisTemplate.opsForHash().increment(metricsKey, GatewayConstant.INFERENCE_FAILED_COUNT, NumberConstant.NUMBER_1);
+                                                        throw new BusinessException("调用服务失败");
                                                     }
                                                 }
+                                                LogUtil.info(LogEnum.SERVING_GATEWAY, "Deal inference request filter Done");
                                             }
                                         })
                         );

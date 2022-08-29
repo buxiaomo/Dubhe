@@ -63,7 +63,6 @@ public class ModelInfoTest extends BaseTest {
         ptModelInfoCreateDTO.setName("untilTestingCreateTest")
                 .setFrameType(1)
                 .setModelType(1)
-                .setModelClassName("测试")
                 .setModelDescription("untilTestingCreateTest");
         mockMvcTest(MockMvcRequestBuilders.post("/api/ptModelInfo"), JSON.toJSONString(ptModelInfoCreateDTO), MockMvcResultMatchers.status().isOk(), 200);
     }
@@ -80,7 +79,6 @@ public class ModelInfoTest extends BaseTest {
                 .setName("untilTestingUpdateTest" + System.currentTimeMillis())
                 .setFrameType(1)
                 .setModelType(1)
-                .setModelClassName("测试")
                 .setModelDescription("untilTestingUpdateTest");
         mockMvcTest(MockMvcRequestBuilders.put("/api/ptModelInfo"), JSON.toJSONString(ptModelInfoUpdateDTO), MockMvcResultMatchers.status().isOk(), 200);
     }

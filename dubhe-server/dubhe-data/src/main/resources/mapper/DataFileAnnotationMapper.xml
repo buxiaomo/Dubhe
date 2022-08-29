@@ -74,6 +74,7 @@
             </otherwise>
         </choose>
         #{versionName}
+        and dfa.deleted != 1
         group by dfa.version_file_id
         limit #{offset}, #{limit}
     </select>

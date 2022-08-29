@@ -20,6 +20,7 @@ import org.dubhe.biz.base.dto.TrainAlgorithmSelectAllBatchIdDTO;
 import org.dubhe.biz.base.dto.TrainAlgorithmSelectAllByIdDTO;
 import org.dubhe.biz.base.dto.TrainAlgorithmSelectByIdDTO;
 import org.dubhe.biz.base.vo.DataResponseBody;
+import org.dubhe.biz.base.vo.TrainAlgorithmQureyVO;
 import org.dubhe.biz.dataresponse.factory.DataResponseFactory;
 import org.dubhe.train.client.AlgorithmClient;
 
@@ -42,5 +43,10 @@ public class AlgorithmClientFallback implements AlgorithmClient {
     @Override
     public DataResponseBody selectAllBatchIds(TrainAlgorithmSelectAllBatchIdDTO trainAlgorithmSelectAllBatchIdDTO) {
         return DataResponseFactory.failed("call dubhe-algorithm server selectAllBatchIds error");
+    }
+
+    @Override
+    public DataResponseBody<TrainAlgorithmQureyVO> findAlgorithmByName(String name) {
+        return DataResponseFactory.failed("call dubhe-algorithm server findAlgorithmByName error");
     }
 }

@@ -6,7 +6,7 @@ spring:
     # 邮件的发送者 163邮箱(开发测试时使用 发送延时 20秒，每天发送量限制 50)
     username: dubhe_ai@163.com
     # SMTP授权密码
-    password: password
+    password: DOZXSADOUDXWGVUW
     protocol: smtp
     properties.mail.smtp.auth: true
     properties.mail.smtp.port: 465 #465或者994
@@ -16,7 +16,7 @@ spring:
     default-encoding: utf-8
   redis:
     #数据库索引
-    database: 0
+    database: 4
     host: 127.0.0.1
     port: 6379
     password:
@@ -123,7 +123,7 @@ feign:
 
 #配置harbor
 harbor:
-  address: harbor.dubhe.com
+  address: harbor.dubhe.ai
   username: admin
   password: Harbor12345
   model-name: train

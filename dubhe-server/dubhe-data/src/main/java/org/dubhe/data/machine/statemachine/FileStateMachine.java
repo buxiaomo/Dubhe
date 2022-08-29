@@ -257,7 +257,7 @@ public class FileStateMachine extends AbstractFileState implements Serializable 
     @Override
     public void doFinishAutoAnnotationInfoIsEmptyBatchEvent(HashSet<Long> filesId, Long datasetId, String versionName) {
         initMemoryFileListState(filesId, datasetId, versionName);
-        if (memoryFileState != notAnnotationFileState) {
+        if (memoryFileState != notAnnotationFileState && memoryFileState != annotationNotDistinguishFileState) {
             LogUtil.error(LogEnum.BIZ_DATASET,"doFinishAutoAnnotationInfoIsEmptyBatchEvent fail"+filesId+memoryFileState);
             throw new StateMachineException(ErrorMessageConstant.FILE_CHANGE_ERR_MESSAGE);
         }

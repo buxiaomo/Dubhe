@@ -57,13 +57,13 @@ public class PtTrainParamUpdateDTO extends BaseImageDTO {
     @Min(value = MagicNumConstant.ONE, message = "算法id不能小于1")
     private Long algorithmId;
 
-    @ApiModelProperty("算法用途，输入长度不能超过128个字符")
-    @Length(max = MagicNumConstant.ONE_HUNDRED_TWENTY_EIGHT, message = "算法用途-输入长度不能超过128个字符")
-    private String algorithmUsage;
+    @ApiModelProperty("数据集类型，输入长度不能超过128个字符")
+    @Length(max = MagicNumConstant.ONE_HUNDRED_TWENTY_EIGHT, message = "数据集类型-输入长度不能超过128个字符")
+    private String datasetType;
 
-    @ApiModelProperty("验证数据集算法用途，输入长度不能超过128个字符")
-    @Length(max = MagicNumConstant.ONE_HUNDRED_TWENTY_EIGHT, message = "验证数据集算法用途-输入长度不能超过128个字符")
-    private String valAlgorithmUsage;
+    @ApiModelProperty("验证数据集类型，输入长度不能超过128个字符")
+    @Length(max = MagicNumConstant.ONE_HUNDRED_TWENTY_EIGHT, message = "验证数据集类型-输入长度不能超过128个字符")
+    private String valDatasetType;
 
     @ApiModelProperty(value = "运行命令,输入长度不能超过128个字符", required = true)
     @NotBlank(message = "运行命令不能为空")
@@ -80,6 +80,9 @@ public class PtTrainParamUpdateDTO extends BaseImageDTO {
 
     @ApiModelProperty("运行参数(算法来源为我的算法时为调优参数，算法来源为预置算法时为运行参数)")
     private JSONObject runParams;
+
+    @ApiModelProperty("系统运行参数映射关系")
+    private JSONObject runParamsNameMap;
 
     @ApiModelProperty(value = "类型(0为CPU，1为GPU)", required = true)
     @Min(value = MagicNumConstant.ZERO, message = "类型错误")
@@ -102,7 +105,7 @@ public class PtTrainParamUpdateDTO extends BaseImageDTO {
 
     @ApiModelProperty(value = "训练类型 0：普通训练，1：分布式训练")
     @Min(value = MagicNumConstant.ZERO, message = "训练类型错误")
-    @Max(value = MagicNumConstant.ONE, message = "训练类型错误")
+    @Max(value = MagicNumConstant.THREE, message = "训练类型错误")
     private Integer trainType;
 
     @ApiModelProperty(value = "节点个数")

@@ -19,12 +19,12 @@ import { Scalars, ScalarsPanel } from '@/views/visual/Visual/scalars';
 import { Medias, MediasPanel } from '@/views/visual/Visual/medias';
 import { Graphs, GraphsPanel } from '@/views/visual/Visual/graphs';
 import { Hyperparms, HyperparmsPanel } from '@/views/visual/Visual/hyperparms';
-import { Features, FeaturesPanel } from '@/views/visual/Visual/features';
 import { Customs, CustomsPanel } from '@/views/visual/Visual/customs';
 import { Statistics, StatisticsPanel } from '@/views/visual/Visual/statistics';
-import { ROCs, ROCsPanel } from '@/views/visual/Visual/rocs';
 import { Embeddings, EmbeddingsPanel } from '@/views/visual/Visual/embeddings';
 import { Exception, ExceptionPanel } from '@/views/visual/Visual/exception';
+import { Transformer, TransformerPanel } from '@/views/visual/Visual/transformer';
+import { HiddenState, HiddenStatePanel } from '@/views/visual/Visual/hiddenstate';
 
 const constantRoutes = [
   {
@@ -77,8 +77,6 @@ const constantRoutes = [
     children: [
       {
         path: 'graph',
-        name: 'Graph',
-        meta: { title: '可视分析-模型结构' },
         components: {
           default: Graphs,
           right: GraphsPanel,
@@ -86,8 +84,6 @@ const constantRoutes = [
       },
       {
         path: 'scalar',
-        name: 'Scalar',
-        meta: { title: '可视分析-标量数据' },
         components: {
           default: Scalars,
           right: ScalarsPanel,
@@ -95,8 +91,6 @@ const constantRoutes = [
       },
       {
         path: 'media',
-        name: 'Media',
-        meta: { title: '可视分析-媒体数据' },
         components: {
           default: Medias,
           right: MediasPanel,
@@ -104,8 +98,6 @@ const constantRoutes = [
       },
       {
         path: 'statistic',
-        name: 'Statistic',
-        meta: { title: '可视分析-统计分析' },
         components: {
           default: Statistics,
           right: StatisticsPanel,
@@ -113,35 +105,13 @@ const constantRoutes = [
       },
       {
         path: 'embedding',
-        name: 'Embedding',
-        meta: { title: '可视分析-降维分析' },
         components: {
           default: Embeddings,
           right: EmbeddingsPanel,
         },
       },
       {
-        path: 'feature',
-        name: 'Feature',
-        meta: { title: '可视分析-特征分析' },
-        components: {
-          default: Features,
-          right: FeaturesPanel,
-        },
-      },
-      {
-        path: 'roc',
-        name: 'Roc',
-        meta: { title: '可视分析-评测曲线' },
-        components: {
-          default: ROCs,
-          right: ROCsPanel,
-        },
-      },
-      {
         path: 'hyperparm',
-        name: 'Hyperparm',
-        meta: { title: '可视分析-超参分析' },
         components: {
           default: Hyperparms,
           right: HyperparmsPanel,
@@ -149,17 +119,27 @@ const constantRoutes = [
       },
       {
         path: 'exception',
-        name: 'Exception',
-        meta: { title: '可视分析-异常检测' },
         components: {
           default: Exception,
           right: ExceptionPanel,
         },
       },
       {
+        path: 'transformer',
+        components: {
+          default: Transformer,
+          right: TransformerPanel,
+        },
+      },
+      {
+        path: 'hiddenstate',
+        components: {
+          default: HiddenState,
+          right: HiddenStatePanel,
+        },
+      },
+      {
         path: 'custom',
-        name: 'Custom',
-        meta: { title: '可视分析-用户定制' },
         components: {
           default: Customs,
           right: CustomsPanel,

@@ -18,6 +18,7 @@
 package org.dubhe.data.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.apache.ibatis.annotations.Param;
 import org.dubhe.data.domain.bo.FileUploadBO;
 import org.dubhe.data.domain.dto.DatasetVersionFileDTO;
 import org.dubhe.data.domain.entity.Dataset;
@@ -118,6 +119,16 @@ public interface DatasetVersionFileService {
      * @return DatasetVersionFile 版本首张图片
      */
     DatasetVersionFile getFirstByDatasetIdAndVersionNum(Long datasetId, String versionName, Collection<Integer> status);
+
+    /**
+     * 获取指定状态集下文件数量
+     *
+     * @param datasetId  数据集id
+     * @param versionName 版本名称
+     * @param status 状态
+     * @return
+     */
+    Integer getFileCountByDatasetIdAndAnnotationStatus(Long datasetId, String versionName, Collection<Integer> status);
 
     /**
      * 根据版本列表中的文件id获取文件列表
@@ -350,4 +361,18 @@ public interface DatasetVersionFileService {
      * @return List<FileUploadBO>
      */
     List<FileUploadBO> getFileUploadContent(Long datasetId, List<Long> fileIds);
+
+    Long getVersionFileCountByStatusVersionAndLabelId(Long datasetId,
+                                                      Set<Integer> annotationStatus,
+                                                      String versionName,
+                                                      List<Long> labelIds);
+
+
+    /**
+     * 删除旧标注信息
+     *
+     * @param datasetId         数据集id
+     * @param fileId            文件id
+     */
+    void deleteByFileId(Long datasetId,Long fileId);
 }

@@ -254,14 +254,6 @@ public class DatasetVersionFileServiceImpl extends ServiceImpl<DatasetVersionFil
     @Override
     public List<DatasetVersionFileDTO> getListByDatasetIdAndAnnotationStatus(Long datasetId, String versionName, Integer[] status, Long offset, Integer limit, String orderByName, String order, Long[] labelId) {
         order = Objects.isNull(order) ? "asc" : order;
-        Set<Integer> objects = new HashSet<>();
-        if(ArrayUtil.isEmpty(status)){
-            objects = FileTypeEnum.getStatus(NumberConstant.NUMBER_0);
-        } else {
-            for(Integer sta : status){
-                objects.addAll(FileTypeEnum.getStatus(sta));
-            }
-        }
         Dataset oneById = datasetService.getOneById(datasetId);
         List<DataFileAnnotation> labelIdByDatasetIdAndVersionId = new ArrayList<>();
         if(!ArrayUtils.isEmpty(labelId) || (DatatypeEnum.AUDIO.getValue().equals(oneById.getDataType()) &&
@@ -273,11 +265,12 @@ public class DatasetVersionFileServiceImpl extends ServiceImpl<DatasetVersionFil
             }
         }
         List<DatasetVersionFileDTO> idByDatasetIdAndAnnotationStatus = datasetVersionFileMapper.getIdByDatasetIdAndAnnotationStatus(
-                datasetId, versionName, objects, orderByName, offset, limit, order, labelIdByDatasetIdAndVersionId,oneById.getAnnotateType());
+                datasetId, versionName, status==null?null:new HashSet<Integer>(Arrays.asList(status)),
+                orderByName, offset, limit, order, labelIdByDatasetIdAndVersionId,oneById.getAnnotateType());
         for(int i=0;i<labelIdByDatasetIdAndVersionId.size();i++){
             for (int j=0;j<idByDatasetIdAndAnnotationStatus.size();j++){
                 if(idByDatasetIdAndAnnotationStatus.get(j).getId().equals(labelIdByDatasetIdAndVersionId.get(i).getVersionFileId())){
-                    idByDatasetIdAndAnnotationStatus.get(j).setLabelId(labelIdByDatasetIdAndVersionId.get(i).getLabelId());
+                    idByDatasetIdAndAnnotationStatus.get(j).setLabelId(new Long[]{labelIdByDatasetIdAndVersionId.get(i).getLabelId()});
                     idByDatasetIdAndAnnotationStatus.get(j).setPrediction(labelIdByDatasetIdAndVersionId.get(i).getPrediction());
                 }
             }
@@ -295,6 +288,13 @@ public class DatasetVersionFileServiceImpl extends ServiceImpl<DatasetVersionFil
      */
     @Override
     public DatasetVersionFile getFirstByDatasetIdAndVersionNum(Long datasetId, String versionName, Collection<Integer> status) {
+        QueryWrapper<DatasetVersionFile> queryWrapper = buildQueryWrapperWithDatasetIdVersionNameAndStatus(datasetId, versionName, status);
+        queryWrapper.orderByAsc("id");
+        queryWrapper.last(" limit 1");
+        return baseMapper.selectOne(queryWrapper);
+    }
+
+    public QueryWrapper<DatasetVersionFile> buildQueryWrapperWithDatasetIdVersionNameAndStatus(Long datasetId, String versionName, Collection<Integer> status) {
         QueryWrapper<DatasetVersionFile> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("dataset_id", datasetId);
         if (!CollectionUtils.isEmpty(status)) {
@@ -303,9 +303,14 @@ public class DatasetVersionFileServiceImpl extends ServiceImpl<DatasetVersionFil
         if (StringUtils.isNotEmpty(versionName)) {
             queryWrapper.eq("version_name", versionName);
         }
-        queryWrapper.orderByAsc("id");
-        queryWrapper.last(" limit 1");
-        return baseMapper.selectOne(queryWrapper);
+        queryWrapper.ne("status",MagicNumConstant.ONE);
+        return queryWrapper;
+    }
+
+    @Override
+    public Integer getFileCountByDatasetIdAndAnnotationStatus(Long datasetId, String versionName, Collection<Integer> status) {
+        QueryWrapper<DatasetVersionFile> queryWrapper = buildQueryWrapperWithDatasetIdVersionNameAndStatus(datasetId, versionName, status);
+        return baseMapper.selectCount(queryWrapper);
     }
 
     /**
@@ -731,5 +736,36 @@ public class DatasetVersionFileServiceImpl extends ServiceImpl<DatasetVersionFil
     @Override
     public List<FileUploadBO> getFileUploadContent(Long datasetId, List<Long> fileIds) {
         return baseMapper.getFileUploadContent(datasetId,fileIds);
+    }
+
+    @Override
+    public Long getVersionFileCountByStatusVersionAndLabelId(Long datasetId, Set<Integer> annotationStatus, String versionName, List<Long> labelIds) {
+        List<Long> versionId = null;
+        if(CollectionUtil.isNotEmpty(labelIds)){
+            Long[] labelArr = new Long[labelIds.size()];
+            labelIds.toArray(labelArr);
+            versionId = baseMapper.findByDatasetIdAndVersionNameAndStatus(datasetId, versionName, labelArr);
+            if (CollectionUtil.isEmpty(versionId)) {
+                return 0L;
+            }
+        }
+        int count = datasetVersionFileMapper.selectFileListTotalCount(datasetId, versionName, annotationStatus, versionId);
+        return Long.valueOf(count);
+    }
+
+    /**
+     * 删除旧标注信息
+     *
+     * @param datasetId         数据集id
+     * @param fileId            文件id
+     */
+    @Override
+    public void deleteByFileId(Long datasetId, Long fileId) {
+        Dataset dataset = datasetService.getOneById(datasetId);
+        Long versionFileId = datasetVersionFileMapper.getVersionFileIdByFileName(datasetId, fileService.get(fileId, datasetId).getName()
+                , dataset.getCurrentVersionName());
+        QueryWrapper<DataFileAnnotation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.lambda().eq(DataFileAnnotation::getDatasetId, datasetId).eq(DataFileAnnotation::getVersionFileId, versionFileId);
+        dataFileAnnotationServiceImpl.getBaseMapper().delete(queryWrapper);
     }
 }

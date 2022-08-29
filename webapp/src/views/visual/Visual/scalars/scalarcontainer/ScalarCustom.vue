@@ -14,6 +14,62 @@
  * =============================================================
  */
 
+<!--
+ * @Descripttion: loss
+ * @version: 1.0
+ * @Author: xds
+ * @Date: 2020-04-24 15:23:44
+ * @LastEditors: xds
+ * @LastEditTime: 2020-05-20 11:53:07
+ -->
+<style lang="less" scoped>
+.scalarcontainer {
+  width: 100%;
+  height: 100%;
+  background-color: white;
+}
+
+.scalarContainerTitle,
+.scalarContainerTitleLarge {
+  display: flex;
+  height: 30px;
+  padding: 0% 2% 0 2%;
+  line-height: 30px;
+  color: white;
+  text-align: left;
+  background-color: #9fa5fa;
+  border-radius: 2px;
+
+  .scale:hover {
+    cursor: pointer;
+  }
+
+  .titleRight {
+    margin-right: 1%;
+    margin-left: auto;
+  }
+}
+
+.scalarContainerTitle {
+  font-size: 11px;
+
+  .iconfont {
+    font-size: 11px;
+  }
+}
+
+.scalarContainerTitleLarge {
+  font-size: 16px;
+
+  .iconfont {
+    font-size: 16px;
+  }
+}
+
+.el-col {
+  margin-bottom: 20px;
+}
+</style>
 <template>
   <div class="scalarcontainer">
     <el-col :span="size">
@@ -47,6 +103,7 @@ import { Scalarchart } from './scalarchart';
 const { mapMutations: mapCustomMutations, mapGetters: mapCustomGetters } = createNamespacedHelpers(
   'Visual/custom'
 );
+const { mapGetters: mapLayoutGetters } = createNamespacedHelpers('Visual/layout');
 export default {
   components: {
     Scalarchart,
@@ -68,6 +125,49 @@ export default {
   },
   computed: {
     ...mapCustomGetters(['getScalarData']),
+    ...mapLayoutGetters(['getTimer']),
+  },
+  watch: {
+    getTimer() {
+      if (Object.keys(this.content).length === 2) {
+        this.chartdata = JSON.parse(JSON.stringify(this.content));
+        this.id = `${this.chartdata.run} ${Object.keys(this.chartdata.value)[0]}`;
+        this.info = this.id;
+        if (this.info.length > 20) {
+          this.info = `${this.info.slice(0, 17)}...`;
+        }
+        const arr = Object.keys(this.chartdata.value)[0].split('/');
+        this.ytext = arr[arr.length - 1];
+        this.classname = this.id
+          .replace(/\//g, '')
+          .replace(/\s*/g, '')
+          .replace(/\./g, '');
+      } else if (Object.keys(this.content).length === 4) {
+        this.chartdata = JSON.parse(JSON.stringify(this.content));
+        this.id = this.chartdata.title;
+        this.info = this.id;
+        if (this.info.length > 20) {
+          this.info = `${this.info.slice(0, 17)}...`;
+        }
+        const arr = this.id.split(' ', '/');
+        this.ytext = arr[arr.length - 1];
+        this.classname = this.chartname
+          .replace(/\//g, '')
+          .replace(/\s*/g, '')
+          .replace(/\./g, '');
+      } else if (Object.keys(this.content).length === 5) {
+        this.chartdata = JSON.parse(JSON.stringify(this.content));
+        this.id = this.chartdata.title;
+        this.info = this.id;
+        if (this.info.length > 20) {
+          this.info = `${this.info.slice(0, 17)}...`;
+        }
+        this.classname = this.chartname
+          .replace(/\//g, '')
+          .replace(/\s*/g, '')
+          .replace(/\./g, '');
+      }
+    },
   },
   created() {
     if (Object.keys(this.content).length === 2) {
@@ -129,52 +229,3 @@ export default {
   },
 };
 </script>
-
-<style lang="less" scoped>
-.scalarcontainer {
-  width: 100%;
-  height: 100%;
-  background-color: white;
-}
-
-.scalarContainerTitle,
-.scalarContainerTitleLarge {
-  display: flex;
-  height: 30px;
-  padding: 0% 2% 0 2%;
-  line-height: 30px;
-  color: white;
-  text-align: left;
-  background-color: #9fa5fa;
-  border-radius: 2px;
-
-  .scale:hover {
-    cursor: pointer;
-  }
-
-  .titleRight {
-    margin-right: 1%;
-    margin-left: auto;
-  }
-}
-
-.scalarContainerTitle {
-  font-size: 11px;
-
-  .iconfont {
-    font-size: 11px;
-  }
-}
-
-.scalarContainerTitleLarge {
-  font-size: 16px;
-
-  .iconfont {
-    font-size: 16px;
-  }
-}
-
-.el-col {
-  margin-bottom: 20px;
-}
-</style>

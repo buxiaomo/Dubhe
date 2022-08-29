@@ -22,8 +22,7 @@ import datetime
 
 
 def isExpired(value):
-    return not value - time.time() >= 0
-
+    return time.time() >= value
 
 def monitoring():
     keys = RedisInstance.keys("*is_alive")
@@ -42,4 +41,4 @@ if __name__ == "__main__":
     print("Monitoring whether users are active")
     while True:
         monitoring()
-        time.sleep(60)
+        time.sleep(3)

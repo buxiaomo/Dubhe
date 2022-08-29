@@ -506,6 +506,7 @@ public class LabelServiceImpl extends ServiceImpl<LabelMapper, Label> implements
                 new LambdaQueryWrapper<DataFileAnnotation>() {{
                     eq(DataFileAnnotation::getDatasetId, labelDeleteDTO.getDatasetId());
                     eq(DataFileAnnotation::getLabelId, labelDeleteDTO.getLabelId());
+                    ne(DataFileAnnotation::getStatus, NumberConstant.NUMBER_1);
                 }}.last(" limit " + NumberConstant.NUMBER_0 + ", " + NumberConstant.NUMBER_1)
         );
         if (!CollectionUtils.isEmpty(dataFileAnnotations)){

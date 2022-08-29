@@ -47,7 +47,11 @@
         <el-radio :label="ALGORITHM_RESOURCE_ENUM.PRESET" border>预置算法</el-radio>
       </el-radio-group>
     </el-form-item>
-    <el-form-item v-show="!isFork && !isServing" label="支持推理" prop="inference">
+    <el-form-item
+      v-show="!isFork && !isServing && formType !== 'add'"
+      label="支持推理"
+      prop="inference"
+    >
       <el-switch id="inference" v-model="form.inference" @change="onInferenceChange" />
     </el-form-item>
     <el-form-item v-show="!form.inference" label="模型类别" prop="algorithmUsage">
@@ -57,26 +61,18 @@
         placeholder="请选择或输入模型类别"
         filterable
         clearable
-        allow-create
-        @change="onAlgorithmUsageChange"
       >
         <el-option
-          v-for="item in algorithmUsageList"
+          v-for="item in modelTypeList"
           :key="item.id"
-          :label="item.auxInfo"
-          :value="item.auxInfo"
+          :label="item.label"
+          :value="item.value"
         >
-          <span style="float: left;">{{ item.auxInfo }}</span>
-          <el-button
-            v-if="!item.isDefault"
-            class="select-del-btn"
-            type="text"
-            @click.stop="delAlgorithmUsage(item)"
-            ><i class="el-icon-close"
-          /></el-button>
+          <span style="float: left;">{{ item.label }}</span>
         </el-option>
       </el-select>
     </el-form-item>
+
     <el-form-item v-show="formType !== 'fork'" ref="codeDirRef" label="上传代码包" prop="codeDir">
       <upload-inline
         ref="uploadRef"
@@ -141,53 +137,32 @@
           style="max-width: 500px;"
         />
       </el-form-item>
-      <!--运行参数-->
-      <RunParamForm
-        ref="runParamCompRef"
-        :run-param-obj="form.runParams || {}"
-        prop="runParams"
-        param-label-width="120px"
-        class="w120"
-        @updateRunParams="updateRunParams"
-      />
     </template>
     <el-form-item v-show="!form.inference" label="文件输出" prop="isTrainOut">
       <el-switch id="isTrainOut" v-model="form.isTrainOut" />
+      <span class="switch-tips">
+        该算法若支持文件输出，请打开此开关
+      </span>
     </el-form-item>
     <el-form-item v-show="!form.inference" label="可视化日志" prop="isVisualizedLog">
       <el-switch id="isVisualizedLog" v-model="form.isVisualizedLog" />
-    </el-form-item>
-    <div class="ts-tip">
-      <ol v-show="!form.inference">
-        <li>请确保代码中包含“train_model_out”参数用于接收训练的模型输出路径</li>
-        <li>如需传入训练数据集，请确保代码中包含“data_url”参数用于传输训练数据集路径</li>
-        <li>如需传入验证数据集，请确保代码中包含“val_data_url”参数用于传输验证数据集路径</li>
-        <li>
-          如需断点续训或加载已有模型，请确保代码中包含“model_load_dir”参数用于接收训练模型路径
-        </li>
-        <li>如需文件输出，请确保代码中包含“train_out”参数用于接收文件输出路径</li>
-        <li>
-          如需训练过程可视化，请确保代码中包含“train_visualized_log”参数用于接收训练的可视化日志路径，目前仅支持
-          OneFlow 框架
-        </li>
-        <li>
-          如需使用分布式训练，请确保代码中包含“num_nodes”参数和“node_ips”参数用于接收分布式相关参数
-        </li>
-        <li>
-          如需使用 GPU
-          训练，请确保代码中包含“gpu_num_per_node”参数接收相关参数，后台将自动获取并填充
-        </li>
-      </ol>
-      <span v-show="form.inference">
-        推理脚本模板详见<el-link type="primary" target="_blank" :href="docUrl">文档</el-link>
+      <span class="switch-tips">
+        该算法若支持训练过程可视化，请打开此开关
       </span>
-    </div>
+    </el-form-item>
+    <el-form-item v-show="!form.inference" label="模型输出" prop="isTrainModelOut">
+      <el-switch id="isTrainModelOut" v-model="form.isTrainModelOut" />
+      <span class="switch-tips">
+        该算法若支持训练模型输出，请打开此开关
+      </span>
+    </el-form-item>
   </el-form>
 </template>
 
 <script>
-import { computed, reactive, ref, toRefs } from '@vue/composition-api';
+import { inject, computed, reactive, ref, toRefs } from '@vue/composition-api';
 import { Message } from 'element-ui';
+import { modelTypeSymbol } from '@/utils/constant';
 
 import {
   validateNameWithHyphen,
@@ -199,16 +174,10 @@ import {
 } from '@/utils';
 import UploadInline from '@/components/UploadForm/inline';
 import UploadProgress from '@/components/UploadProgress';
-import RunParamForm from '@/components/Training/runParamForm';
 import { useMapGetters } from '@/hooks';
 import { algorithmConfig } from '@/config';
-import {
-  list as getAlgoUsages,
-  add as addAlgoUsage,
-  del as deleteAlgoUsage,
-} from '@/api/algorithm/algorithmUsage';
 import { getImageNameList, getImageTagList } from '@/api/trainingImage';
-import { IMAGE_PROJECT_TYPE } from '@/views/trainingJob/utils';
+import { IMAGE_TYPE } from '@/views/trainingJob/utils';
 
 const defaultForm = {
   id: null,
@@ -220,12 +189,11 @@ const defaultForm = {
   description: null,
   codeDir: null,
   runCommand: null,
-  runParams: {},
   accuracy: null,
   p4InferenceSpeed: null,
-  isTrainOut: true,
+  isTrainOut: false,
   isTrainModelOut: true,
-  isVisualizedLog: true,
+  isVisualizedLog: false,
   inference: false,
   fork: false,
 };
@@ -235,7 +203,6 @@ export default {
   components: {
     UploadInline,
     UploadProgress,
-    RunParamForm,
   },
   props: {
     formType: {
@@ -246,7 +213,6 @@ export default {
   setup(props) {
     // 状态
     const state = reactive({
-      algorithmUsageList: [], // 算法用途列表
       imageNameList: [], // 镜像名列表
       imageTagList: [], // 镜像版本列表
       uploading: false, // 上传算法 Loading
@@ -256,6 +222,11 @@ export default {
         objectPath: null, // 对象存储路径
       },
     });
+    const modelTypeList = inject(modelTypeSymbol);
+    for (const item of modelTypeList.value) {
+      item.value = item.value.toString();
+    }
+
     // store
     const { user, isAdmin } = useMapGetters(['user', 'isAdmin']);
     // computed
@@ -270,16 +241,13 @@ export default {
     const formRef = ref(null);
     const uploadRef = ref(null);
     const codeDirRef = ref(null);
-    const runParamCompRef = ref(null);
     // 表单
     const form = reactive({
       ...defaultForm,
-      runParams: {},
     });
     const assignForm = (newForm = {}) => {
       Object.assign(form, newForm);
     };
-    let runParamObj = {};
     // rules
     const rules = {
       algorithmName: [
@@ -308,33 +276,10 @@ export default {
       ],
     };
 
-    // 表单列表数据
-    // 算法用途
-    const getAlgorithmUsages = () => {
-      getAlgoUsages({
-        isContainDefault: true,
-        current: 1,
-        size: 1000,
-      }).then((res) => {
-        state.algorithmUsageList = res.result;
-      });
-    };
-    const createAlgorithmUsage = async (auxInfo) => {
-      await addAlgoUsage({ auxInfo });
-      getAlgorithmUsages();
-    };
-    const delAlgorithmUsage = async (usage) => {
-      await deleteAlgoUsage({ ids: [usage.id] });
-      if (form.algorithmUsage === usage.auxInfo) {
-        form.algorithmUsage = null;
-      }
-      getAlgorithmUsages();
-    };
     // 镜像选择
     // 获取镜像版本列表
     const getImageTags = async (imageName, keepValue = false) => {
       state.imageTagList = await getImageTagList({
-        projectType: IMAGE_PROJECT_TYPE.TRAIN,
         imageName,
       });
       if (keepValue && form.imageTag && !state.imageTagList.includes(form.imageTag)) {
@@ -344,7 +289,7 @@ export default {
     };
     // 获取镜像名列表
     const getImageNames = async (keepValue = false) => {
-      state.imageNameList = await getImageNameList({ projectTypes: [IMAGE_PROJECT_TYPE.TRAIN] });
+      state.imageNameList = await getImageNameList({ imageTypes: [IMAGE_TYPE.TRAIN] });
       if (!keepValue || !form.imageName) {
         form.imageTag = null;
       } else if (!state.imageNameList.includes(form.imageName)) {
@@ -358,18 +303,12 @@ export default {
     // Handler
     const onAlgorithmSourceChange = () => {
       form.runCommand = null;
-      runParamObj = {};
     };
     const onInferenceChange = () => {
       uploadRef.value.formRef.reset();
       form.codeDir = null;
     };
-    const onAlgorithmUsageChange = (value) => {
-      const usageRes = state.algorithmUsageList.find((usage) => usage.auxInfo === value);
-      if (value && !usageRes) {
-        createAlgorithmUsage(value);
-      }
-    };
+
     const onImageNameChange = (imageName) => {
       form.imageTag = null;
       if (imageName) {
@@ -378,9 +317,7 @@ export default {
       }
       state.imageTagList = [];
     };
-    const updateRunParams = (params) => {
-      runParamObj = params;
-    };
+
     // 上传事件处理
     const updateObjectPath = () => {
       state.uploadParams.objectPath = `upload-temp/${user.id}/${getUniqueId()}`;
@@ -415,7 +352,6 @@ export default {
     // 入口方法
     const initForm = (newForm = {}) => {
       assignForm(newForm);
-      getAlgorithmUsages();
       updateObjectPath();
       // 只能 Fork 为我的算法，因此不需要获取镜像列表
       if (!isFork.value) {
@@ -426,7 +362,6 @@ export default {
     const resetForm = () => {
       assignForm({
         ...defaultForm,
-        runParams: {},
       });
       uploadRef.value.formRef.reset();
     };
@@ -436,15 +371,6 @@ export default {
       formRef.value.validate((isValid) => {
         valid = valid && isValid;
       });
-      if (form.algorithmSource === ALGORITHM_RESOURCE_ENUM.PRESET && !form.inference) {
-        const runParamValid = runParamCompRef.value.validate();
-        if (!runParamValid) {
-          Message.warning('运行参数不合法');
-        } else {
-          form.runParams = { ...runParamObj };
-        }
-        valid = valid && runParamValid;
-      }
       if (valid) {
         if (typeof resolve === 'function') {
           return resolve(form);
@@ -463,6 +389,7 @@ export default {
       uploadSizeFomatter,
       uploadFilters: [invalidFileNameChar],
       defaultProcessColors,
+      modelTypeList,
 
       ...toRefs(state),
       isAdmin,
@@ -474,17 +401,12 @@ export default {
       formRef,
       uploadRef,
       codeDirRef,
-      runParamCompRef,
       form,
       rules,
 
-      delAlgorithmUsage,
-
       onAlgorithmSourceChange,
       onInferenceChange,
-      onAlgorithmUsageChange,
       onImageNameChange,
-      updateRunParams,
       onFileRemove,
       uploadStart,
       onSetProgress,
@@ -514,5 +436,11 @@ export default {
 
 .fork-tip {
   margin: -10px 0 10px;
+}
+
+.switch-tips {
+  padding-left: 30px;
+  font-size: 10px;
+  color: #999;
 }
 </style>

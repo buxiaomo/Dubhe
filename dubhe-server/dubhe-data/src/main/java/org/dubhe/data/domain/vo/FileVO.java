@@ -70,7 +70,7 @@ public class FileVO implements Serializable {
     private Double prediction;
 
     @ApiModelProperty("标注ID")
-    private Long labelId;
+    private Long[] labelId;
 
     @ApiModelProperty("摘要名称")
     private String abstractName;

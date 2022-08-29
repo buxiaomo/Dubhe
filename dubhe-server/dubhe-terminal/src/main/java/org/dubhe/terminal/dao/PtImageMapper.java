@@ -18,6 +18,7 @@
 package org.dubhe.terminal.dao;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Insert;
 import org.dubhe.terminal.domain.entity.PtImage;
 
 
@@ -26,4 +27,12 @@ import org.dubhe.terminal.domain.entity.PtImage;
  * @date 2020-04-27
  */
 public interface PtImageMapper extends BaseMapper<PtImage> {
+    /**
+     * 添加镜像与镜像用途映射
+     *
+     * @param imageId 镜像ID
+     * @param imageType 镜像用途
+     */
+    @Insert("insert into pt_image_type values (#{imageId}, #{imageType})")
+    void insertImageType(Long imageId, int imageType);
 }

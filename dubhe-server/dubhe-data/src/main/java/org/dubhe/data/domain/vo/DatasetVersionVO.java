@@ -24,6 +24,7 @@ import org.dubhe.biz.base.vo.ProgressVO;
 import org.dubhe.data.domain.entity.Dataset;
 import org.dubhe.data.domain.entity.DatasetVersion;
 
+import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.Date;
 
@@ -72,6 +73,8 @@ public class DatasetVersionVO implements Serializable {
     private Boolean presetFlag;
     @ApiModelProperty("是否生成ofRecord")
     private Integer isOfRecord;
+    @ApiModelProperty(value = "数据集版本格式")
+    private String format;
 
 
     /**
@@ -108,6 +111,7 @@ public class DatasetVersionVO implements Serializable {
             setDataConversion(datasetVersion.getDataConversion());
             setImageCounts(fileCount);
             setPresetFlag(presetFlag);
+            setFormat(datasetVersion.getFormat());
         }};
     }
 

@@ -35,7 +35,7 @@ the License. * ============================================================= */
             @change="handleDataTypeChange"
           />
         </el-form-item>
-        <el-form-item label="模型类型" prop="annotateType">
+        <el-form-item label="标注类型" prop="annotateType">
           <div
             v-if="state.form.dataType !== dataTypeCodeMap.CUSTOM"
             class="image-select flex flex-wrap"
@@ -78,6 +78,13 @@ the License. * ============================================================= */
             >官方文档</a
           >
         </div>
+        <el-form-item v-if="showTemplateType" label="模板" prop="templateType">
+          <InfoRadio
+            v-model="state.form.templateType"
+            :dataSource="templateTypeOptions"
+            @change="handleTemplateChange"
+          />
+        </el-form-item>
         <el-form-item v-if="showlabelGroup" label="标签组" style="height: 32px;" prop="labelGroup">
           <el-cascader
             v-model="state.form.labelGroup"
@@ -134,6 +141,16 @@ the License. * ============================================================= */
           </a>
           <span>页面创建</span>
         </div>
+        <el-form-item label="应用场景">
+          <el-select v-model="state.form.module" clearable>
+            <el-option
+              v-for="item in datasetOccasionList"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="数据集描述">
           <el-input
             v-model="state.form.remark"
@@ -152,10 +169,10 @@ the License. * ============================================================= */
   </BaseModal>
 </template>
 <script>
-import { onMounted, reactive, watch, ref, computed } from '@vue/composition-api';
+import { onMounted, reactive, watch, ref, computed, inject } from '@vue/composition-api';
 import { Message } from 'element-ui';
 import cx from 'classnames';
-import { set, omit } from 'lodash';
+import { set, omit, isNil } from 'lodash';
 
 import {
   dataTypeMap,
@@ -164,6 +181,7 @@ import {
   enableLabelGroup,
   dataTypeCodeMap,
   annotationMap,
+  datasetTemplateType,
 } from '@/views/dataset/util';
 import BaseModal from '@/components/BaseModal';
 import InfoRadio from '@/components/InfoRadio';
@@ -172,21 +190,23 @@ import { validateName } from '@/utils/validate';
 
 import { getLabelGroupList } from '@/api/preparation/labelGroup';
 import { add } from '@/api/preparation/dataset';
+import { datasetOccasionSymbol } from '@/utils/constant';
 import ImportDataset from './import-dataset';
 
 const annotationByDataType = annotationBy('dataType');
+const annotationByCode = annotationBy('code');
 
 // 数据类型 => 图像
 const imageNameMap = {
-  imageClassify: 'classify.png',
-  targetDetection: 'annotate.png',
+  imageclassify: 'classify.png',
+  objectdetection: 'annotate.png',
   segmentation: 'segmentation.png',
-  objectTracking: 'track.png',
-  textClassify: 'textclassify.png',
-  audioClassify: 'audioClassify.png',
-  textSegmentation: 'textsegmentation.png',
+  objecttracking: 'track.png',
+  textclassify: 'textclassify.png',
+  audioclassify: 'audioClassify.png',
+  textsegmentation: 'textsegmentation.png',
   ner: 'ner.png',
-  speechRecognition: 'speechRecognition.png',
+  speechrecognition: 'speechRecognition.png',
   custom: 'custom.png',
 };
 
@@ -203,13 +223,17 @@ export default {
     onResetFresh: Function,
   },
   setup(props) {
+    const datasetOccasionList = inject(datasetOccasionSymbol);
+
     const { toggleVisible, onResetFresh } = props;
     const initialForm = {
       name: '',
-      dataType: 0,
-      annotateType: 2,
+      dataType: dataTypeCodeMap.IMAGE,
+      annotateType: annotationMap.ImageClassify.code,
+      templateType: datasetTemplateType.ImageClassify['single-label'].code,
       labelGroup: null,
       labelGroupId: null,
+      module: null,
       remark: '',
       type: 0,
     };
@@ -252,6 +276,7 @@ export default {
       ],
       dataType: [{ required: true, message: '请选择数据类型', trigger: 'change' }],
       annotateType: [{ required: true, message: '请选择标注类型', trigger: 'change' }],
+      templateType: [{ required: true, message: '请选择模板', trigger: 'change' }],
       labelGroup: [{ required: true, message: '请选择标签组', trigger: 'change' }],
     };
 
@@ -270,22 +295,32 @@ export default {
         },
       });
 
+    // 单标签多标签模板
+    const templateTypeOptions = computed(() => {
+      const annotation = annotationByCode(state.form.annotateType);
+      if (!annotation || !(annotation.type in datasetTemplateType)) return null;
+      const templateTypeEnum = datasetTemplateType[annotation.type];
+      return Object.keys(templateTypeEnum).map((key) => ({
+        label: templateTypeEnum[key].label,
+        value: templateTypeEnum[key].code,
+      }));
+    });
+
+    // 模板选项为空，说明该标注类型不支持，不展示
+    const showTemplateType = computed(() => !isNil(templateTypeOptions.value));
+
+    const handleTemplateChange = (value) => {
+      setForm({ templateType: value });
+    };
+
+    const resetTemplateType = () => {
+      setForm({
+        templateType: showTemplateType.value ? templateTypeOptions.value[0]?.value : null,
+      });
+    };
+
     // 更新加载状态
     const setLoading = (loading) => Object.assign(state, { loading });
-
-    // 重置状态（reactive mutate 原始对象）
-    const resetForm = () =>
-      Object.assign(state, {
-        form: {
-          name: '',
-          dataType: 0,
-          annotateType: 2,
-          labelGroup: null,
-          labelGroupId: null,
-          remark: '',
-          type: 0,
-        },
-      });
 
     // 更新标签组信息
     const updateLabelGroupOptions = (index, path, params) => {
@@ -314,7 +349,7 @@ export default {
     const getImgUrl = item => {
       try {
         // eslint-disable-next-line
-        return require(`@/assets/images/dataset/${imageNameMap[item.type]}`);
+        return require(`@/assets/images/dataset/${imageNameMap[item.type.toLowerCase()]}`);
       } catch (err) {
         console.error(err);
       }
@@ -353,11 +388,14 @@ export default {
         labelGroup: null,
         labelGroupId: null,
       });
+      // templateTypeOptions依赖于annotateType的值
+      resetTemplateType();
       updateLabelGroup();
     };
 
     const selectCustomAnnotationType = (val) => {
       setForm({ annotateType: val });
+      resetTemplateType();
     };
 
     const handleDataTypeChange = () => {
@@ -368,6 +406,7 @@ export default {
           labelGroup: null,
           labelGroupId: null,
         });
+        resetTemplateType();
       }
       updateLabelGroup();
     };
@@ -380,22 +419,31 @@ export default {
       }
     };
 
-    const handleClose = () => {
+    // 重置状态（reactive mutate 原始对象）
+    const resetForm = () => {
       Object.assign(state, {
-        formKey: state.formKey + 1,
-        // reactive mutate 原始对象
         form: {
           name: '',
-          dataType: 0,
-          annotateType: 2,
+          dataType: dataTypeCodeMap.IMAGE,
+          annotateType: annotationMap.ImageClassify.code,
+          templateType: datasetTemplateType.ImageClassify['single-label'].code,
           labelGroup: null,
           labelGroupId: null,
+          module: null,
           remark: '',
           type: 0,
         },
+      });
+      updateLabelGroup();
+    };
+
+    const handleClose = () => {
+      Object.assign(state, {
+        formKey: state.formKey + 1,
         loading: false,
         datasetRadio: 0,
       });
+      resetForm();
       toggleVisible();
       onResetFresh();
     };
@@ -458,12 +506,16 @@ export default {
       getImgUrl,
       annotationList,
       allAnnotationList,
+      datasetOccasionList,
       handleClose,
       handleOk,
       okText,
       rules,
       onDatasetRadioChange,
       showlabelGroup,
+      showTemplateType,
+      templateTypeOptions,
+      handleTemplateChange,
     };
   },
 };

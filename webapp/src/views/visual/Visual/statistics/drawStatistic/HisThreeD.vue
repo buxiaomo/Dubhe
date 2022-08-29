@@ -43,7 +43,7 @@ export default {
     };
   },
   computed: {
-    ...mapStatisticGetters(['getShowNumber', 'getFeatchDataFinished']),
+    ...mapStatisticGetters(['getShowNumber']),
   },
   watch: {
     data() {
@@ -55,12 +55,38 @@ export default {
   },
   mounted() {
     this.drawOffset();
-    if (this.getFeatchDataFinished) {
-      this.setDrawAllSvgFinished(true);
-    }
   },
   methods: {
-    ...mapStatisticMutations(['setStatisticInfo', 'setDrawAllSvgFinished']),
+    ...mapStatisticMutations(['setStatisticInfo']),
+    // 科学计数法
+    numberChangeToE(d) {
+      if (Math.abs(d) > 10000) {
+        let numLen = (numLen = d.toString().length - 1);
+        if (d < 0) {
+          numLen = d.toString().length - 2;
+        }
+        return `${(d / Math.pow(10, numLen)).toFixed(2)}e+${numLen}`;
+      }
+      if (Math.abs(d) < 0.001) {
+        if (d === 0) return d;
+        const dString = d.toString();
+        if (dString.indexOf('e') !== -1) return d;
+        let i = 3;
+        if (d < 0) {
+          i = 4;
+        }
+        for (; i < dString.length; i++) {
+          if (dString[i] !== '0') {
+            break;
+          }
+        }
+        if (d < 0) {
+          i -= 1;
+        }
+        return `${(d * Math.pow(10, i - 1)).toFixed(2)}e-${i - 1}`;
+      }
+      return d;
+    },
     // 显示比率
     drawOffset() {
       const label = this.id;
@@ -70,11 +96,10 @@ export default {
       // 先找到value和number的最大值和最小值
       let numberMin = 10000;
       let numberMax = 0;
-      for (let i = 0; i < data.length; i += 1) {
-        for (let j = 0; j < data[i].length; j += 1) {
-          const pixel = data[i][j][1];
-          if (numberMin > pixel) numberMin = pixel;
-          if (numberMax < pixel) numberMax = pixel;
+      for (let i = 0; i < data.length; i++) {
+        for (let j = 0; j < data[i].length; j++) {
+          if (numberMin > data[i][j][1]) numberMin = data[i][j][1];
+          if (numberMax < data[i][j][1]) numberMax = data[i][j][1];
         }
       }
       // 左右上下增加一个宽度，防止顶格
@@ -132,26 +157,7 @@ export default {
           d3
             .axisRight()
             .scale(stepscale)
-            .tickFormat((d) => {
-              if (d > 10000) {
-                const numLen = d.toString().length - 1;
-                // eslint-disable-next-line no-restricted-properties
-                return `${d / Math.pow(10, numLen)}e+${numLen}`;
-              }
-              if (d < 0.001) {
-                if (d === 0) return d;
-                const dString = d.toString();
-                let i = 3;
-                for (; i < dString.length; i += 1) {
-                  if (dString[i] !== '0') {
-                    break;
-                  }
-                }
-                // eslint-disable-next-line no-restricted-properties
-                return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
-              }
-              return d;
-            })
+            .tickFormat((d) => this.numberChangeToE(d))
         );
       const yscale = d3
         .scaleLinear()
@@ -179,11 +185,20 @@ export default {
         .style('font-size', '9px');
       svg
         .append('g')
-        .selectAll('circle')
-        .data(data)
-        .enter()
-        .append('circle')
-        .attr('fill', '#fff45a');
+        .append('line')
+        .attr('class', 'allpoints')
+        .attr('y1', 0)
+        .attr('y2', svgHeight)
+        .attr('stroke', 'black')
+        .attr('visibility', 'hidden');
+      const circleg = svg.append('g');
+      for (let i = 0; i < data.length; i++) {
+        circleg
+          .append('circle')
+          .attr('fill', '#fff45a')
+          .attr('class', `circle${i}`)
+          .attr('id', `${label}circle${i}`);
+      }
       svg
         .append('g')
         .append('line')
@@ -228,10 +243,10 @@ export default {
       // 画图
       const lineFunction = d3
         .line()
-        .x(function _nonName(d) {
+        .x(function(d) {
           return xscale(d[0]);
         })
-        .y(function _nonName(d) {
+        .y(function(d) {
           return yscale(d[1]);
         });
       pathg
@@ -242,52 +257,62 @@ export default {
         .append('path')
         .attr('stroke', 'gainsboro')
         .attr('stroke-width', '0.5')
-        .attr('d', function _nonName(d) {
+        .attr('d', function(d) {
           return lineFunction(d);
         })
-        .attr('transform', function _nonName(d) {
+        .attr('transform', function(d, i) {
           const translateHeight = stepscale(d[0][2]) + heightTop;
           return `translate(${padding.left},${translateHeight})`;
         })
         .attr('fill', this.runColor)
-        .attr('class', function _nonName(d, i) {
+        .attr('class', function(d, i) {
           return `step${i}`;
         })
-        .attr('id', function _nonName(d, i) {
+        .attr('id', function(d, i) {
           return `${label}step${i}`;
         })
         // 添加鼠标操作:珠子+数值
-        .on('mousemove', function _nonName(d, i) {
+        .on('mousemove', function(d, i) {
+          // 计算珠子
           const curX = d3.mouse(svg.node())[0];
           const curY = d3.mouse(svg.node())[1];
-          // 计算珠子
-          // 遮挡住的珠子怎么显示
-          // 找x轴最近的点，然后就找到相应的y
-          const curXValue = xscale.invert(curX - padding.left);
-          let minDistIndex = 0;
-          for (let j = 0; j < d.length; j += 1) {
-            if (curXValue < d[j][0]) {
-              minDistIndex = j;
-              break;
+          svg
+            .select('.allpoints')
+            .attr('x1', curX - padding.left)
+            .attr('x2', curX - padding.left);
+          const len = data.length;
+          // 2D.js计算交点
+          // 计算了所有的交点，这里应该会导致鼠标操作不那么流畅
+          const shapes = [];
+          const children = svg.select('.areapathg').selectAll('path');
+          for (let j = 0; j < len; j++) {
+            const child = children._groups[0][j];
+            // eslint-disable-next-line no-undef
+            const shape = new Path(child);
+            shapes.push(shape);
+          }
+          const linechild = svg.select('.allpoints');
+          // eslint-disable-next-line no-undef
+          const lineshape = new Line(linechild._groups[0][0]);
+          const points = [];
+          for (let j = 0; j < len; j++) {
+            // eslint-disable-next-line no-undef
+            const inter = Intersection.intersectShapes(lineshape, shapes[j]);
+            points.push(inter.points[0]);
+          }
+          // 没有交点是undefined
+          // 遮挡情况就不考虑了，因为有透明的操作
+          for (let j = 0; j < points.length; j++) {
+            if (points[j] === undefined) {
+              svg.select(`.circle${j}`).attr('r', '0');
+            } else {
+              svg
+                .select(`.circle${j}`)
+                .attr('r', '1')
+                .attr('cx', points[j].x + padding.left)
+                .attr('cy', heightTop + stepscale(data[j][0][2]) + points[j].y);
             }
           }
-          if (curXValue - d[minDistIndex - 1] < d[minDistIndex] - curXValue) {
-            minDistIndex -= 1;
-          }
-          const minDistX = padding.left + xscale(d[minDistIndex][0]);
-          const points = [];
-          for (let j = 0; j < data.length; j += 1) {
-            points.push(heightTop + stepscale(data[j][0][2]) + yscale(data[j][minDistIndex][1]));
-          }
-          svg
-            .selectAll('circle')
-            .data(points)
-            .attr('r', '1.5')
-            .attr('cx', minDistX)
-            .attr('cy', function no_name(d) {
-              return d;
-            });
-          // 当前选中的直方图边界高亮
           svg
             .select('.areapathg')
             .selectAll('path')
@@ -301,17 +326,16 @@ export default {
           // 控制面板需要显示数据
           // 当前step，是对多少个数据进行统计的，统计个数的最小值和最大值，和最大值对应的区间
           // 这个数据不准确，把所有相加
-          const curDataCountSum = d3.sum(data[i], function _nonName(d) {
+          const curDataCountSum = d3.sum(data[i], function(d) {
             return d[1];
           });
-          const curCountMin = d3.min(data[i], function _nonName(d) {
+          const curCountMin = d3.min(data[i], function(d) {
             return d[1];
           });
           let curCountMax = 0;
-          for (let it = 0; it < data[i].length; it += 1) {
-            const pixel = data[i][it][1];
-            if (curCountMax < pixel) {
-              curCountMax = pixel;
+          for (let it = 0; it < data[i].length; it++) {
+            if (curCountMax < data[i][it][1]) {
+              curCountMax = data[i][it][1];
             }
           }
           that.setStatisticInfo([
@@ -343,7 +367,7 @@ export default {
           svg
             .select('.textbox')
             .attr('visibility', 'visible')
-            .text(`count:${d[minDistIndex][1].toFixed(2)}`)
+            .text(`count:${yscale.invert(points[i].y).toFixed(2)}`)
             .attr('x', curX + 5)
             .attr('y', curY - 10);
 
@@ -353,12 +377,12 @@ export default {
           const count = Math.ceil(areaHeight / dh);
           const curHeight = [];
           // yscale，值越大高度越小
-          for (let j = 0; j < d.length; j += 1) {
+          for (let j = 0; j < d.length; j++) {
             curHeight.push(stepscale(d[j][2]) - (areaHeight - yscale(d[j][1])));
           }
-          for (let j = i + 1; j <= i + count && j < data.length; j += 1) {
+          for (let j = i + 1; j <= i + count && j < len; j++) {
             const onedata = data[j];
-            for (let k = 0; k < onedata.length; k += 1) {
+            for (let k = 0; k < onedata.length; k++) {
               const heightk = stepscale(onedata[k][2]) - (areaHeight - yscale(onedata[k][1]));
               if (heightk <= curHeight[k]) {
                 svg.select(`.step${j}`).style('opacity', 0.5);
@@ -367,7 +391,7 @@ export default {
             }
           }
         });
-      svg.on('mouseleave', function _nonName() {
+      svg.on('mouseleave', function() {
         // 用mouseout光标会闪烁
         svg
           .select('.areapathg')
@@ -391,11 +415,11 @@ export default {
         that.setStatisticInfo([]);
       });
       // 在只显示若干条数据时，在纵轴上移动显示中间步骤
-      svg.select('.stepaxis').on('mousemove', function _nonName() {
+      svg.select('.stepaxis').on('mousemove', function() {
         const curY = d3.mouse(svg.node())[1];
-        const step = parseInt(stepscale.invert(curY - padding.top), 0);
+        const step = parseInt(stepscale.invert(curY - padding.top));
         let k = 0;
-        for (let i = 0; i < data.length; i += 1) {
+        for (let i = 0; i < data.length; i++) {
           if (data[i][0][2] > step) {
             k = i;
             if (i !== 0 && data[i][0][2] - step > step - data[i - 1][0][2]) {

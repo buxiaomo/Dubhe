@@ -20,6 +20,8 @@ package org.dubhe.servinggateway.config;
 import lombok.extern.slf4j.Slf4j;
 import org.dubhe.biz.base.constant.NumberConstant;
 import org.dubhe.biz.base.constant.SymbolConstant;
+import org.dubhe.biz.log.enums.LogEnum;
+import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.servinggateway.constant.GatewayConstant;
 import org.dubhe.servinggateway.domain.vo.GatewayRouteQueryVO;
 import org.dubhe.servinggateway.service.GatewayRouteService;
@@ -65,7 +67,7 @@ public class GatewayServiceHandler implements ApplicationEventPublisherAware, Co
     /**
      * 模型服务部署使用的端口
      */
-    @Value("${serving.gateway.http-port}")
+    @Value("${k8s.port}")
     private String httpPort;
 
     @Override
@@ -82,6 +84,7 @@ public class GatewayServiceHandler implements ApplicationEventPublisherAware, Co
      * 加载服务路由信息
      */
     public void loadRouteConfig() {
+        LogUtil.info(LogEnum.SERVING_GATEWAY, "Begin load route config");
         List<GatewayRouteQueryVO> activeRoutes = gatewayRouteService.findActiveRoutes();
         for (GatewayRouteQueryVO activeRoute : activeRoutes) {
             RouteDefinition definition = this.convert2RouteDefinition(activeRoute);
@@ -89,6 +92,7 @@ public class GatewayServiceHandler implements ApplicationEventPublisherAware, Co
         }
         // 发布刷新路由事件
         this.publisher.publishEvent(new RefreshRoutesEvent(this));
+        LogUtil.info(LogEnum.SERVING_GATEWAY, "Load route config done");
     }
 
     /**
@@ -97,12 +101,14 @@ public class GatewayServiceHandler implements ApplicationEventPublisherAware, Co
      * @param id 在线服务路由ID
      */
     public void saveRouteByRouteId(Long id) {
+        LogUtil.info(LogEnum.SERVING_GATEWAY, "Deal save route event");
         GatewayRouteQueryVO gatewayRouteQueryVO = gatewayRouteService.findActiveById(id);
         if (Objects.nonNull(gatewayRouteQueryVO)) {
             routeDefinitionRepository.save(Mono.just(this.convert2RouteDefinition(gatewayRouteQueryVO))).subscribe();
         }
         // 发布刷新路由事件
         this.publisher.publishEvent(new RefreshRoutesEvent(this));
+        LogUtil.info(LogEnum.SERVING_GATEWAY, "Deal save route event done");
     }
 
     /**
@@ -111,9 +117,11 @@ public class GatewayServiceHandler implements ApplicationEventPublisherAware, Co
      * @param id 在线服务路由ID
      */
     public void deleteRouteByRouteId(Long id) {
+        LogUtil.info(LogEnum.SERVING_GATEWAY, "Deal delete route event");
         routeDefinitionRepository.delete(Mono.just(GatewayConstant.ROUTE_PREFIX + id)).subscribe();
         // 发布刷新路由事件
         this.publisher.publishEvent(new RefreshRoutesEvent(this));
+        LogUtil.info(LogEnum.SERVING_GATEWAY, "Deal delete route event done");
     }
 
     /**

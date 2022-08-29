@@ -19,10 +19,12 @@ package org.dubhe.data.service.impl;
 
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.collection.ConcurrentHashSet;
+import cn.hutool.core.util.ObjectUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.google.gson.JsonObject;
 import org.dubhe.biz.permission.annotation.DataPermissionMethod;
 import org.dubhe.biz.base.constant.MagicNumConstant;
 import org.dubhe.biz.base.constant.NumberConstant;
@@ -56,6 +58,10 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.reindex.UpdateByQueryRequest;
+import org.elasticsearch.script.Script;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -116,6 +122,9 @@ public class AnnotationServiceImpl implements AnnotationService {
     @Autowired
     private GeneratorKeyUtil generatorKeyUtil;
 
+    @Autowired
+    private DatasetLabelService datasetLabelService;
+
     /**
      * 标注任务队列
      */
@@ -151,6 +160,9 @@ public class AnnotationServiceImpl implements AnnotationService {
      */
     @Autowired
     private org.dubhe.data.util.FileUtil fileUtil;
+
+    @Autowired
+    private AutoLabelModelServiceService autoLabelModelServiceService;
 
     /**
      * 队列长度
@@ -203,6 +215,7 @@ public class AnnotationServiceImpl implements AnnotationService {
                 throw new BusinessException(ErrorEnum.DATASET_PUBLISH_ERROR);
             }
         }
+        datasetVersionFileService.deleteByFileId(datasetId, annotationInfoCreateDTO.getId());
         annotationInfoCreateDTO.setDatasetId(datasetId);
         annotationInfoCreateDTO.setCurrentVersionName(dataset.getCurrentVersionName());
         annotationInfoCreateDTO.setDataType(dataset.getDataType());
@@ -358,6 +371,7 @@ public class AnnotationServiceImpl implements AnnotationService {
                 throw new BusinessException(ErrorEnum.DATASET_PUBLISH_ERROR);
             }
         }
+        datasetVersionFileService.deleteByFileId(datasetId, fileId);
         annotationInfoCreateDTO.setId(fileId);
         annotationInfoCreateDTO.setDataType(dataset.getDataType());
         annotationInfoCreateDTO.setCurrentVersionName(dataset.getCurrentVersionName());
@@ -424,9 +438,12 @@ public class AnnotationServiceImpl implements AnnotationService {
                 esJsonObject.put("annotation", null);
                 esJsonObject.put("status", String.valueOf(FileTypeEnum.UNFINISHED.getValue()));
             } else {
-                JSONObject jsonObject = JSONArray.parseArray(annotationInfoCreateDTO.getAnnotation()).getJSONObject(0);
-                esJsonObject.put("labelId",jsonObject.getString("category_id"));
-                esJsonObject.put("prediction",jsonObject.getString("score"));
+                JSONArray jsonArray = JSONArray.parseArray(annotationInfoCreateDTO.getAnnotation());
+                List<String> labelIds = jsonArray.stream().map(json -> {
+                    return JSONObject.parseObject(json.toString()).getString("category_id");
+                }).collect(Collectors.toList());
+                esJsonObject.put("labelId",labelIds);
+                esJsonObject.put("prediction",jsonArray.getJSONObject(0).getString("score"));
                 esJsonObject.put("status", String.valueOf(FileTypeEnum.FINISHED.getValue()));
                 esJsonObject.put("annotation",annotationInfoCreateDTO.getAnnotation());
             }
@@ -536,28 +553,6 @@ public class AnnotationServiceImpl implements AnnotationService {
     }
 
     /**
-     * 状态为标记完成的文件推送到追踪算法
-     *
-     * @return
-     */
-    public void autoTrack() {
-        if (tracking.size() >= TRACKING_SIZE) {
-            return;
-        }
-        //查询要跟踪的数据集
-        List<Dataset> datasets = queryDatasetsToBeTracked();
-        if (CollectionUtil.isEmpty(datasets)) {
-            LogUtil.info(LogEnum.BIZ_DATASET, "there is currently no data to track");
-            return;
-        }
-        datasets.stream().forEach(dataset -> {
-            if (CollectionUtil.isEmpty(taskService.getExecutingTask(dataset.getId(), DataTaskTypeEnum.TARGET_TRACK.getValue()))) {
-                taskService.track(dataset);
-            }
-        });
-    }
-
-    /**
      * 查询需要目标跟踪的数据集
      *
      * @return List<Dataset> 需要目标跟踪的数据集
@@ -610,31 +605,42 @@ public class AnnotationServiceImpl implements AnnotationService {
      */
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void doFinishAuto(TaskSplitBO taskSplit, Map<Long, AnnotationInfoCreateDTO> resMap) {
+    public Map<Long, AnnotationInfoCreateDTO> doFinishAuto(TaskSplitBO taskSplit, Map<Long, AnnotationInfoCreateDTO> resMap) {
         LogUtil.info(LogEnum.BIZ_DATASET, "finish auto. ts:{}, resMap:{}", taskSplit, resMap);
         //图片状态变更为自动标注完成
         Dataset dataset = datasetService.getOneById(taskSplit.getDatasetId());
         //保存标注信息
-        if (AnnotateTypeEnum.TEXT_CLASSIFICATION.getValue().equals(taskSplit.getAnnotateType())) {
-            taskSplit.getFiles().forEach(fileBO -> {
-                AnnotationInfoCreateDTO annotationInfo = resMap.get(fileBO.getId());
-                if (annotationInfo == null) {
-                    return;
-                }
-                storeService.write(fileUtil.getAnnotationAbsPath(taskSplit.getDatasetId(), fileBO.getName()), annotationInfo.getAnnotation());
-            });
-        }
+        List<Label> labels = datasetLabelService.listLabelByDatasetId(dataset.getId());
+        List<Label> uniqueLabels = labels.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(
+                ()->new TreeSet<>(Comparator.comparing(Label::getName))),ArrayList::new));
+        Map<String, Long> labelNameMap = uniqueLabels.stream().collect(Collectors.toMap(Label::getName, Label::getId));
+        taskSplit.getFiles().forEach(fileBO -> {
+            AnnotationInfoCreateDTO annotationInfo = resMap.get(fileBO.getId());
+            if (annotationInfo == null) {
+                return;
+            }
+            JSONArray jsonArray = JSONObject.parseObject(annotationInfo.getAnnotation(), JSONArray.class);
+            for (int i = 0 ; i<jsonArray.size(); i++) {
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                jsonObject.put("category_id" , labelNameMap.get(jsonObject.getString("category_id")));
+            }
+            storeService.write(fileUtil.getAnnotationAbsPath(taskSplit.getDatasetId(), fileBO.getName()), jsonArray.toJSONString());
+            annotationInfo.setAnnotation(jsonArray.toJSONString());
+            resMap.put(fileBO.getId(),annotationInfo);
+        });
         taskSplit.setVersionName(dataset.getCurrentVersionName());
-        List<DatasetVersionFile> versionFileIds = datasetVersionFileService.getVersionFileByDatasetAndFile(dataset.getId(), dataset.getCurrentVersionName(), resMap.keySet());
+        List<DatasetVersionFile> versionFiles = datasetVersionFileService.getVersionFileByDatasetAndFile(dataset.getId(), dataset.getCurrentVersionName(), resMap.keySet());
+        //清空之前的数据库标注信息
+        List<Long> versionFileIds = versionFiles.stream().map(DatasetVersionFile::getId).collect(Collectors.toList());
+        dataFileAnnotationService.deleteBatch(dataset.getId(), versionFileIds);
         //写入标签关系
         if (!CollectionUtils.isEmpty(resMap)) {
             List<DataFileAnnotation> dataFileAnnotations = new ArrayList<>();
-            versionFileIds.forEach(versionFile -> {
+            versionFiles.forEach(versionFile -> {
                 List<Long> dbLabelIds = dataFileAnnotationService.findInfoByVersionId(dataset.getId(),versionFile.getId());
                 if (!CollectionUtil.isEmpty(dbLabelIds)) {
                     dataFileAnnotationService.deleteAnnotationFileByVersionIdAndLabelIds(dataset.getId(),versionFile.getId(), dbLabelIds);
-                }
-                List<AnnotationDTO> annotationDTOS = JSONObject.parseArray(resMap.get(versionFile.getFileId()).getAnnotation(), AnnotationDTO.class);
+                }List<AnnotationDTO> annotationDTOS = JSONObject.parseArray(resMap.get(versionFile.getFileId()).getAnnotation(), AnnotationDTO.class);
                 if(!CollectionUtils.isEmpty(annotationDTOS)){
                     if(AnnotateTypeEnum.CLASSIFICATION.getValue().equals(dataset.getAnnotateType()) || AnnotateTypeEnum.TEXT_CLASSIFICATION.getValue().equals(dataset.getAnnotateType())){
                         AnnotationDTO annotationDTO = annotationDTOS.stream().max(Comparator.comparingDouble(AnnotationDTO::getScore)).get();
@@ -687,6 +693,7 @@ public class AnnotationServiceImpl implements AnnotationService {
         }
         //任务加文件数量
         taskService.finishFile(taskSplit.getTaskId(), taskSplit.getFiles().size(), dataset);
+        return resMap;
     }
 
 
@@ -734,7 +741,12 @@ public class AnnotationServiceImpl implements AnnotationService {
      * @param datasetId
      */
     @Override
-    public void track(Long datasetId) {
+    public void track(Long datasetId, Long modelServiceId) {
+        // 检查模型服务是否存在，以及模型是否运行中
+        AutoLabelModelService autoLabelModelService = autoLabelModelServiceService.getOneById(modelServiceId);
+        if (ObjectUtil.isNull(autoLabelModelService) || !AutoLabelModelServiceStatusEnum.checkAvailable(autoLabelModelService.getStatus())) {
+            throw new BusinessException(ErrorEnum.MODEL_SERVER_NOT_AVAILABLE);
+        }
         Dataset dataset = datasetService.getOneById(datasetId);
         if (dataset == null || !DatatypeEnum.VIDEO.getValue().equals(dataset.getDataType())) {
             throw new BusinessException(ErrorEnum.DATASET_TRACK_TYPE_ERROR);
@@ -745,7 +757,7 @@ public class AnnotationServiceImpl implements AnnotationService {
                 throw new BusinessException(ErrorEnum.DATASET_PUBLISH_ERROR);
             }
         }
-        taskService.track(dataset);
+        taskService.track(dataset, modelServiceId);
     }
 
     /**
@@ -758,6 +770,19 @@ public class AnnotationServiceImpl implements AnnotationService {
         datasetVersionFileService.deleteAnnotating(datasetId);
     }
 
+    @Override
+    public void finishAnnotation(JSONObject taskDetail) {
+        JSONObject jsonObject = JSON.parseObject(taskDetail.get("object").toString(),JSONObject.class);
+        TaskSplitBO taskSplitBO = JSON.parseObject(JSON.toJSONString(taskDetail), TaskSplitBO.class);
+        JSONArray jsonArray = jsonObject.getJSONArray("annotations");
+        List<AnnotationInfoCreateDTO> list = new ArrayList<>();
+        for (int i = 0; i < jsonArray.size(); i++) {
+            list.add(JSON.toJavaObject(jsonArray.getJSONObject(i), AnnotationInfoCreateDTO.class));
+        }
+        BatchAnnotationInfoCreateDTO batchAnnotationInfoCreateDTO = new BatchAnnotationInfoCreateDTO();
+        batchAnnotationInfoCreateDTO.setAnnotations(list);
+        doFinishAuto(taskSplitBO, batchAnnotationInfoCreateDTO.toMap());
+    }
 
     /**
      * 通过标注类型验证自动标注条件
@@ -796,4 +821,21 @@ public class AnnotationServiceImpl implements AnnotationService {
         dataFileAnnotationService.insertAnnotationFileByVersionIdAndLabelIds(datasetId, versionFileId, fileLabelIds, datasetVersionFile.getFileName());
     }
 
+    /**
+     * 清除es中的标注信息
+     *
+     * @param datasetId 数据集id
+     */
+    @Override
+    public void deleteEsData(Long datasetId) {
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery().must(QueryBuilders.termQuery("datasetId",datasetId.toString()));
+        UpdateByQueryRequest updateByQueryRequest = new UpdateByQueryRequest(esIndex);
+        updateByQueryRequest.setRefresh(true).setScript(new Script("ctx._source['status']='101'"))
+                .setQuery(boolQueryBuilder);
+        try{
+            restHighLevelClient.updateByQuery(updateByQueryRequest,RequestOptions.DEFAULT);
+        } catch (Exception e){
+            LogUtil.info(LogEnum.BIZ_DATASET, "delete es annotation error:", e);
+        }
+    }
 }

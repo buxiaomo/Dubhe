@@ -18,7 +18,13 @@
 package org.dubhe.data.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.dubhe.data.domain.dto.*;
+import org.dubhe.biz.base.vo.LabelGroupBaseVO;
+import org.dubhe.data.domain.dto.GroupConvertPresetDTO;
+import org.dubhe.data.domain.dto.LabelGroupCopyDTO;
+import org.dubhe.data.domain.dto.LabelGroupCreateDTO;
+import org.dubhe.data.domain.dto.LabelGroupDeleteDTO;
+import org.dubhe.data.domain.dto.LabelGroupImportDTO;
+import org.dubhe.data.domain.dto.LabelGroupQueryDTO;
 import org.dubhe.data.domain.entity.LabelGroup;
 import org.dubhe.data.domain.vo.LabelGroupQueryVO;
 import org.dubhe.data.domain.vo.LabelGroupVO;
@@ -26,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * @description 标签组服务
@@ -132,4 +139,11 @@ public interface LabelGroupService {
      * @param deletedFlag 删除标识
      */
     void updateStatusByGroupId(Long groupId, Boolean deletedFlag);
+
+    /**
+     * 根据标签组id获取标签组基本信息
+     * @param labelGroupIds 标签组ID集合
+     * @return LabelGroupBaseVO
+     */
+    List<LabelGroupBaseVO> queryLabelGroupList(Set<Long> labelGroupIds);
 }

@@ -47,12 +47,13 @@ public class TaskSplitBO implements Serializable {
     private Integer annotateType;
     private Integer priority;
     private Long taskId;
-    private List<Long> labels;
+    private List<String> labels;
     private Integer labelType;
     private Long sendTime;
     private Long datasetId;
     private String versionName;
     private String reTaskId;
+    private int algorithm;
 
     /**
      * 生成任务
@@ -70,7 +71,7 @@ public class TaskSplitBO implements Serializable {
                 .files(files.stream().map(FileBO::from).collect(Collectors.toList()))
                 .priority(Constant.DEFAULT_PRIORITY)
                 .taskId(task.getId())
-                .labels(JSON.parseArray(task.getLabels(), Long.class))
+                .labels(JSON.parseArray(task.getLabels(), String.class))
                 .dataType(task.getDataType())
                 .annotateType(task.getAnnotateType())
                 .build();

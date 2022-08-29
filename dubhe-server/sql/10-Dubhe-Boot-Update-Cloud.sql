@@ -5,8 +5,9 @@
  */
 
 
--- drop database `dubhe-prod` ;
-use `dubhe-prod`;
+-- DML 脚本
+use `dubhe-cloud-prod`;
+
 SET SQL_SAFE_UPDATES = 0;
 DELIMITER //
 DROP PROCEDURE IF EXISTS  fourthEditionProc ;

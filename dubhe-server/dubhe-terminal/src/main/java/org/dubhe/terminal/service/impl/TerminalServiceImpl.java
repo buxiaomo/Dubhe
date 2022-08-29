@@ -28,6 +28,7 @@ import org.dubhe.biz.base.constant.ResponseCode;
 import org.dubhe.biz.base.constant.SymbolConstant;
 import org.dubhe.biz.base.context.UserContext;
 import org.dubhe.biz.base.enums.BizEnum;
+import org.dubhe.biz.base.enums.ImageTypeEnum;
 import org.dubhe.biz.base.exception.BusinessException;
 import org.dubhe.biz.base.service.UserContextService;
 import org.dubhe.biz.base.utils.StringUtils;
@@ -497,7 +498,6 @@ public class TerminalServiceImpl implements TerminalService {
                 ptImage.setImageUrl(terminal.getImageUrl());
                 ptImage.setImageTag(terminal.getImageTag());
                 ptImage.setRemark(terminal.getDescription());
-                ptImage.setProjectName(terminal.getImageProject());
                 ptImage.setImageResource(MagicNumConstant.ZERO);
                 ptImage.setImageStatus(MagicNumConstant.ONE);
                 ptImage.setDeleted(false);
@@ -511,6 +511,7 @@ public class TerminalServiceImpl implements TerminalService {
                     ptImage.setCreateUserId(userId);
                     ptImage.setCreateTime(new Timestamp(new java.util.Date().getTime()));
                     ptImageMapper.insert(ptImage);
+                    ptImageMapper.insertImageType(ptImage.getId(), ImageTypeEnum.TERMINAL.getType());
                 }
             }
         }catch (Exception e){

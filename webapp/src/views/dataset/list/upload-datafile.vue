@@ -11,17 +11,17 @@ the License. * ============================================================= */
     :key="state.uploadKey"
     :closeOnClickModal="false"
     append-to-body
-    width="610px"
+    width="640px"
     :visible="visible"
     :title="state.title"
-    @close="handleClose"
+    :show-close="false"
   >
     <div class="flex flex-between py-10 px-20 mb-20" style="background: #eef8ff;">
       <span>
         <i class="el-icon-warning" style="color: #3253d6;" />
         单次上传大量文件（2000+）建议下载安装天枢命令行工具
       </span>
-      <a class="primary" href="http://docs.tianshu.org.cn/docs/module/dataset/cli" target="_blank">
+      <a class="primary" :href="`${docsUrl}module/dataset/cli/new`" target="_blank">
         使用文档
       </a>
     </div>
@@ -49,7 +49,7 @@ the License. * ============================================================= */
           prop="frameInterval"
           :rules="[{ required: true, message: '请输入有效的帧间隔', trigger: 'blur' }]"
         >
-          <el-input-number v-model="state.form.frameInterval" :min="1" />
+          <el-input-number v-model="state.form.frameInterval" :min="1" step-strictly :step="1" />
         </el-form-item>
       </el-form>
     </div>
@@ -91,7 +91,7 @@ the License. * ============================================================= */
         >
       </div>
       <div v-show="state.uploadStep === 1" class="tc">
-        <el-button @click="handleClose">隐藏</el-button>
+        <el-button @click="hideUploadDataFile">隐藏</el-button>
       </div>
       <div v-show="state.uploadStep === 2" class="tc">
         <el-button type="primary" @click="handleClose">{{
@@ -102,10 +102,9 @@ the License. * ============================================================= */
   </el-dialog>
 </template>
 <script>
-import { last } from 'lodash';
-
-import { reactive, watch, computed, nextTick } from '@vue/composition-api';
+import { last, isNil } from 'lodash';
 import { Message } from 'element-ui';
+import { reactive, watch, computed, nextTick } from '@vue/composition-api';
 import { toFixed } from '@/utils';
 import UploadInline from '@/components/UploadForm/inline';
 import {
@@ -115,6 +114,8 @@ import {
   dataTypeCodeMap,
 } from '@/views/dataset/util';
 import { submit, submitVideo } from '@/api/preparation/datafile';
+
+const docsUrl = process.env.VUE_APP_DOCS_URL;
 
 // 每次最多上传的文件数量
 const MAX_FILE_COUNT = 200;
@@ -138,6 +139,9 @@ export default {
       default: false,
     },
     closeUploadDataFile: {
+      type: Function,
+    },
+    hideUploadDataFile: {
       type: Function,
     },
   },
@@ -172,8 +176,10 @@ export default {
         return submit(datasetId, files);
       }
       return submitVideo(datasetId, {
-        frameInterval: state.form.frameInterval,
-        url: files[0].url,
+        files: files.map((file) => ({
+          url: file.url,
+          frameInterval: state.form.frameInterval,
+        })),
       });
     };
 
@@ -227,6 +233,10 @@ export default {
       // 判断选中文件数量再去调接口
       if (context.refs[formName].formRef.lenOfFileList === 0) {
         Message.error({ message: '文件不能为空', duration: 1000 });
+        return;
+      }
+      if (state.isVideo && isNil(state.form.frameInterval)) {
+        Message.error({ message: '视频帧间隔不能为空', duration: 1000 });
         return;
       }
       state.loading = true;
@@ -377,6 +387,7 @@ export default {
       withDimensionFile,
       uploadSuccess,
       uploadError,
+      docsUrl,
     };
   },
 };

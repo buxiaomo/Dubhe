@@ -90,7 +90,7 @@ public class AnnotationController {
         return new DataResponseBody();
     }
 
-    @ApiOperation(value = "自动标注，只对未标注状态的文件进行标注")
+    @ApiOperation(value = "自动标注")
     @PostMapping(value = "/annotations/auto")
     @PreAuthorize(Permissions.DATA)
     public DataResponseBody auto(@Validated @RequestBody AutoAnnotationCreateDTO autoAnnotationCreateDTO) {
@@ -113,10 +113,11 @@ public class AnnotationController {
 
 
     @ApiOperation(value = "目标跟踪")
-    @GetMapping(value = "/annotations/auto/track/{datasetId}")
+    @GetMapping(value = "/annotations/auto/track/{datasetId}/{modelServiceId}")
     @PreAuthorize(Permissions.DATA)
-    public DataResponseBody track(@PathVariable(value = "datasetId") Long datasetId) {
-        annotationService.track(datasetId);
+    public DataResponseBody track(@PathVariable(value = "datasetId") Long datasetId,
+                                  @PathVariable(value = "modelServiceId") Long modelServiceId) {
+        annotationService.track(datasetId, modelServiceId);
         return new DataResponseBody();
     }
 

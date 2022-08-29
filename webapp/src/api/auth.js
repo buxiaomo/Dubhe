@@ -80,6 +80,6 @@ export function logout() {
 // 获取minIO 秘钥
 export function getMinIOAuth() {
   return request({
-    url: `/${API_MODULE_NAME.DATA}/datasets/minio/info`,
+    url: `/${API_MODULE_NAME.ADMIN}/minio/info`,
   });
 }

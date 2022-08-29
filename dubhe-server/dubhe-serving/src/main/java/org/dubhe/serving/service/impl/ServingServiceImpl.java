@@ -143,12 +143,10 @@ import java.util.stream.Collectors;
 @Service
 public class ServingServiceImpl implements ServingService {
 
-    @Value("${serving.gateway-uri-postfix}")
+    @Value("${serving.gateway.postfixUrl}")
     private String GATEWAY_URI_POSTFIX;
     @Value("${k8s.pod.metrics.grafanaUrl}")
     private String k8sPodMetricsGrafanaUrl;
-    @Value("${serving.group}")
-    private String servingGroup;
     @Resource
     private ServingInfoMapper servingInfoMapper;
     @Resource
@@ -187,20 +185,12 @@ public class ServingServiceImpl implements ServingService {
     private RecycleConfig recycleConfig;
     @Resource
     private RecycleService recycleService;
-    @Resource
-    private RecycleTool recycleTool;
     @Autowired
     private RedisUtils redisUtils;
     @Autowired
     private ResourceCache resourceCache;
     @Value("Task:Serving:" + "${spring.profiles.active}_serving_id_")
     private String servingIdPrefix;
-
-    /**
-     * 在线服务文件根路径
-     */
-    @Value("${serving.onlineRootPath}")
-    private String onlineRootPath;
 
     private final static List<String> FILE_NAMES;
 
@@ -397,7 +387,10 @@ public class ServingServiceImpl implements ServingService {
         String deployId = StringUtils.getTimestamp();
 
         PtImageQueryUrlDTO ptImageQueryUrlDTO = new PtImageQueryUrlDTO();
-        ptImageQueryUrlDTO.setProjectType(ImageTypeEnum.TRAIN.getType());
+        List<Integer> servingImageType = new ArrayList(){{
+            add(ImageTypeEnum.SERVING.getType());
+        }};
+        ptImageQueryUrlDTO.setImageTypes(servingImageType);
 
         for (ServingModelConfigDTO servingModelConfigDTO : modelConfigDTOList) {
             ServingModelConfig servingModelConfig = new ServingModelConfig();
@@ -556,7 +549,7 @@ public class ServingServiceImpl implements ServingService {
             deployServingAsyncTask.deleteServing(servingInfo, oldModelConfigList);
             // 删除拷贝的文件
             for (ServingModelConfig oldModelConfig : oldModelConfigList) {
-                String recyclePath = k8sNameTool.getAbsolutePath(onlineRootPath + servingInfo.getCreateUserId() + File.separator + servingInfo.getId() + File.separator + oldModelConfig.getId());
+                String recyclePath = k8sNameTool.getAbsolutePath(ServingConstant.ONLINE_ROOT_PATH + servingInfo.getCreateUserId() + File.separator + servingInfo.getId() + File.separator + oldModelConfig.getId());
                 fileStoreApi.deleteDirOrFile(recyclePath);
             }
 
@@ -676,7 +669,7 @@ public class ServingServiceImpl implements ServingService {
         List<String> recyclePath = new ArrayList<>();
         List<String> modelConfigIds = new ArrayList<>();
         for (ServingModelConfig servingModelConfig : modelConfigList) {
-            String path = k8sNameTool.getAbsolutePath(onlineRootPath + servingInfo.getCreateUserId() + File.separator + servingInfo.getId() + File.separator + servingModelConfig.getId());
+            String path = k8sNameTool.getAbsolutePath(ServingConstant.ONLINE_ROOT_PATH + servingInfo.getCreateUserId() + File.separator + servingInfo.getId() + File.separator + servingModelConfig.getId());
             recyclePath.add(path);
             modelConfigIds.add(String.valueOf(servingModelConfig.getId()));
         }
@@ -819,7 +812,7 @@ public class ServingServiceImpl implements ServingService {
         }
         // 校验推理图片
         if (files == null || files.length == NumberConstant.NUMBER_0) {
-            throw new BusinessException(ServingErrorEnum.PREDICT_IMAGE_EMPTY);
+            throw new BusinessException(ServingErrorEnum.PREDICT_DATA_EMPTY);
         }
         List<DataInfo> dataInfoList = new ArrayList<>();
         for (MultipartFile file : files) {
@@ -828,26 +821,21 @@ public class ServingServiceImpl implements ServingService {
             if (fileName == null) {
                 throw new BusinessException("文件名不能为空");
             }
-            int begin = fileName.lastIndexOf(SymbolConstant.DOT);
-            String suffix = fileName.substring(begin).toLowerCase();
-            if (!ServingConstant.IMAGE_FORMAT.contains(suffix)) {
-                throw new BusinessException(ServingErrorEnum.IMAGE_FORMAT_ERROR);
-            }
             String base64File;
             try {
                 base64File = Base64.encodeBase64String(file.getBytes());
             } catch (Exception e) {
-                throw new BusinessException(ServingErrorEnum.IMAGE_CONVERT_BASE64_FAIL);
+                throw new BusinessException(ServingErrorEnum.DATA_CONVERT_BASE64_FAIL);
             }
             if (StringUtils.isNotBlank(base64File)) {
-                DataInfo imageInfo = new DataInfo();
-                imageInfo.setDataName(fileName);
-                imageInfo.setDataFile(base64File);
-                dataInfoList.add(imageInfo);
+                DataInfo dataInfo = new DataInfo();
+                dataInfo.setDataName(fileName);
+                dataInfo.setDataFile(base64File);
+                dataInfoList.add(dataInfo);
             }
         }
         if (dataInfoList.isEmpty()) {
-            throw new BusinessException(ServingErrorEnum.IMAGE_FORMAT_ERROR);
+            throw new BusinessException(ServingErrorEnum.PREDICT_DATA_EMPTY);
         }
         ManagedChannel channel = grpcClient.getChannel(id, url);
         return GrpcClient.getResult(channel, dataInfoList).getJsonResult();
@@ -1045,7 +1033,7 @@ public class ServingServiceImpl implements ServingService {
         }
         if (StringUtils.isNotBlank(message)) {
             LogUtil.info(LogEnum.SERVING, "Start send message to stream with notify {}", message);
-            StringRecord stringRecord = StreamRecords.string(Collections.singletonMap(servingGroup, message))
+            StringRecord stringRecord = StreamRecords.string(Collections.singletonMap(ServingConstant.REDIS_GROUP, message))
                     .withStreamKey(ServingConstant.SERVING_STREAM);
             stringRedisTemplate.opsForStream().add(stringRecord);
         }

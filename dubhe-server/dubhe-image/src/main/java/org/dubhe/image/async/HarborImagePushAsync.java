@@ -18,6 +18,7 @@ package org.dubhe.image.async;
 
 import cn.hutool.core.util.StrUtil;
 import org.dubhe.biz.base.constant.HarborProperties;
+import org.dubhe.biz.base.constant.StringConstant;
 import org.dubhe.biz.base.enums.ImageStateEnum;
 import org.dubhe.biz.base.exception.BusinessException;
 import org.dubhe.biz.base.utils.StringUtils;
@@ -59,7 +60,7 @@ public class HarborImagePushAsync {
     @Async
     public void execShell(String imagePath, String imageNameandTag, PtImage ptImage) {
         try {
-            String imageResource = harborProperties.getAddress() + StrUtil.SLASH + ptImage.getProjectName()
+            String imageResource = harborProperties.getAddress() + StrUtil.SLASH + StringConstant.DEFAULT_IMAGE_PROJECT
                     + StrUtil.SLASH + imageNameandTag;
             String cmdStr = "docker login --username=" + harborProperties.getUsername() + " " + harborProperties.getAddress() + " --password=" + harborProperties.getPassword() + " ; docker " +
                     "load < " + imagePath + " |awk '{print $3}' |xargs -I str docker tag str " + imageResource + " ; docker push " + imageResource + "; docker rmi " + imageResource;

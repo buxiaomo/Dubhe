@@ -16,6 +16,7 @@
  */
 package org.dubhe.train.async;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONObject;
 import org.dubhe.biz.base.constant.MagicNumConstant;
@@ -44,6 +45,9 @@ import org.dubhe.train.domain.entity.PtTrainJob;
 import org.dubhe.train.domain.vo.PtImageAndAlgorithmVO;
 import org.dubhe.train.enums.ResourcesPoolTypeEnum;
 import org.dubhe.train.enums.TrainJobStatusEnum;
+import org.dubhe.train.enums.TrainSystemRunParamEnum;
+import org.dubhe.train.inner.factory.SystemRunParamFactory;
+import org.dubhe.train.inner.handler.SystemRunParamHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -78,6 +82,9 @@ public class TrainJobAsync {
 
     @Autowired
     private DistributeTrainApi distributeTrainApi;
+
+    @Resource
+    private SystemRunParamFactory systemRunParamFactory;
 
     /**
      * 提交分布式训练
@@ -157,34 +164,26 @@ public class TrainJobAsync {
         sb.append(paramPrefix).append(trainJobConfig.getNodeIps()).append("=\"$NODE_IPS\" ");
         // 拼接python固定参数 节点数量
         sb.append(paramPrefix).append(trainJobConfig.getNodeNum()).append(SymbolConstant.FLAG_EQUAL).append(ptTrainJob.getResourcesPoolNode()).append(StrUtil.SPACE);
-        if (ptImageAndAlgorithmVO.getIsTrainModelOut()) {
-            // 拼接 out
-            fileStoreApi.createDir(fileStoreApi.getRootDir() + basePath + StrUtil.SLASH + trainJobConfig.getModelPath());
-            baseTrainJobDTO.setTrainModelPath(relativePath + StrUtil.SLASH + trainJobConfig.getModelPath());
-            sb.append(paramPrefix).append(trainJobConfig.getDockerTrainModelPath());
-        }
-        if (ptImageAndAlgorithmVO.getIsTrainOut()) {
-            // 拼接 输出日志
-            fileStoreApi.createDir(fileStoreApi.getRootDir() + basePath + StrUtil.SLASH + trainJobConfig.getOutPath());
-            baseTrainJobDTO.setTrainOutPath(relativePath + StrUtil.SLASH + trainJobConfig.getOutPath());
-            sb.append(paramPrefix).append(trainJobConfig.getDockerTrainOutPath());
-        }
-        if (ptImageAndAlgorithmVO.getIsVisualizedLog()) {
-            // 拼接 输出可视化日志
-            fileStoreApi.createDir(fileStoreApi.getRootDir() + basePath + StrUtil.SLASH + trainJobConfig.getVisualizedLogPath());
-            baseTrainJobDTO.setVisualizedLogPath(relativePath + StrUtil.SLASH + trainJobConfig.getVisualizedLogPath());
-            sb.append(paramPrefix).append(trainJobConfig.getDockerVisualizedLogPath());
-        }
+
         // 拼接python固定参数 数据集
         sb.append(paramPrefix).append(trainJobConfig.getDockerDataset());
 
-        String valDataSourcePath = baseTrainJobDTO.getValDataSourcePath();
-        if (StringUtils.isNotBlank(valDataSourcePath)) {
-            sb.append(paramPrefix).append(trainJobConfig.getLoadValDatasetKey()).append(SymbolConstant.FLAG_EQUAL).append(trainJobConfig.getDockerValDatasetPath());
-        }
 
         // 模型路径挂载及其参数拼接
         DistributeTrainBO distributeTrainBO = new DistributeTrainBO();
+
+        for (TrainSystemRunParamEnum systemRunParamEnum : TrainSystemRunParamEnum.values()) {
+            SystemRunParamHandler systemRunParamHandler = systemRunParamFactory.getHandler(systemRunParamEnum);
+            if (systemRunParamHandler == null) {
+                continue;
+            }
+            String paramValue = systemRunParamHandler.buildSystemRunCommand(null, userId, distributeTrainBO, baseTrainJobDTO, ptImageAndAlgorithmVO.getIsTrainModelOut(),
+                    ptImageAndAlgorithmVO.getIsTrainOut(), ptImageAndAlgorithmVO.getIsVisualizedLog(), systemRunParamEnum.name(), true);
+            if (StringUtils.isNotBlank(paramValue)) {
+                sb.append(paramValue);
+            }
+        }
+
         buildBoAboutModel(baseTrainJobDTO, distributeTrainBO, sb);
 
         JSONObject runParams = baseTrainJobDTO.getRunParams();
@@ -194,6 +193,7 @@ public class TrainJobAsync {
                     sb.append(paramPrefix).append(entry.getKey()).append(SymbolConstant.FLAG_EQUAL).append(entry.getValue()).append(StrUtil.SPACE)
             );
         }
+        
         // 在用户自定以参数拼接晚后拼接固定参数，防止被用户自定义参数覆盖
         if (ResourcesPoolTypeEnum.isGpuCode(baseTrainJobDTO.getResourcesPoolType())) {
             // 需要GPU
@@ -218,12 +218,7 @@ public class TrainJobAsync {
                 .putFsMounts(TrainConstant.MODEL_VOLUME_MOUNTS, k8sNameTool.getAbsolutePath(relativePath + StrUtil.SLASH + trainJobConfig.getOutPath()))
                 .setBusinessLabel(k8sNameTool.getPodLabel(BizEnum.ALGORITHM))
                 .setTaskIdentifyLabel(baseTrainJobDTO.getTaskIdentify());
-        if (StringUtils.isNotBlank(baseTrainJobDTO.getDataSourcePath())) {
-            distributeTrainBO.putFsMounts(TrainConstant.DATASET_VOLUME_MOUNTS, k8sNameTool.getAbsolutePath(baseTrainJobDTO.getDataSourcePath()));
-        }
-        if (StringUtils.isNotBlank(valDataSourcePath)) {
-            distributeTrainBO.putFsMounts(trainJobConfig.getDockerValDatasetPath(), fileStoreApi.formatPath(fileStoreApi.getRootDir() + fileStoreApi.getBucket() + valDataSourcePath));
-        }
+
         //延时启动，单位为分钟
         if (baseTrainJobDTO.getDelayCreateTime() != null && baseTrainJobDTO.getDelayCreateTime() > 0) {
             distributeTrainBO.setDelayCreateTime(baseTrainJobDTO.getDelayCreateTime() * MagicNumConstant.SIXTY);
@@ -340,40 +335,26 @@ public class TrainJobAsync {
         sb.append(ptImageAndAlgorithmVO.getRunCommand());
         // 拼接out,log和dataset
         String pattern = trainJobConfig.getPythonFormat();
-        if (ptImageAndAlgorithmVO.getIsTrainModelOut()) {
-            fileStoreApi.createDir(fileStoreApi.getRootDir() + commonPath + StrUtil.SLASH + trainJobConfig.getModelPath());
-            baseTrainJobDTO.setTrainModelPath(relativeCommonPath + StrUtil.SLASH + trainJobConfig.getModelPath());
-            sb.append(pattern).append(trainJobConfig.getDockerTrainModelPath());
-        }
-        if (ptImageAndAlgorithmVO.getIsTrainOut()) {
-            fileStoreApi.createDir(fileStoreApi.getRootDir() + commonPath + StrUtil.SLASH + trainJobConfig.getOutPath());
-            baseTrainJobDTO.setTrainOutPath(relativeCommonPath + StrUtil.SLASH + trainJobConfig.getOutPath());
-            sb.append(pattern).append(trainJobConfig.getDockerTrainOutPath());
-        }
-        if (ptImageAndAlgorithmVO.getIsVisualizedLog()) {
-            fileStoreApi.createDir(fileStoreApi.getRootDir() + commonPath + StrUtil.SLASH + trainJobConfig.getVisualizedLogPath());
-            baseTrainJobDTO.setVisualizedLogPath(relativeCommonPath + StrUtil.SLASH + trainJobConfig.getVisualizedLogPath());
-            sb.append(pattern).append(trainJobConfig.getDockerVisualizedLogPath());
-        }
-        sb.append(pattern).append(trainJobConfig.getDockerDataset());
 
-        String valDataSourcePath = baseTrainJobDTO.getValDataSourcePath();
-        if (StringUtils.isNotBlank(valDataSourcePath)) {
-            sb.append(pattern).append(trainJobConfig.getLoadValDatasetKey()).append(SymbolConstant.FLAG_EQUAL).append(trainJobConfig.getDockerValDatasetPath());
+        for (TrainSystemRunParamEnum systemRunParamEnum : TrainSystemRunParamEnum.getNormalTrainParams()) {
+            SystemRunParamHandler systemRunParamHandler = systemRunParamFactory.getHandler(systemRunParamEnum);
+            String paramValue = systemRunParamHandler.buildSystemRunCommand(jobBo, userId,null, baseTrainJobDTO, ptImageAndAlgorithmVO.getIsTrainModelOut(),
+                    ptImageAndAlgorithmVO.getIsTrainOut(), ptImageAndAlgorithmVO.getIsVisualizedLog(), systemRunParamEnum.name(), true);
+            if (StringUtils.isNotBlank(paramValue)) {
+                sb.append(paramValue);
+            }
         }
+
         //模型路径挂载及其参数拼接
         buildBoAboutModel(baseTrainJobDTO, jobBo, sb);
+        buildBoAboutDataset(baseTrainJobDTO, jobBo, sb);
 
         if (null != runParams && !runParams.isEmpty()) {
             runParams.forEach((k, v) ->
                     sb.append(pattern).append(k).append(SymbolConstant.FLAG_EQUAL).append(v).append(StrUtil.SPACE)
             );
         }
-        // 在用户自定以参数拼接晚后拼接固定参数，防止被用户自定义参数覆盖
-        if (ResourcesPoolTypeEnum.isGpuCode(baseTrainJobDTO.getResourcesPoolType())) {
-            // 需要GPU
-            sb.append(pattern).append(trainJobConfig.getGpuNumPerNode()).append(SymbolConstant.FLAG_EQUAL).append(baseTrainJobDTO.getGpuNum()).append(StrUtil.SPACE);
-        }
+        
         String executeCmd = sb.toString();
         list.add("-c");
 
@@ -398,12 +379,10 @@ public class TrainJobAsync {
                 .putFsMounts(trainJobConfig.getDockerTrainPath(), fileStoreApi.getRootDir() + commonPath.substring(1))
                 .setBusinessLabel(k8sNameTool.getPodLabel(BizEnum.ALGORITHM))
                 .setTaskIdentifyLabel(baseTrainJobDTO.getTaskIdentify());
-        if (StringUtils.isNotBlank(baseTrainJobDTO.getDataSourcePath())) {
-            jobBo.putFsMounts(trainJobConfig.getDockerDatasetPath(), fileStoreApi.getRootDir() + fileStoreApi.getBucket().substring(1) + baseTrainJobDTO.getDataSourcePath());
-        }
-        if (StringUtils.isNotBlank(valDataSourcePath)) {
-            jobBo.putFsMounts(trainJobConfig.getDockerValDatasetPath(), fileStoreApi.formatPath(fileStoreApi.getRootDir() + fileStoreApi.getBucket() + valDataSourcePath));
-        }
+
+
+        
+
         //挂载pip路径
         if (StringUtils.isNotBlank(baseTrainJobDTO.getPipSitePackagePath())) {
             String formatPath = fileStoreApi.formatPath(fileStoreApi.getRootDir() + fileStoreApi.getBucket() + baseTrainJobDTO.getPipSitePackagePath());
@@ -439,6 +418,64 @@ public class TrainJobAsync {
         return jobBo;
     }
 
+    private void buildBoAboutDataset(BaseTrainJobDTO baseTrainJobDTO, PtJupyterJobBO jobBo, StringBuilder sb) {
+        if ((baseTrainJobDTO.getModelResource() != null && baseTrainJobDTO.getModelResource().equals(ModelResourceEnum.ATLAS.getType()))) {
+            if (CollUtil.isNotEmpty(baseTrainJobDTO.getAtlasDatasetPaths())) {
+                appendAtlasDataPath(baseTrainJobDTO.getAtlasDatasetPaths(), baseTrainJobDTO.getAtlasDatasetNames(), jobBo, sb);
+            }
+        }
+        
+
+    }
+
+
+    /**
+     * 炼知模型训练数据集挂载及路径参数拼接
+     *
+     * @param atlasDataPaths 训练数据集路径集合
+     * @param jobBo 训练任务实体
+     * @param sb 训练命令参数
+     */
+    private void appendAtlasDataPath(List<String> atlasDataPaths, List<String> atlasNames, PtJupyterJobBO jobBo, StringBuilder sb) {
+        if (CollUtil.isNotEmpty(atlasDataPaths)) {
+            StringBuilder appendDataPath = new StringBuilder();
+            if (CollUtil.isNotEmpty(atlasDataPaths)) {
+                for (int i = 0; i < atlasDataPaths.size(); i++) {
+                    String atlasDataPath = trainJobConfig.getDockerDatasetPath() + StrUtil.SLASH + atlasNames.get(i).split(StrUtil.COLON)[0];
+                    appendDataPath.append(atlasDataPath).append(SymbolConstant.COMMA);
+                    jobBo.putFsMounts(atlasDataPath, fileStoreApi.getRootDir() + fileStoreApi.getBucket().substring(1) + atlasDataPaths.get(i));
+                }
+                String dataPath = SymbolConstant.MARK + appendDataPath.toString().substring(MagicNumConstant.ZERO, appendDataPath.length() - MagicNumConstant.ONE) + SymbolConstant.MARK;
+                sb.append(trainJobConfig.getPythonFormat()).append(trainJobConfig.getDockerAtlasDatasetKey()).append(SymbolConstant.FLAG_EQUAL).append(dataPath);
+            }
+        }
+
+    }
+
+
+    /**
+     * 炼知模型验证数据集挂载及路径参数拼接
+     *
+     * @param atlasValDataPaths 验证数据集路径集合
+     * @param jobBO 训练任务实体
+     * @param sb 训练命令参数
+     */
+    private void appendAtlasValDataPath(List<String> atlasValDataPaths, List<String> atlasValNames, PtJupyterJobBO jobBO, StringBuilder sb) {
+        if (CollUtil.isNotEmpty(atlasValDataPaths)) {
+            StringBuilder appendValDataPath = new StringBuilder();
+            if (CollUtil.isNotEmpty(atlasValDataPaths)) {
+                for (int i = 0; i < atlasValDataPaths.size(); i++) {
+                    String atlasValDataPath = trainJobConfig.getDockerValDatasetPath() + StrUtil.SLASH + atlasValNames.get(i).split(StrUtil.COLON)[0];
+                    appendValDataPath.append(atlasValDataPath).append(SymbolConstant.COMMA);
+                    jobBO.putFsMounts(atlasValDataPath, fileStoreApi.getRootDir() + fileStoreApi.getBucket().substring(1) + atlasValDataPaths.get(i));
+                }
+                String dataPath = SymbolConstant.MARK + appendValDataPath.toString().substring(MagicNumConstant.ZERO, appendValDataPath.length() - MagicNumConstant.ONE) + SymbolConstant.MARK;
+                sb.append(trainJobConfig.getPythonFormat()).append(trainJobConfig.getDockerAtlasValDatasetKey()).append(SymbolConstant.FLAG_EQUAL).append(dataPath);
+            }
+        }
+    }
+
+
     /**
      * 模型路径挂载及其参数拼接
      *
@@ -448,20 +485,6 @@ public class TrainJobAsync {
      */
     private void buildBoAboutModel(BaseTrainJobDTO baseTrainJobDTO, Object jobBo, StringBuilder sb) {
         if (null == baseTrainJobDTO.getModelResource()) {
-            return;
-        }
-        String modelLoadPathDir = baseTrainJobDTO.getModelPath();
-        //非炼知模型
-        if (StringUtils.isNotBlank(modelLoadPathDir)) {
-            //将模型路径model_load_dir路径
-            sb.append(trainJobConfig.getPythonFormat()).append(trainJobConfig.getLoadKey()).append(SymbolConstant.FLAG_EQUAL).append(trainJobConfig.getDockerModelPath());
-            if (jobBo instanceof PtJupyterJobBO) {
-                PtJupyterJobBO ptJupyterJobBO = (PtJupyterJobBO) jobBo;
-                ptJupyterJobBO.putFsMounts(trainJobConfig.getDockerModelPath(), fileStoreApi.formatPath(fileStoreApi.getRootDir() + fileStoreApi.getBucket() + modelLoadPathDir));
-            } else if (jobBo instanceof DistributeTrainBO) {
-                DistributeTrainBO distributeTrainBO = (DistributeTrainBO) jobBo;
-                distributeTrainBO.putFsMounts(trainJobConfig.getDockerModelPath(), fileStoreApi.formatPath(fileStoreApi.getRootDir() + fileStoreApi.getBucket() + modelLoadPathDir));
-            }
             return;
         }
         //炼知模型中的教师模型
@@ -536,4 +559,5 @@ public class TrainJobAsync {
         }
         ptTrainJobMapper.updateById(ptTrainJob);
     }
+    
 }

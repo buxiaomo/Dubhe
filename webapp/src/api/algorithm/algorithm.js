@@ -25,6 +25,15 @@ export function list(params) {
   });
 }
 
+// 获取所有我的和预置算法，不区分来源
+export function listAll(params) {
+  return request({
+    url: `/${API_MODULE_NAME.ALGORITHM}/algorithms/getAll`,
+    method: 'get',
+    params,
+  });
+}
+
 export function add(data) {
   return request({
     url: `/${API_MODULE_NAME.ALGORITHM}/algorithms`,
@@ -61,6 +70,15 @@ export function getInferenceAlgorithm() {
   return request({
     url: `/${API_MODULE_NAME.ALGORITHM}/algorithms/getInferenceAlgorithm`,
     method: 'get',
+  });
+}
+
+// 根据名称获取算法信息(包含镜像信息和运行命令)
+export function getAlgorithmInfo(params) {
+  return request({
+    url: `/${API_MODULE_NAME.ALGORITHM}/algorithms/findAlgorithmByName`,
+    method: 'get',
+    params,
   });
 }
 

@@ -23,10 +23,13 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 import org.dubhe.biz.base.annotation.DataPermission;
+import org.dubhe.data.domain.bo.FileAnnotationBO;
+import org.dubhe.data.domain.bo.TextAnnotationBO;
 import org.dubhe.data.domain.dto.EsTransportDTO;
 import org.dubhe.data.domain.dto.FileCreateDTO;
 import org.dubhe.data.domain.entity.File;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -91,10 +94,13 @@ public interface FileMapper extends BaseMapper<File> {
             "<if test='currentVersionName != null'> " +
             "and ddvf.version_name =  #{currentVersionName} " +
             "</if>" +
-            "and ddvf.annotation_status = 101 " +
+            "and ddvf.annotation_status in " +
+            "<foreach item='item' collection='status' separator=',' open='(' close=')'>" +
+            "#{item}" +
+            "</foreach>" +
             "limit #{offset}, #{batchSize} " +
             "</script>")
-    List<File> selectListOne(@Param("datasetId") Long datasetId, @Param("currentVersionName") String currentVersionName, @Param("offset") int offset, @Param("batchSize") int batchSize);
+    List<File> selectListOne(@Param("datasetId") Long datasetId, @Param("currentVersionName") String currentVersionName, @Param("offset") int offset, @Param("batchSize") int batchSize, @Param("status") Collection<Integer> status);
 
     /**
      * 更新文件状态
@@ -134,12 +140,12 @@ public interface FileMapper extends BaseMapper<File> {
      * @param datasetId     数据集ID
      * @param changed       版本文件是否改动
      * @param versionName   版本名称
-     * @return List<name>   名称列表
+     * @return List<FileAnnotationBO>   名称列表
      */
-    @Select("select df.name from data_file df left join data_dataset_version_file ddvf on df.id = ddvf.file_id " +
+    @Select("select df.id as fileId, df.name as fileName ,df.url as fileUrl ,df.width as fileWidth,df.height as fileHeight from data_file df left join data_dataset_version_file ddvf on df.id = ddvf.file_id " +
             "where ddvf.dataset_id = #{datasetId} and df.dataset_id = #{datasetId} " +
             "and ddvf.changed = #{changed} and ddvf.version_name = #{versionName}")
-    List<String> selectNames(@Param("datasetId") Long datasetId, @Param("changed") Integer changed,@Param("versionName")String versionName);
+    List<FileAnnotationBO> selectFileAnnotations(@Param("datasetId") Long datasetId, @Param("changed") Integer changed,@Param("versionName")String versionName);
 
     /**
      * 获取当前版本下原图文件数量
@@ -183,4 +189,19 @@ public interface FileMapper extends BaseMapper<File> {
      */
     @Update("update data_file set es_transport = 0 where dataset_id = #{datasetId} and id = #{fileId}")
     void recoverEsStatus(@Param("datasetId") Long datasetId, @Param("fileId") Long fileId);
+
+    /**
+     * 根据版本和数据集ID获取文件url 宽高
+     *
+     * @param datasetId     数据集ID
+     * @param versionName   版本名
+     * @return List<FileAnnotationBO> url列表
+     */
+    @Select("select df.id as fileId,  df.name as fileName ,df.url as fileUrl ,df.width as fileWidth,df.height as fileHeight" +
+            " from data_file df left join data_dataset_version_file ddvf on df.id = ddvf.file_id " +
+            "where ddvf.dataset_id = #{datasetId} and df.dataset_id = #{datasetId} " +
+            "and ddvf.version_name = #{versionName}")
+    List<FileAnnotationBO> listByDatasetIdAndVersionName(@Param("datasetId") Long datasetId, @Param("versionName") String versionName);
+
+    List<TextAnnotationBO> selectTextAnnotation(@Param("datasetId") Long datasetId, @Param("fileIdsNotToEs")List<Long> fileIdsNotToEs);
 }

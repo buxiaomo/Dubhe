@@ -114,6 +114,16 @@
         </a>
         <span>页面创建</span>
       </div>
+      <el-form-item label="应用场景">
+        <el-select v-model="state.model.module" clearable>
+          <el-option
+            v-for="item in datasetOccasionList"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
       <el-form-item label="数据集描述" prop="remark">
         <el-input
           v-model="state.model.remark"
@@ -130,7 +140,7 @@
 
 <script>
 import { isNil } from 'lodash';
-import { watch, reactive, computed } from '@vue/composition-api';
+import { watch, reactive, computed, inject } from '@vue/composition-api';
 
 import BaseModal from '@/components/BaseModal';
 import InfoSelect from '@/components/InfoSelect';
@@ -141,6 +151,7 @@ import {
   isIncludeStatus,
   enableLabelGroup,
 } from '@/views/dataset/util';
+import { datasetOccasionSymbol } from '@/utils/constant';
 import { getLabelGroupList } from '@/api/preparation/labelGroup';
 
 export default {
@@ -162,10 +173,11 @@ export default {
     handleOk: Function,
     row: {
       type: Object,
-      default: () => {},
+      default: () => ({}),
     },
   },
   setup(props, { refs }) {
+    const datasetOccasionList = inject(datasetOccasionSymbol);
     const { handleOk } = props;
 
     const rules = {
@@ -303,6 +315,7 @@ export default {
       handleEditDataset,
       dataTypeList,
       annotationList,
+      datasetOccasionList,
       showlabelGroup,
     };
   },

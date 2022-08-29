@@ -20,7 +20,7 @@ package org.dubhe.image.enums;
  * @description harbor镜像来源枚举
  * @date 2020-07-16
  */
-public enum HarborResourceEnum {
+public enum  HarborResourceEnum {
 
     NOTEBOOK(0, "notebook预置"),
     TRAIN(1, "train预置"),

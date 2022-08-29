@@ -81,11 +81,12 @@ export default {
         this.showFlag = false;
       }
     },
-    showFlag() {
+    showFlag(val) {
       this.setShowFlag([this.subname, this.showFlag]);
     },
   },
   created() {
+    // this.setshowrun(this.categoryInfo[0])
     this.setshowrun(this.userSelectRunFile);
     if (this.index === 0 && this.getShowFlag.firstTime) {
       this.showFlag = false;
@@ -118,6 +119,30 @@ export default {
 };
 </script>
 <style lang="less" scoped>
+.imagescontainer {
+  .images-title {
+    display: flex;
+    align-items: center;
+    height: auto;
+    color: white;
+    background-color: white;
+
+    span {
+      font-weight: 700;
+      // margin-left: 29%;
+      line-height: 30px;
+    }
+  }
+}
+
+.imagescontent {
+  padding: 2%;
+}
+
+.showClass {
+  display: none;
+}
+
 .my-label {
   display: flex;
   width: 100%;
@@ -125,11 +150,13 @@ export default {
 
   .triangle {
     position: absolute;
+    // left: 15px;
     width: 0;
     height: 0;
     overflow: hidden;
     border-color: transparent transparent transparent #7f7cc1;
     border-style: dashed dashed dashed solid;
+    // border-width: 15px;
     border-top-width: 15px;
     border-right-width: 18px;
     border-bottom-width: 15px;
@@ -171,30 +198,6 @@ export default {
     line-height: 30px;
     color: white;
   }
-}
-
-.imagescontainer {
-  .images-title {
-    display: flex;
-    align-items: center;
-    height: auto;
-    color: white;
-    background-color: white;
-
-    span {
-      font-weight: 700;
-      // margin-left: 29%;
-      line-height: 30px;
-    }
-  }
-}
-
-.imagescontent {
-  padding: 2%;
-}
-
-.showClass {
-  display: none;
 }
 
 .sub .triangle {

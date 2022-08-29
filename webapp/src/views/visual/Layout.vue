@@ -15,17 +15,17 @@
  */
 
 <template>
-  <div class="layout-root layout-same-style" style="width: 100%;">
+  <div class="layout-root layout-same-style" style="width: 100%">
     <el-dialog
-      title="图片保存选项"
       :visible.sync="dialogFormVisible"
+      title="图片保存选项"
       class="layout-svg-save-dialog"
     >
       <el-form :model="form">
-        <el-form-item label="图片名称" :label-width="formLabelWidth">
+        <el-form-item :label-width="formLabelWidth" label="图片名称">
           <el-input v-model="form.input" placeholder="请输入名称" clearable />
         </el-form-item>
-        <el-form-item label="图片格式" :label-width="formLabelWidth">
+        <el-form-item :label-width="formLabelWidth" label="图片格式">
           <el-select v-model="form.type" placeholder="请选择保存图片格式">
             <el-option label="png" value="png" />
             <el-option label="eps" value="eps" />
@@ -39,8 +39,8 @@
       </div>
     </el-dialog>
     <el-dialog
-      title="全力加载中,请稍等..."
       :visible.sync="initWaitVisible"
+      title="全力加载中,请稍等..."
       class="layout-svg-save-dialog"
     >
       <i class="el-icon-loading" />
@@ -551,27 +551,27 @@
       </div>
     </el-dialog>
     <el-dialog
-      title="设定数据同步间隔"
       :visible.sync="dataSyncVisible"
+      title="设定数据同步间隔"
       class="layout-svg-save-dialog"
     >
       <div>
         <el-checkbox v-model="syncDataBool">启用同步</el-checkbox>
       </div>
-      <div style="margin-top: 10px;">
+      <div style="margin-top: 10px">
         <el-input-number
           v-model="timeSync"
+          :min="5"
+          :disabled="!syncDataBool"
           class="input-number"
           size="mini"
-          :min="30"
-          :disabled="!syncDataBool"
         />秒
       </div>
     </el-dialog>
     <div
       ref="left"
-      class="layout-sidebar layout-same-style"
       :style="{ height: leftStyle.height, width: leftStyle.width }"
+      class="layout-sidebar layout-same-style"
     >
       <logo :collapse="false" />
       <div :class="['layout-sidebar-category-container']">
@@ -590,24 +590,26 @@
               ref="eachMiddle"
               :class="['layout-sidebar-category-each-middle']"
               :style="
-                item.id == selected || (i == initId && initFlag)
+                item.rawName == selectedRaw || (i == initId && initFlag)
                   ? { borderLeft: '4px solid #2e4fde' }
                   : {}
               "
             >
               <router-link
-                tag="li"
                 :to="item.routerName"
                 :class="[
-                  item.id == selected || (i == initId && initFlag) ? 'category-selected' : '',
+                  item.rawName == selectedRaw || (i == initId && initFlag)
+                    ? 'category-selected'
+                    : '',
                 ]"
+                tag="li"
                 @click.native="change(item)"
               >
                 <i :class="['iconfont', item.icon]" :style="{ fontSize: 16 + 'px' }" />
                 <span
                   :class="[leftStyle.categoryFlage ? 'span-after' : '']"
                   :style="
-                    item.id == selected || (i == initId && initFlag)
+                    item.rawName == selectedRaw || (i == initId && initFlag)
                       ? { fontSize: 16 + 'px', color: 'rgb(46, 79, 222)' }
                       : { fontSize: 16 + 'px' }
                   "
@@ -623,8 +625,8 @@
         <p
           v-for="item in leftSilderIcons"
           v-show="item.shaowFlag"
-          :key="item.id"
           ref="item.ref"
+          :key="item.id"
           :style="{ position: 'absolute', marginLeft: item.margin }"
           @click="isHide(item)"
         >
@@ -633,11 +635,11 @@
       </div>
     </div>
     <div
-      class="layout-header-content layout-same-style"
       :style="{ height: rightStyle.height, width: rightStyle.width }"
+      class="layout-header-content layout-same-style"
     >
       <div class="layout-header layout-same-style">
-        <div :class="['same-div']" style="width: 400px;">
+        <div :class="['same-div']" style="width: 400px">
           <p
             v-for="(item, i) in icons"
             :key="i"
@@ -653,13 +655,13 @@
               v-if="update"
               v-model="value1"
               :class="['run-selest']"
-              size="mini"
               :multiple="multipleFlag === 2 ? false : isMultiple"
               :disabled="multipleFlag === 2 ? true : false"
+              :clearable="multipleFlag === 2 ? false : isMultiple"
+              size="mini"
               placeholder="RUN"
               collapse-tags
               filterable
-              :clearable="multipleFlag === 2 ? false : isMultiple"
               @focus="getOptions()"
             >
               <el-option
@@ -671,12 +673,12 @@
             </el-select>
           </p>
         </div>
-        <div :class="['same-div']" style="width: calc(100% - 800px);" />
-        <div :class="['same-div', 'search-tag']" style="width: 400px;">
+        <div :class="['same-div']" style="width: calc(100% - 800px)" />
+        <div :class="['same-div', 'search-tag']" style="width: 400px">
           <p :class="['run-select-container']" :style="{ margin: '0 0 0 0' }">
             <i
               :class="['el-icon-refresh']"
-              style="font-size: 19px; color: whitesmoke; cursor: pointer;"
+              style="font-size: 19px; color: whitesmoke; cursor: pointer"
               @click="isClicked"
             />
             <i
@@ -692,15 +694,19 @@
       <div
         id="full-screen1"
         class="layout-content layout-same-style"
-        style="background-color: white;"
+        style="background-color: white"
       >
         <div
+          v-if="!(todoName == 'transformertext')"
           :class="['right-slider', rightRetract.retractFlage ? 'right-slider-last' : '']"
-          :style="{ right: rightRetract.setBackLeft, width: rightRetract.width }"
+          :style="{
+            right: rightRetract.setBackLeft,
+            width: rightRetract.width,
+          }"
         >
           <p
             v-for="item in rightSilderIcons"
-            v-show="item.shaowFlag && selectedRaw !== 'graph'"
+            v-show="item.shaowFlag"
             :key="item.id"
             @click="rightSilder(item)"
           >
@@ -710,10 +716,11 @@
         <router-view
           id="full-screen"
           :class="[rawShape, 'layout-same-style']"
-          :style="{ width: contentsStyle.leftWidth }"
+          :style="{ width: 'auto' }"
         />
         <router-view
           v-show="contentsStyle.rightShowFlag"
+          v-if="!(todoName == 'transformertext')"
           name="right"
           class="layout-content-paramenter layout-same-style"
         />
@@ -743,6 +750,7 @@ export default {
   },
   data() {
     return {
+      timer: null,
       downloadList: [],
       downloadState: ['graph', 'scalar', 'statistic'],
       init: 1,
@@ -779,7 +787,7 @@ export default {
         retractFlage: false,
       },
       todoName: '',
-      logoSourse: '../assets/VisualImg/logo.png',
+      logoSourse: 'static/img/left_logo.png',
       logoFlag: true,
       rawShape: 'layout-content-panel',
       leftStyle: {
@@ -871,7 +879,7 @@ export default {
       ],
       syncDataBool: false, // 用来设定timeSync显示是否正常 和 作为开关是否进行同步
       dataSyncVisible: false, // 用来是否显示整个设定数据同步界面
-      timeSync: '30',
+      timeSync: '5',
       operationGuide: false,
     };
   },
@@ -896,12 +904,14 @@ export default {
     ]),
   },
   watch: {
+    // 报错信息
     getErrorMessage(val) {
       this.$message({
         message: val.split('_')[0],
         type: 'error',
       });
     },
+    // 路由跳转时候侧栏隐藏
     selectedRaw(val) {
       if (val === 'media') {
         this.rightSilder(this.rightSilderIcons[0]);
@@ -913,6 +923,7 @@ export default {
         this.rightSilder(this.rightSilderIcons[1]);
       }
     },
+    // 浏览拉伸拉伸，侧栏隐藏
     screenWidth(val) {
       if (val < 1000) {
         this.isHide(this.leftSilderIcons[0]);
@@ -921,37 +932,46 @@ export default {
         }
       }
     },
-    $route() {
-      const path = this.$route.path.split('/');
-      const name = path[path.length - 1];
-      const id = this.categoryIndex.indexOf(constants.CATEGORYORDER.indexOf(name));
-      const item = this.allCategoryInform[id];
-      this.initFlag = false;
-      this.selected = item.id;
-      this.init = 1;
-      this.selectedRaw = item.rawName;
-      this.setRunCategory(item.rawName);
-      this.todoName = item.rawName;
-      // 同步更新
-      if (this.syncDataBool) {
-        // 开启同步
-        this.clearSync();
-        this.timingFeatchCategory([this.timeSync * 1000, this.$route.path]);
-      } else {
-        // 关闭同步
-        this.clearSync();
-      }
+    // 路由信息更新
+    $route: {
+      immediate: false,
+      handler(val) {
+        const path = this.$route.path.split('/');
+        const name = path[path.length - 1];
+        const id = this.categoryIndex.indexOf(constants.CATEGORYORDER.indexOf(name));
+        const item = this.allCategoryInform[id];
+        this.initFlag = false;
+        this.selected = item.id;
+        this.init = 1;
+        this.selectedRaw = item.rawName;
+        this.setRunCategory(item.rawName);
+        this.todoName = item.rawName;
+        // 同步更新
+        if (this.syncDataBool) {
+          // 开启同步
+          this.clearSync();
+          // this.timingFeatchCategory([this.timeSync * 1000, this.$route.path])
+        } else {
+          // 关闭同步
+          this.clearSync();
+        }
+      },
     },
+    // $route(val) {
+
+    // },
     initShowPanelInfo() {
-      if (this.$route.path === '/visual') {
+      if (this.$route.path === '/index') {
         this.$router.push({ path: this.initShowPanelInfo.routerName });
       }
       this.initId = this.initSidebarId;
+      this.todoName = this.$route.path.match(/[^\/]+$/g)[0];
     },
     userSelectRunFile() {
       this.$forceUpdate();
       this.value1 = this.userSelectRunFile;
     },
+    // runfiles
     value1() {
       this.getStateStore[this.selectedRaw] = this.value1;
       this.setUserSelectRunFile(this.value1);
@@ -979,46 +999,62 @@ export default {
       }
     },
     syncDataBool() {
-      if (this.syncDataBool) {
-        // 开启同步
-        this.timingFeatchCategory([this.timeSync * 1000, this.$route.path]);
-      } else {
-        // 关闭同步
-        this.clearSync();
-      }
+      // if (this.syncDataBool) {
+      //   // 开启同步
+      //   this.timingFeatchCategory([this.timeSync * 1000, this.$route.path])
+      // } else {
+      //   // 关闭同步
+      //   this.clearSync()
+      // }
     },
     allCategoryInform() {
       if (!this.leftSilderIcons[0].shaowFlag) {
         this.isHide(this.leftSilderIcons[0]);
       }
     },
+    // 数据同步
+    dataSyncVisible(val) {
+      const self = this;
+      if (!val && this.syncDataBool) {
+        if (self.timer) {
+          clearTimeout(self.timer);
+        }
+        self.timer = setInterval(function() {
+          self.featchCategory(self.$route.path);
+          self.setTimer();
+        }, 1000 * self.timeSync);
+      } else if (!val && !this.syncDataBool) {
+        if (self.timer) {
+          clearTimeout(self.timer);
+        }
+        self.timer = null;
+      }
+    },
   },
   created() {
-    const params = param2Obj(window.location.href);
-    if (typeof params.id === 'undefined' || typeof params.trainJobName === 'undefined') {
+    const params = param2Obj(window.location.href)
+    if (typeof (params.id) === 'undefined' || typeof (params.trainJobName) === 'undefined') {
       // 查看sessionStorage里面是否有这两个数据
-      if (typeof Storage !== 'undefined') {
+      if (typeof (Storage) !== 'undefined') {
         if (sessionStorage.id && sessionStorage.trainJobName) {
-          params.id = sessionStorage.id;
-          params.trainJobName = sessionStorage.trainJobName;
+          params.id = sessionStorage.id
+          params.trainJobName = sessionStorage.trainJobName
         } else {
-          this.setErrorMessage(`${'没有参数 id 和 trainJobName!!!' + '_'}${new Date().getTime()}`);
+          this.setErrorMessage('没有参数 id 和 trainJobName!!!' + '_' + new Date().getTime())
         }
       } else {
-        this.setErrorMessage(
-          `${'对不起，你的浏览器不支持 web storage!!!' + '_'}${new Date().getTime()}`
-        );
+        this.setErrorMessage('对不起，你的浏览器不支持 web storage!!!' + '_' + new Date().getTime())
         // document.getElementById("result").innerHTML = "Sorry, your browser does not support web storage...";
       }
     } else {
       // 存储一份到sessionStorage里面
-      sessionStorage.id = params.id;
-      sessionStorage.trainJobName = params.trainJobName;
+      sessionStorage.id = params.id
+      sessionStorage.trainJobName = params.trainJobName
     }
     // TODO 临时解决方案，最终使用上面的方案
     // const params = {
-    //   id: 'test',
     //   trainJobName: 'test',
+    //   id: 'test',
     // };
     this.setParams(params);
     this.initWaitingPage(params);
@@ -1043,6 +1079,7 @@ export default {
   },
   methods: {
     ...mapLayoutActions([
+      'featchCategory',
       'initFeatchCategory',
       'timingFeatchCategory',
       'timingFeatchCategoryOnce',
@@ -1058,6 +1095,7 @@ export default {
       'setErrorMessage',
     ]),
     ...mapCustomMutations(['setData']),
+    // 手动刷新页面
     isClicked() {
       d3.select('.el-icon-refresh').attr('class', 'el-icon-refresh anim');
       setTimeout(() => {
@@ -1100,6 +1138,7 @@ export default {
         this.logoImgStyleFlage = false;
       }
     },
+    // 右侧栏隐藏
     rightSilder(item) {
       if (item.ref === 'right') {
         item.shaowFlag = false;
@@ -1119,6 +1158,7 @@ export default {
         this.rightRetract.retractFlage = false;
       }
     },
+    // 按钮功能
     jsutTest(val) {
       if (val === 'download') {
         if (this.downloadState.indexOf(this.selectedRaw) >= 0) {
@@ -1184,6 +1224,7 @@ export default {
         }
       }
     },
+    // 图片下载
     downloadSvg() {
       this.dialogFormVisible = false;
       this.svgDownloadList[this.selectedRaw].forEach((val) => {
@@ -1204,27 +1245,13 @@ export default {
       this.form.input = '下载';
       this.form.type = 'png';
     },
-    testDownloadJson2csv() {
-      const testObject = [
-        {
-          name: 'xds',
-          age: '26',
-          gender: 'male',
-        },
-        {
-          name: 'zhngsnan',
-          age: '22',
-          gender: 'male',
-        },
-      ];
-      download.downloadJSON2CSV(testObject);
-    },
+    // 右上方按钮
     getTigger(val) {
-      const time = new Date();
-      const currentTime = time.toLocaleString();
-      if (val.ref === 'setting') {
-        this.setTimer(currentTime);
-      }
+      // const time = new Date()
+      // const currentTime = time.toLocaleString()
+      // if (val.ref === 'setting') {
+      //   this.setTimer(currentTime)
+      // }
       if (val.ref === 'setting') {
         // 将同步窗口显示
         this.dataSyncVisible = true;
@@ -1292,7 +1319,7 @@ export default {
   border-radius: 3px;
 
   /deep/ .el-select__tags {
-    top: 40%;
+    top: 70%;
     flex-wrap: nowrap;
     overflow: hidden;
   }
@@ -1309,7 +1336,7 @@ export default {
 
   /deep/ .el-input__inner {
     font-size: 14px;
-    color: white;
+    color: #909399;
   }
 
   /deep/ .el-tag {
@@ -1318,6 +1345,10 @@ export default {
 
   /deep/ .el-input__suffix {
     top: 10%;
+  }
+
+  /deep/ .el-select__caret {
+    margin: 20% 0 0 0;
   }
 
   /deep/ .is-reverse {
@@ -1544,10 +1575,14 @@ export default {
   position: relative;
   width: 100%;
   height: 96.5%;
+  display: flex;
+  flex-direction: row;
+  // flex: auto;
 
   .layout-content-panel {
-    z-index: 0;
-    float: left;
+    // z-index: 0;
+    flex: auto;
+    // float: left;
     height: 100%;
     background-color: white;
   }
@@ -1559,8 +1594,9 @@ export default {
   }
 
   .layout-content-paramenter {
-    z-index: 0;
-    float: right;
+    // z-index: 0;
+    // float: right;
+    flex: 0 0 auto;
     width: 290px;
     height: 94%;
     margin-right: 0;

@@ -68,6 +68,11 @@ public class DataMedicineVO  implements Serializable {
     @ApiModelProperty(value = "标注类型")
     private Integer annotateType;
 
+    @ApiModelProperty(value = "是否自动标注停止")
+    private Boolean stop;
+
+
+
     /**
      * 医学数据集 转化 医学数据集详情VO 方法
      *
@@ -88,6 +93,7 @@ public class DataMedicineVO  implements Serializable {
         dataMedicineVO.setName(dataMedicine.getName());
         dataMedicineVO.setRemark(dataMedicine.getRemark());
         dataMedicineVO.setAnnotateType(dataMedicine.getAnnotateType());
+        dataMedicineVO.setStop(dataMedicine.getStop());
         return dataMedicineVO;
     }
 }

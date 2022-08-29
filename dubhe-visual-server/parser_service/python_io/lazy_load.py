@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 """
- Copyright 2020 Tianshu AI Platform. All Rights Reserved.
+ Copyright 2021 Tianshu AI Platform. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,32 +17,25 @@
 """
 from pathlib import Path
 from typing import Union
-import os
 
-from utils.redis_utils import RedisInstance
-from python_io.dictionary_watcher import start_run_watcher
 from python_io.logfile_loader import Trace_Thread
-
+from utils.logfile_utils import is_available_flie
 
 class LazyLoad:
-    def __init__(
-            self,
-            run: str,
-            rundir: Union[str, Path],
-    ):
+    def __init__(self, uid, run: str, rundir: Union[str, Path], run_logs: dict):
+        self.uid = uid
         self.run = run
         self.rundir = rundir
+        self.run_logs = run_logs
 
     # 惰性加载，在初始化的时候加载目前日志中的所有数据
-    def init_load(self, uid, cache_path):
-        # 开启文件监听
-        start_run_watcher(self.run, str(self.rundir), uid, cache_path)
-        files = [f for f in self.rundir.glob("*") if f.is_file()]
+    def init_load(self, cache_path, is_init=False):
+
+        #查询当前文件夹的所有文件
+        files = [f for f in self.rundir.glob("*") if is_available_flie(f)]
+        self.run_logs[self.run] = set(files)
+
+        # 构建线程间通信的队列
         for file in files:
-            # 设置每个文件的初始加载状态都为False
-            # (redis不支持Boolen类型，存为0或1代替)
-            RedisInstance.set("{}_{}_{}_is_finish".format(uid, self.run,
-                              file.name), 0)
-            current_size = os.path.getsize(str(file))
-            Trace_Thread(self.run, file, current_size, uid, cache_path)\
-                .start()
+            _thread = Trace_Thread(self.uid, self.run, file, cache_path, self.run_logs[self.run], is_init, daemon=True)
+            _thread.start()

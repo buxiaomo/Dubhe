@@ -62,7 +62,4 @@ public class PtModelInfoUpdateDTO implements Serializable {
     @ApiModelProperty("模型描述")
     @Length(max = PtModelUtil.NUMBER_TWO_HUNDRED_FIFTY_FIVE, message = "模型描述-输入长度不能超过256个字符")
     private String modelDescription;
-
-    @ApiModelProperty("模型分类")
-    private String modelClassName;
 }

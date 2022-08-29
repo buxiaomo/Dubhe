@@ -8,10 +8,15 @@ the License. * ============================================================= */
 
 <template>
   <el-popover v-if="show" placement="right" width="400" trigger="hover" :offset="20">
-    <el-table :data="msgList" :show-header="false" :empty-text="emptyText">
-      <el-table-column prop="name" show-overflow-tooltip />
-      <el-table-column prop="message" show-overflow-tooltip />
-    </el-table>
+    <div class="mock-table">
+      <div v-if="msgList.length">
+        <div v-for="(item, index) in msgList" :key="index" class="mock-tr">
+          <span style="padding: 0 100px 0 10px;">{{ item.name }}</span
+          ><span>{{ item.message }}</span>
+        </div>
+      </div>
+      <div v-else class="mock-tr">{{ emptyText }}</div>
+    </div>
     <i slot="reference" class="el-icon-warning-outline primary f16 v-text-top" />
   </el-popover>
 </template>
@@ -51,3 +56,16 @@ export default {
   },
 };
 </script>
+<style lang="scss" scoped>
+.mock-table {
+  line-height: 50px;
+
+  .mock-tr {
+    border-bottom: 1px solid #e6ebf5;
+  }
+
+  .mock-tr:hover {
+    background: #f5f7fa;
+  }
+}
+</style>

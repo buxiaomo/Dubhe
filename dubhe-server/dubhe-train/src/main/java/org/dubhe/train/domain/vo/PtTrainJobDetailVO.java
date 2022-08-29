@@ -21,9 +21,11 @@ import com.alibaba.fastjson.JSONObject;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.dubhe.train.domain.entity.PtAtlasTrainParam;
 
 import java.io.Serializable;
 import java.sql.Timestamp;
+import java.util.List;
 
 /**
  * @description 返回训练版本查询详情
@@ -55,6 +57,9 @@ public class PtTrainJobDetailVO implements Serializable {
 
     @ApiModelProperty("描述信息")
     private String description;
+
+    @ApiModelProperty(value = "数据来源ID")
+    private Integer dataSourceId;
 
     @ApiModelProperty("数据集名称")
     private String dataSourceName;
@@ -119,6 +124,12 @@ public class PtTrainJobDetailVO implements Serializable {
     @ApiModelProperty("运行参数(算法来源为我的算法时为调优参数，算法来源为预置算法时为运行参数)")
     private JSONObject runParams;
 
+    @ApiModelProperty("运行参数映射关系")
+    private JSONObject runParamsNameMap;
+
+    @ApiModelProperty("运行命令概览")
+    private String displayRunCommand;
+
     @ApiModelProperty("F1值")
     private String paramF1;
 
@@ -137,11 +148,11 @@ public class PtTrainJobDetailVO implements Serializable {
     @ApiModelProperty("算法来源(1为我的算法，2为预置算法)")
     private Integer algorithmSource;
 
-    @ApiModelProperty("算法用途")
-    private String algorithmUsage;
+    @ApiModelProperty("数据集类型")
+    private String datasetType;
 
-    @ApiModelProperty("验证数据集算法用途")
-    private String valAlgorithmUsage;
+    @ApiModelProperty("验证数据集类型")
+    private String valDatasetType;
 
     @ApiModelProperty("算法精度")
     private String accuracy;
@@ -152,8 +163,11 @@ public class PtTrainJobDetailVO implements Serializable {
     @ApiModelProperty(value = "算法文件路径")
     private String algorithmCodeDir;
 
-    @ApiModelProperty("训练类型 0：普通训练，1：分布式训练")
+    @ApiModelProperty("训练类型 0：普通训练，1：分布式训练，2：炼知重组任务")
     private Integer trainType;
+
+    @ApiModelProperty(value = "验证数据来源ID")
+    private Integer valDataSourceId;
 
     @ApiModelProperty("验证数据来源名称")
     private String valDataSourceName;
@@ -185,15 +199,17 @@ public class PtTrainJobDetailVO implements Serializable {
     @ApiModelProperty("训练状态信息")
     private String statusDetail;
 
-    @ApiModelProperty(value = "炼知教师模型ids,多个id之前用','隔开")
-    private String teacherModelIds;
-
-    @ApiModelProperty(value = "炼知学生模型ids,多个id之前用','隔开")
-    private String studentModelIds;
-
     @ApiModelProperty(value = "notebook名称")
     private String notebookName;
 
     @ApiModelProperty(value = "notebookId")
     private Long notebookId;
+
+    @ApiModelProperty(value = "炼知学生模型结构")
+    private String studentModelStruct;
+
+    private List<PtAtlasTrainParam> baseAtlasParams;
+    
+    private Integer jobType;
+
 }

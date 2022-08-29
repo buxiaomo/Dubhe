@@ -12,6 +12,7 @@
         t2.version_num,
         t1.runtime,
         t1.train_status,
+        t1.train_type,
         t1.data_source_name,
         t1.data_source_path,
         t2.create_user_id,
@@ -26,6 +27,9 @@
         t1.id IN ( SELECT max(id) FROM pt_train_job WHERE deleted = 0
         <if test="trainStatus != null">
             AND train_status = #{trainStatus}
+        </if>
+           <if test="trainType != null">
+            AND train_type = #{trainType}
         </if>
         <if test="createUserId != null">
             AND create_user_id = #{createUserId}

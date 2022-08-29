@@ -86,16 +86,11 @@ public class PtTrainAlgorithm extends BaseEntity {
     private String runCommand;
 
     /**
-     * 运行参数
-     */
-    @TableField(value = "run_params", typeHandler = FastjsonTypeHandler.class)
-    private JSONObject runParams;
-
-    /**
      * 算法用途
      */
     @TableField(value = "algorithm_usage")
     private String algorithmUsage;
+
 
     /**
      * 算法精度
@@ -108,12 +103,6 @@ public class PtTrainAlgorithm extends BaseEntity {
      */
     @TableField(value = "p4_inference_speed")
     private Integer p4InferenceSpeed;
-
-    /**
-     * 算法是否支持推理（1可推理，0不可推理）
-     */
-    @TableField(value = "inference")
-    private Boolean inference;
 
     /**
      * 训练结果输出（1是，0否）

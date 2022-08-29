@@ -60,6 +60,11 @@ public class TrainAlgorithmQureyVO implements Serializable {
     private String imageName;
 
     /**
+     * 环境镜像版本
+     */
+    private String imageTag;
+
+    /**
      * 代码目录
      */
     private String codeDir;

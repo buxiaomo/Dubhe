@@ -3,3 +3,4 @@ dist
 src/components/Crud
 src/assets/styles/sidebar.scss
 src/assets/styles/variables.scss
+src/views/visual

@@ -137,7 +137,7 @@ import { list as getResources } from '@/api/system/resources';
 import { propertyAssign, RESOURCES_MODULE_ENUM } from '@/utils';
 
 import { defaultStageForm, otherResourceColumns } from '../utils';
-import { timeFmts } from '../../util';
+import { timeFmts, getPublicRules } from '../../util';
 import { isNull, underlineShiftHump, modifyTime } from '../../strategy/util';
 
 const useResources = ({ props, form }, { emit }) => {
@@ -271,62 +271,12 @@ export default {
     const yamlRef = ref(null);
     // 表单
     const form = reactive({ ...defaultStageForm });
+
+    const publicRules = computed(() => getPublicRules(form));
+
     const rules = {
       resourceId: [{ required: true, message: '请选择资源配置', trigger: 'manual' }],
-      maxExecDuration: [
-        {
-          required: true,
-          validator: (rule, value, callback) => {
-            if (!value) {
-              callback(new Error('请输入时间'));
-            }
-            // eslint-disable-next-line no-restricted-globals
-            if (isNaN(Number(value))) {
-              callback(new Error('时间为数值'));
-            }
-            if (Number(value) <= 0) {
-              callback(new Error('时间需要大于 0'));
-            }
-            if (!form.maxExecDurationUnit) {
-              callback(new Error('请选择时间单位'));
-            }
-            callback();
-          },
-          trigger: 'blur',
-        },
-      ],
-      maxTrialNum: [
-        { required: true, message: '请输入最大Trial次数', trigger: ['blur', 'change'] },
-        { type: 'number', message: '所填必须为数字' },
-        {
-          validator: (rule, value, callback) => {
-            if (!value && value !== 0) {
-              callback();
-            }
-            if (value <= 0) {
-              callback(new Error('最大Trial次数需要大于 0'));
-            }
-            callback();
-          },
-          trigger: ['blur', 'change'],
-        },
-      ],
-      trialConcurrentNum: [
-        { required: true, message: '请输入Trial并发数量', trigger: ['blur', 'change'] },
-        { type: 'number', message: '所填必须为数字' },
-        {
-          validator: (rule, value, callback) => {
-            if (!value && value !== 0) {
-              callback();
-            }
-            if (value <= 0) {
-              callback(new Error('Trial并发数量需要大于 0'));
-            }
-            callback();
-          },
-          trigger: ['blur', 'change'],
-        },
-      ],
+      ...publicRules.value,
     };
 
     const state = reactive({
@@ -389,10 +339,7 @@ export default {
     };
 
     // 最大运行时间
-    const onMaxExecDurationChange = (value) => {
-      // 先移除非数字和小数点字符，然后调用系统浮点数解析
-      const float = parseFloat(value.replace(/[^\d.]/g, ''));
-      form.maxExecDuration = Number.isNaN(float) ? 0 : float;
+    const onMaxExecDurationChange = () => {
       changeYamlParams('maxExecDuration');
     };
 

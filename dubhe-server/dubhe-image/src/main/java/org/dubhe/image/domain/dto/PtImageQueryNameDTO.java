@@ -20,7 +20,7 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
-import javax.validation.constraints.NotNull;
+import javax.validation.constraints.NotEmpty;
 import java.io.Serializable;
 import java.util.List;
 
@@ -34,7 +34,9 @@ public class PtImageQueryNameDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty(value = "镜像项目类型(0:notebook , 1:train , 2:serving)", required = true)
-    @NotNull(message = "镜像项目类型(0:notebook , 1:train , 2:serving)不能为空")
-    List<Integer> projectTypes;
+    @ApiModelProperty(value = "镜像来源(0为我的镜像, 1为预置镜像)")
+    private Integer imageResource;
+
+    @ApiModelProperty(value = "镜像用途(0:notebook , 1:train , 2:serving, 3:terminal, 4:point-cloud)", required = true)
+    List<Integer> imageTypes;
 }

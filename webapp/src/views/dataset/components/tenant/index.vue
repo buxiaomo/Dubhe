@@ -15,51 +15,54 @@
  */
 
 <template>
-  <el-dropdown trigger="click" placement="bottom-start" @command="onCommand">
-    <div>
-      <span>切换场景</span>
-      <i class="el-icon-arrow-down el-icon--right" />
-    </div>
-    <el-dropdown-menu slot="dropdown">
-      <el-dropdown-item command="0" :disabled="state.datasetListType === '0'" :style="choosed('0')"
-        >视觉/语音/文本</el-dropdown-item
-      >
-      <el-dropdown-item command="1" :disabled="state.datasetListType === '1'" :style="choosed('1')"
-        >医学影像</el-dropdown-item
-      >
-    </el-dropdown-menu>
-  </el-dropdown>
+  <div class="flex flex-vertical-align">
+    <div class="mr-4 f14">切换场景：</div>
+    <InfoSelect
+      v-model="state.datasetListType"
+      :clearable="false"
+      width="150px"
+      :dataSource="datasetListTypeOptions"
+      @change="handleChange"
+    />
+  </div>
 </template>
 
 <script>
 import { reactive } from '@vue/composition-api';
+import InfoSelect from '@/components/InfoSelect';
+
+import { pushUrl } from '../../util';
 
 export default {
   name: 'TenantSelector',
+  components: {
+    InfoSelect,
+  },
   props: {
     datasetListType: String,
   },
   setup(props, ctx) {
     const { $router } = ctx.root;
+    const datasetListTypeOptions = [
+      { value: 0, label: '视觉/语音/文本' },
+      { value: 1, label: '医学影像' },
+      { value: 2, label: '点云' },
+    ];
+
     const state = reactive({
-      datasetListType: props.datasetListType,
+      datasetListType: Number(props.datasetListType),
     });
-    const onCommand = (value) => {
+
+    const handleChange = (value) => {
       state.datasetListType = value;
       localStorage.setItem('datasetListType', state.datasetListType);
-      if (value === '0') {
-        $router.push({ path: '/data/datasets' });
-      } else if (value === '1') {
-        $router.push({ path: '/data/datasets/medical' });
-      }
+      $router.push({ path: pushUrl[value] });
     };
 
-    const choosed = (val) => (state.datasetListType === val ? 'color: #0000ff' : '');
-
     return {
-      onCommand,
+      handleChange,
+      datasetListTypeOptions,
       state,
-      choosed,
     };
   },
 };

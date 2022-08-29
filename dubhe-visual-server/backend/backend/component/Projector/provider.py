@@ -15,10 +15,11 @@
  limitations under the License.
  =============================================================
 """
+import numpy as np
 from PIL import Image
 import io
 from utils.cache_io import CacheIO
-from utils.path_utils import get_file_path
+from utils.logfile_utils import get_file_path
 from .projector_read import projector_read
 from .projector_reduction import projector_reduction
 from backend.api.utils import get_api_params
@@ -121,21 +122,21 @@ def get_projector_sample_data(request):
     if sample:
         _io = io.BytesIO()
         if sample['type'] == 'image':
-            _img = Image.fromarray(sample['val'])
+            _img = Image.fromarray((sample['val'] * 255).astype(np.uint8))
             _img.save(_io, "png")
             _content = _io.getvalue()
             _data = base64.b64encode(_content)
             res = "data:image/png;base64,%s" % _data.decode()
         elif sample['type'] == 'audio':
             _content = sample['val']
-            res = "data:audio/wav;base64,%s"
+            _data = base64.b64encode(_content)
+            res = "data:audio/wav;base64,%s" % _data.decode()
         elif sample['type'] == 'text':
             _content = sample['val']
             res = _content
         else:
             res = None
         return res
-        # return HttpResponse(content=_content, content_type=_content_type)
     else:
         raise ValueError('No such data')
 

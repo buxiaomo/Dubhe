@@ -671,16 +671,21 @@ function callVmHook(crud, hook) {
   return ret;
 }
 
-function mergeOptions(src, opts) {
+// useExistKey 表示只根据现有 key 进行赋值，不存在的 key 不赋值
+function mergeOptions(src, opts, useExistKey = true) {
   const optsRet = {
     ...src,
   };
-  for (const key in src) {
-    if (opts.hasOwnProperty(key)) {
-      if (isObject(optsRet[key])) {
-        optsRet[key] = mergeOptions(optsRet[key], opts[key]);
-      } else {
-        optsRet[key] = opts[key];
+  if (!useExistKey) {
+    Object.assign(optsRet, opts)
+  } else {
+    for (const key in src) {
+      if (opts.hasOwnProperty(key)) {
+        if (isObject(optsRet[key])) {
+          optsRet[key] = mergeOptions(optsRet[key], opts[key], !['query'].includes(key)); // query 对象无初始 key，需要无差别赋值
+        } else {
+          optsRet[key] = opts[key];
+        }
       }
     }
   }

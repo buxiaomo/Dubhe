@@ -31,7 +31,7 @@ export const defaultStageForm = {
   maxTrialNum: 10, // 最大 Trial 次数
   multiGpu: undefined, // 是否使用多卡
   trialConcurrentNum: 1, // Trial 并发数量
-  maxExecDuration: 0, // 最大运行时间
+  maxExecDuration: 1, // 最大运行时间
   maxExecDurationUnit: 'min', // 最大运行时间单位
 };
 

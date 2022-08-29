@@ -17,6 +17,7 @@
 
 package org.dubhe.data.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
@@ -25,6 +26,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -557,6 +559,8 @@ public class DatasetServiceImpl extends ServiceImpl<DatasetMapper, Dataset> impl
         datasetVO.setLabelGroupType(labelGroupType);
         datasetVO.setSourceId(dataset.getSourceId());
         datasetVO.setCurrentVersionName(dataset.getCurrentVersionName());
+        datasetVO.setTemplateType(dataset.getTemplateType());
+        datasetVO.setModule(dataset.getModule());
         return datasetVO;
     }
 
@@ -634,9 +638,6 @@ public class DatasetServiceImpl extends ServiceImpl<DatasetMapper, Dataset> impl
                     DatatypeEnum.getEnumValue(datasetCreateDTO.getDataType()).getMsg()));
             dataset.setStatus(DataStateCodeConstant.ANNOTATION_COMPLETE_STATE);
             dataset.setCurrentVersionName(DEFAULT_VERSION);
-        }
-        if(datasetCreateDTO.isImport()){
-            dataset.setStatus(DataStateEnum.ANNOTATION_COMPLETE_STATE.getCode());
         }
         updateById(dataset);
         return dataset.getId();
@@ -825,7 +826,7 @@ public class DatasetServiceImpl extends ServiceImpl<DatasetMapper, Dataset> impl
                 .recycleCustom(RecycleResourceEnum.DATASET_RECYCLE_FILE.getClassName())
                 .restoreCustom(RecycleResourceEnum.DATASET_RECYCLE_FILE.getClassName())
                 .recycleDelayDate(NumberConstant.NUMBER_1)
-                .recycleNote(RecycleTool.generateRecycleNote("删除数据集相关信息", dataset.getId()))
+                .recycleNote(RecycleTool.generateRecycleNote("删除数据集相关信息", dataset.getName(), dataset.getId()))
                 .detailList(detailList)
                 .build();
         recycleService.createRecycleTask(recycleCreateDTO);
@@ -994,11 +995,18 @@ public class DatasetServiceImpl extends ServiceImpl<DatasetMapper, Dataset> impl
      */
     @Override
     public void uploadFiles(Long datasetId, BatchFileCreateDTO batchFileCreateDTO) {
+        Dataset dataset = baseMapper.selectById(datasetId);
         List<Long> fileIds = saveDbForUploadFiles(datasetId, batchFileCreateDTO, batchFileCreateDTO.getIfImport());
         if(batchFileCreateDTO.getIfImport()!=null && batchFileCreateDTO.getIfImport()){
             importFileAnnotation(datasetId, fileIds);
         }
         transportTextToEsForUploadFiles(datasetId, fileIds,batchFileCreateDTO.getIfImport());
+        //改变数据集的状态
+        StateMachineUtil.stateChange(new StateChangeDTO() {{
+            setObjectParam(new Object[]{dataset});
+            setEventMethodName(DataStateMachineConstant.DATA_UPLOAD_FILES_EVENT);
+            setStateMachineType(DataStateMachineConstant.DATA_STATE_MACHINE);
+        }});
     }
 
     void importFileAnnotation(Long datasetId, List<Long> fileIds) {
@@ -1068,14 +1076,6 @@ public class DatasetServiceImpl extends ServiceImpl<DatasetMapper, Dataset> impl
                 || DataStateCodeConstant.MANUAL_ANNOTATION_STATE.equals(dataset.getStatus())) {
             return fileIds;
         }
-        //改变数据集的状态
-        if(!dataset.isImport()){
-            StateMachineUtil.stateChange(new StateChangeDTO() {{
-                setObjectParam(new Object[]{dataset});
-                setEventMethodName(DataStateMachineConstant.DATA_UPLOAD_FILES_EVENT);
-                setStateMachineType(DataStateMachineConstant.DATA_STATE_MACHINE);
-            }});
-        }
         return fileIds;
     }
 
@@ -1095,32 +1095,35 @@ public class DatasetServiceImpl extends ServiceImpl<DatasetMapper, Dataset> impl
      * 上传视频
      *
      * @param datasetId     数据集id
-     * @param fileCreateDTO 文件参数
+     * @param batchFileCreateDTO 文件参数
      */
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void uploadVideo(Long datasetId, FileCreateDTO fileCreateDTO) {
-        if (!exist(datasetId)) {
-            throw new BusinessException(ErrorEnum.DATA_ABSENT_OR_NO_AUTH, "id:" + datasetId, null);
-        }
-        checkPublic(datasetId, OperationTypeEnum.UPDATE);
-        autoAnnotatingCheck(datasetId);
+    public void uploadVideo(Long datasetId, BatchFileCreateDTO batchFileCreateDTO) {
+        batchFileCreateDTO.getFiles().forEach(fileCreateDTO -> {
+            if (!exist(datasetId)) {
+                throw new BusinessException(ErrorEnum.DATA_ABSENT_OR_NO_AUTH, "id:" + datasetId, null);
+            }
+            checkPublic(datasetId, OperationTypeEnum.UPDATE);
+            autoAnnotatingCheck(datasetId);
 //        fileService.isExistVideo(datasetId);
-        List<FileCreateDTO> videoFile = new ArrayList<>();
-        videoFile.add(fileCreateDTO);
-        fileService.saveVideoFiles(datasetId, videoFile, DatatypeEnum.VIDEO.getValue(), PID_OF_VIDEO, null);
-        //将任务存放入redis队列中
-        Task task = Task.builder()
-                .datasets(JSON.toJSONString(Collections.singletonList(datasetId)))
-                .files(JSON.toJSONString(Collections.EMPTY_LIST))
-                .labels(JSONArray.toJSONString(Collections.emptyList()))
-                .annotateType(MagicNumConstant.SIX)
-                .dataType(MagicNumConstant.ONE)
-                .datasetId(datasetId)
-                .type(MagicNumConstant.FIVE)
-                .url(fileCreateDTO.getUrl())
-                .frameInterval(fileCreateDTO.getFrameInterval()).build();
-        taskMapper.insert(task);
+            List<FileCreateDTO> videoFile = new ArrayList<>();
+            videoFile.add(fileCreateDTO);
+            List<File> files = fileService.saveVideoFiles(datasetId, videoFile, DatatypeEnum.VIDEO.getValue(), PID_OF_VIDEO, null);
+            //将任务存放入redis队列中
+            Task task = Task.builder()
+                    .datasets(JSON.toJSONString(Collections.singletonList(datasetId)))
+                    .files(JSON.toJSONString(Collections.EMPTY_LIST))
+                    .labels(JSONArray.toJSONString(Collections.emptyList()))
+                    .annotateType(MagicNumConstant.SIX)
+                    .dataType(MagicNumConstant.ONE)
+                    .datasetId(datasetId)
+                    .type(MagicNumConstant.FIVE)
+                    .url(fileCreateDTO.getUrl())
+                    .targetId(files.get(0).getId())
+                    .frameInterval(fileCreateDTO.getFrameInterval()).build();
+            taskMapper.insert(task);
+        });
         //创建入参请求体
         StateChangeDTO stateChangeDTO = new StateChangeDTO();
         //创建需要执行事件的方法的传入参数
@@ -1158,28 +1161,25 @@ public class DatasetServiceImpl extends ServiceImpl<DatasetMapper, Dataset> impl
     /**
      * 查询有版本的数据集
      *
-     * @param page                分页条件
      * @param datasetIsVersionDTO 查询数据集(有版本)条件
      * @return Map<String, Object> 查询数据集(有版本)列表
      */
-    @DataPermissionMethod(dataType = DatasetTypeEnum.PUBLIC)
     @Override
-    public Map<String, Object> dataVersionListVO(Page<Dataset> page, DatasetIsVersionDTO datasetIsVersionDTO) {
+    public Map<String, Object> dataVersionListVO(Page page, DatasetIsVersionDTO datasetIsVersionDTO) {
         Integer annotateType = AnnotateTypeEnum.getConvertAnnotateType(datasetIsVersionDTO.getAnnotateType());
-        QueryWrapper<Dataset> datasetQueryWrapper = new QueryWrapper();
-        datasetQueryWrapper.isNotNull("current_version_name")
-                .eq(annotateType != null, "annotate_type", annotateType)
-                .in(datasetIsVersionDTO.getIds() != null, "id", datasetIsVersionDTO.getIds())
-                .eq("deleted", MagicNumConstant.ZERO)
-                .select("id", "name");
-        IPage<Dataset> datasetPage = baseMapper.selectPage(page, datasetQueryWrapper);
-        List<DatasetVersionQueryVO> dataVersionQueryVos = datasetPage.getRecords().stream().map(dataset -> {
-            DatasetVersionQueryVO dataVersionQueryVo = new DatasetVersionQueryVO();
-            BeanUtils.copyProperties(dataset, dataVersionQueryVo);
-            return dataVersionQueryVo;
-        }).collect(Collectors.toList());
-
-        return PageUtil.toPage(page, dataVersionQueryVos);
+        LambdaQueryWrapper<Dataset> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(Dataset::getDeleted, MagicNumConstant.ZERO);
+        lambdaQueryWrapper.isNotNull(Dataset::getCurrentVersionName);
+        lambdaQueryWrapper.eq(ObjectUtil.isNotNull(annotateType),  Dataset::getAnnotateType, annotateType);
+        lambdaQueryWrapper.eq(ObjectUtil.isNotNull(datasetIsVersionDTO.getModule()), Dataset::getModule,  datasetIsVersionDTO.getModule());
+        lambdaQueryWrapper.in(CollectionUtil.isNotEmpty(datasetIsVersionDTO.getIds()), Dataset::getId, datasetIsVersionDTO.getIds());
+        if (!BaseService.isAdmin()) {
+            lambdaQueryWrapper.and(datasetLambdaQueryWrapper ->
+                    datasetLambdaQueryWrapper.eq(Dataset::getType, DatasetTypeEnum.PUBLIC.getValue())
+                            .or().eq(Dataset::getOriginUserId, userContextService.getCurUserId()));
+        }
+        List<Dataset> datasetList = baseMapper.selectList(lambdaQueryWrapper);
+        return PageUtil.toPage(page, datasetList);
     }
 
     /**
@@ -1707,10 +1707,79 @@ public class DatasetServiceImpl extends ServiceImpl<DatasetMapper, Dataset> impl
      * @return Map<String, Object> 数据集详情
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public List<Dataset> getPresetDataset() {
         QueryWrapper<Dataset> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("type", MagicNumConstant.TWO)
         .ne("deleted", MagicNumConstant.ONE);
         return baseMapper.selectList(queryWrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void taskStop(Long datasetId) {
+        Dataset dataset = baseMapper.selectById(datasetId);
+        checkDatasetForTask(dataset);
+        // 更新任务状态
+        List<Task> tasks = taskService.selectRunningTask(datasetId);
+        tasks.forEach(task -> {
+            task.setStop(true);
+            task.setStatus(MagicNumConstant.FOUR);
+            taskService.updateByTaskId(task);
+        });
+        // 更新数据集状态
+        DataStateEnum status = stateIdentify.getStatusForRollback(datasetId, dataset.getCurrentVersionName());
+        LambdaUpdateWrapper<Dataset> wrapper = new LambdaUpdateWrapper<Dataset>() {{
+            eq(Dataset::getStatus, dataset.getStatus());
+            eq(Dataset::getId, datasetId);
+            set(Dataset::getStatus, status.getCode());
+        }};
+        update(wrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void ofRecordStop(Long datasetId, String version) {
+        DatasetVersion datasetVersion = datasetVersionService.getVersionByDatasetIdAndVersionName(datasetId, version);
+        if(datasetVersion.getDataConversion()!=MagicNumConstant.FIVE){
+            throw new BusinessException(ErrorEnum.DATASET_VERSION_STOP_OF_RECORD_ERROR);
+        }
+        QueryWrapper<Task> queryWrapper = new QueryWrapper<>();
+        queryWrapper.lambda().eq(Task::getDatasetId,datasetId).eq(Task::getOfRecordVersion,version)
+                .eq(Task::getType,MagicNumConstant.ONE).eq(Task::isStop, false).last(" limit 1");
+        //更新任务状态
+        Task task = taskService.selectOne(queryWrapper);
+        task.setStop(true);
+        taskService.updateByTaskId(task);
+        //更新版本状态
+        datasetVersion.setDataConversion(MagicNumConstant.ONE);
+        datasetVersion.setOfRecord(MagicNumConstant.ZERO);
+        datasetVersionService.updateByEntity(datasetVersion);
+    }
+
+    @Override
+    public DatasetVO getPresetDatasetByName(String datasetName) {
+        List<Dataset> datasets = baseMapper.selectList(new LambdaQueryWrapper<Dataset>()
+                .eq(Dataset::getType, MagicNumConstant.TWO)
+                .eq(Dataset::getName, datasetName));
+        DatasetVO datasetVO = new DatasetVO();
+        BeanUtil.copyProperties(datasets.get(0), datasetVO);
+        return datasetVO;
+    }
+
+    public void checkDatasetForTask(Dataset dataset) {
+        if (ObjectUtil.isEmpty(dataset)) {
+            throw new BusinessException("数据集不存在");
+        }
+        HashSet<Integer> set = new HashSet<Integer>() {{
+            add(DataStateCodeConstant.AUTOMATIC_LABELING_STATE);
+            add(DataStateCodeConstant.TARGET_FOLLOW_STATE);
+            add(DataStateCodeConstant.SAMPLING_STATE);
+            add(DataStateCodeConstant.STRENGTHENING_STATE);
+            add(DataStateCodeConstant.IN_THE_IMPORT_STATE);
+        }};
+        if (!set.contains(dataset.getStatus())){
+            throw new BusinessException("当前数据集状态不允许操作");
+        }
     }
 }

@@ -17,6 +17,7 @@
 package org.dubhe.dcm.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.dcm4che3.data.Attributes;
@@ -33,6 +34,7 @@ import org.dubhe.dcm.dao.DataMedicineFileMapper;
 import org.dubhe.dcm.domain.dto.DataMedicineFileCreateDTO;
 import org.dubhe.dcm.domain.entity.DataMedicine;
 import org.dubhe.dcm.domain.entity.DataMedicineFile;
+import org.dubhe.dcm.machine.enums.DcmFileStateEnum;
 import org.dubhe.dcm.service.DataMedicineFileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -198,5 +200,18 @@ public class DataMedicineFileServiceImpl extends ServiceImpl<DataMedicineFileMap
         baseMapper.deleteByDatasetId(datasetId);
     }
 
+    @Override
+    public List<Integer> getFileStatusListByDataset(Long datasetId) {
+        if (datasetId == null) {
+            LogUtil.error(LogEnum.BIZ_DATASET, "datasetId isEmpty");
+            return null;
+        }
+        return baseMapper.getFileStatusListByDataset(datasetId);
+    }
+
+    @Override
+    public void deleteAnnotation(Long datasetId) {
+        baseMapper.cleanAnnotation(datasetId);
+    }
 
 }

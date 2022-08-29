@@ -62,12 +62,13 @@ public enum ErrorEnum implements ErrorCode {
     DATASET_NAME_DUPLICATED_ERROR(1310, "数据集已存在"),
     TASK_ABSENT(1311, "任务不存在"),
     ES_DATA_DELETE_ERROR(1312,"删除es数据错误"),
+    DATASET_NOT_CONTAIN_FILES_TO_PROCESS(1313, "数据集无待处理文件"),
 
 
     /**
      * 数据集标注操作错误
      */
-    AUTO_FILE_EMPTY(1400, "没有需要标注的文件(检查文件是否全部标注完成或标注中)"),
+    AUTO_FILE_EMPTY(1400, "没有需要标注的文件"),
     AUTO_ERROR(1401, "当前数据集正在自动标注中，禁止操作"),
     AUTO_NOT_MARKED(1402, "当前数据集未标注不需要清理"),
 
@@ -91,7 +92,7 @@ public enum ErrorEnum implements ErrorCode {
     /**
      * 数据集操作错误
      */
-    AUTO_DATASET_ERROR(1700, "数据集状态只能是未标注和手动标注中才能进行自动标注!"),
+    AUTO_DATASET_ERROR(1700, "数据集状态当前状态不支持自动标注!"),
     AUTO_LABEL_EMPTY_ERROR(1701, "该数据集未添加系统支持自动标注的标签"),
     DATASET_VERSION_STATUS_NO_SWITCH(1702, "数据集当前状态不允许做版本切换"),
     DATASET_VERSION_ANNOTATION_COPY_EXCEPTION(1703, "数据集文件拷贝异常"),
@@ -113,6 +114,7 @@ public enum ErrorEnum implements ErrorCode {
     DATASET_NOT_OPERATIONS_BASE_DATASET(1719, "禁止操作内置的数据集"),
     DATASET_PUBLISH_REJECT(1720, "文本暂不支持多版本发布"),
     DATASET_CHECK_VERSION_ERROR(1721,"目标版本不存在"),
+    DATASET_PUBLISH_FORMAT_REJECT(1722,"COCO、YOLO格式只支持图片和视频数据类型"),
 
     /**
      * 数据集版本校验
@@ -121,6 +123,7 @@ public enum ErrorEnum implements ErrorCode {
     DATASET_VERSION_PTJOB_STATUS(1802, "当前数据集正在训练不可删除"),
     DATASET_NOT_ENHANCE(1803, "数据集状态只能是自动标注完成、标注完成、目标跟踪完成才能进行数据增强!"),
     DATASET_PUBLIC_ERROR(1900, "不允许操作公共数据集"),
+    DATASET_VERSION_STOP_OF_RECORD_ERROR(1804, "请检查是否有进行中的ofRecord转换任务"),
 
     /**
      * 标签组错误
@@ -142,6 +145,7 @@ public enum ErrorEnum implements ErrorCode {
     LABEL_PREPARE_IS_TXT(1915, "请选择文本预制标签进行自动标注!"),
     LABEL_AUTHORITY_ERROR(1915, "无权限操作当前标签"),
     LABEL_QUOTE_DEL_ERROR(1913, "标签已被引用,无法删除!"),
+    LABELGROUP_LABEL_GROUP_PC_DEL_ERROR(1913, "标签组已被点云数据集引用,无法删除!"),
 
     /**
      * 医学数据集错误
@@ -151,7 +155,24 @@ public enum ErrorEnum implements ErrorCode {
     DATAMEDICINE_ABSENT(2003, "医学数据集不存在"),
     DATAMEDICINE_AUTOMATIC(2004, "数据集正在自动标注中,请稍等!"),
     MEDICINE_NAME_ERROR(2005, "当前名称已存在"),
-    MEDICINE_MEDICAL_ALREADY_EXISTS_RESTORE(2006, "当前类型的医学数据集已存在,请确认后在进行还原");
+    MEDICINE_MEDICAL_ALREADY_EXISTS_RESTORE(2006, "当前类型的医学数据集已存在,请确认后在进行还原"),
+    MEDICINE_AUTO_NO_LABEL_FILE(2007, "无待标注文件"),
+
+
+
+    /**
+     * 模型服务错误
+     */
+    MODEL_NOT_EXIST(2101, "模型不存在"),
+    ALGORITHM_NOT_EXIST(2102, "算法不存在"),
+    IMAGE_NOT_EXIST(2103, "镜像不存在"),
+    MODEL_SERVICE_CANNOT_DELETE(2104, "模型服务不可以删除"),
+    MODEL_TYPE_NOT_EXIST(2105,"当前标注类型无运行中的模型"),
+    MODEL_SERVER_NOT_AVAILABLE(2106, "模型服务不可用"),
+    MODEL_SERVER_CURRENT_STATUS_NOT_UPDATE(2107, "当前状态下不能修改"),
+    MODEL_SERVER_NOT_EXIST(2108, "模型服务不存在"),
+    MODEL_NAME_DUPLICATED_ERROR(2109, "模型服务名称不能重复")
+    ;
 
     ErrorEnum(int code, String msg) {
         this.code = code;

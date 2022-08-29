@@ -108,16 +108,16 @@ public class ManualAnnotationState extends AbstractDataState {
         LogUtil.debug(LogEnum.STATE_MACHINE, " 【手动标注中】 执行事件前内存中状态机的状态 :{} ", dataStateMachine.getMemoryDataState());
         LogUtil.debug(LogEnum.STATE_MACHINE, " 接受参数： {} ", primaryKeyId);
         Dataset dataset = datasetMapper.selectById(primaryKeyId);
-        datasetVersionFileMapper.update(
-                new DatasetVersionFile() {{
-                    setAnnotationStatus(FileStateCodeConstant.NOT_ANNOTATION_FILE_STATE);
-                    setChanged(Constant.CHANGED);
-                }},
-                new UpdateWrapper<DatasetVersionFile>()
-                        .lambda()
-                        .eq(DatasetVersionFile::getDatasetId, dataset.getId())
-                        .eq(dataset.getCurrentVersionName() != null, DatasetVersionFile::getVersionName, dataset.getCurrentVersionName())
-        );
+//        datasetVersionFileMapper.update(
+//                new DatasetVersionFile() {{
+//                    setAnnotationStatus(FileStateCodeConstant.NOT_ANNOTATION_FILE_STATE);
+//                    setChanged(Constant.CHANGED);
+//                }},
+//                new UpdateWrapper<DatasetVersionFile>()
+//                        .lambda()
+//                        .eq(DatasetVersionFile::getDatasetId, dataset.getId())
+//                        .eq(dataset.getCurrentVersionName() != null, DatasetVersionFile::getVersionName, dataset.getCurrentVersionName())
+//        );
         datasetMapper.updateStatus(dataset.getId(), DataStateEnum.NOT_ANNOTATION_STATE.getCode());
         dataStateMachine.setMemoryDataState(dataStateMachine.getNotAnnotationState());
         LogUtil.debug(LogEnum.STATE_MACHINE, " 【手动标注中】 执行事件后内存状态机的切换： {}", dataStateMachine.getMemoryDataState());

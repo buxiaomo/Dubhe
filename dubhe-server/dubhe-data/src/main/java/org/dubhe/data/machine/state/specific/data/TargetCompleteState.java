@@ -16,17 +16,13 @@
  */
 package org.dubhe.data.machine.state.specific.data;
 
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import org.dubhe.biz.log.enums.LogEnum;
 import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.biz.statemachine.exception.StateMachineException;
-import org.dubhe.data.constant.Constant;
 import org.dubhe.data.dao.DatasetMapper;
 import org.dubhe.data.dao.DatasetVersionFileMapper;
 import org.dubhe.data.domain.entity.Dataset;
-import org.dubhe.data.domain.entity.DatasetVersionFile;
 import org.dubhe.data.machine.constant.ErrorMessageConstant;
-import org.dubhe.data.machine.constant.FileStateCodeConstant;
 import org.dubhe.data.machine.enums.DataStateEnum;
 import org.dubhe.data.machine.state.AbstractDataState;
 import org.dubhe.data.machine.statemachine.DataStateMachine;
@@ -65,16 +61,16 @@ public class TargetCompleteState extends AbstractDataState {
         LogUtil.debug(LogEnum.STATE_MACHINE, " 【目标跟踪完成】 执行事件前内存中状态机的状态 :{} ", dataStateMachine.getMemoryDataState());
         LogUtil.debug(LogEnum.STATE_MACHINE, " 接受参数： {} ", primaryKeyId);
         Dataset dataset = datasetMapper.selectById(primaryKeyId);
-        datasetVersionFileMapper.update(
-                new DatasetVersionFile() {{
-                    setAnnotationStatus(FileStateCodeConstant.NOT_ANNOTATION_FILE_STATE);
-                    setChanged(Constant.CHANGED);
-                }},
-                new UpdateWrapper<DatasetVersionFile>()
-                        .lambda()
-                        .eq(DatasetVersionFile::getDatasetId, dataset.getId())
-                        .eq(dataset.getCurrentVersionName() != null, DatasetVersionFile::getVersionName, dataset.getCurrentVersionName())
-        );
+//        datasetVersionFileMapper.update(
+//                new DatasetVersionFile() {{
+//                    setAnnotationStatus(FileStateCodeConstant.NOT_ANNOTATION_FILE_STATE);
+//                    setChanged(Constant.CHANGED);
+//                }},
+//                new UpdateWrapper<DatasetVersionFile>()
+//                        .lambda()
+//                        .eq(DatasetVersionFile::getDatasetId, dataset.getId())
+//                        .eq(dataset.getCurrentVersionName() != null, DatasetVersionFile::getVersionName, dataset.getCurrentVersionName())
+//        );
         datasetMapper.updateStatus(dataset.getId(), DataStateEnum.NOT_ANNOTATION_STATE.getCode());
         dataStateMachine.setMemoryDataState(dataStateMachine.getNotAnnotationState());
         LogUtil.debug(LogEnum.STATE_MACHINE, " 【目标跟踪完成】 执行事件后内存状态机的切换： {}", dataStateMachine.getMemoryDataState());
@@ -147,4 +143,48 @@ public class TargetCompleteState extends AbstractDataState {
         dataStateMachine.setMemoryDataState(dataStateMachine.getSamplingState());
         LogUtil.debug(LogEnum.STATE_MACHINE, " 【未标注】 执行事件后内存状态机的切换： {}", dataStateMachine.getMemoryDataState());
     }
+
+    /**
+     * 自动标注事件处理方法
+     *
+     * @param primaryKeyId 业务ID
+     */
+    @Override
+    public void autoAnnotationsEvent(Integer primaryKeyId) {
+        LogUtil.debug(LogEnum.STATE_MACHINE, " 【手动标注中】 执行事件前内存中状态机的状态 :{} ", dataStateMachine.getMemoryDataState());
+        LogUtil.debug(LogEnum.STATE_MACHINE, " 接受参数： {} ", primaryKeyId);
+        datasetMapper.updateStatus(Long.valueOf(primaryKeyId), DataStateEnum.AUTOMATIC_LABELING_STATE.getCode());
+        dataStateMachine.setMemoryDataState(dataStateMachine.getAutomaticLabelingState());
+        LogUtil.debug(LogEnum.STATE_MACHINE, " 【手动标注中】 执行事件后内存状态机的切换： {}", dataStateMachine.getMemoryDataState());
+    }
+
+    /**
+     * 删除文件事件
+     *
+     * @param dataset 数据集详情
+     */
+    @Override
+    public void deleteFilesEvent(Dataset dataset) {
+        LogUtil.debug(LogEnum.STATE_MACHINE, " 【目标跟踪完成】 执行事件前内存中状态机的状态 :{} ", dataStateMachine.getMemoryDataState());
+        LogUtil.debug(LogEnum.STATE_MACHINE, " 接受参数： {} ", dataset);
+        DataStateEnum status = stateIdentify.getStatus(dataset.getId(),dataset.getCurrentVersionName(),true);
+        // 删除后数据集的状态可能变为(目标跟踪完成，标注完成, 未标注)
+        AbstractDataState memoryDataState = null;
+        switch (status){
+            case TARGET_COMPLETE_STATE:
+                memoryDataState = dataStateMachine.getTargetCompleteState();
+                break;
+            case ANNOTATION_COMPLETE_STATE:
+                memoryDataState = dataStateMachine.getAnnotationCompleteState();
+                break;
+            case NOT_ANNOTATION_STATE:
+                memoryDataState = dataStateMachine.getNotAnnotationState();
+                break;
+            default:
+                throw new StateMachineException(ErrorMessageConstant.DATASET_CHANGE_ERR_MESSAGE);
+        }
+        dataStateMachine.doStateChange(dataset.getId(), status.getCode(), memoryDataState);
+        LogUtil.debug(LogEnum.STATE_MACHINE, " 【目标跟踪完成】 执行事件后内存状态机的切换： {}", dataStateMachine.getMemoryDataState());
+    }
+
 }

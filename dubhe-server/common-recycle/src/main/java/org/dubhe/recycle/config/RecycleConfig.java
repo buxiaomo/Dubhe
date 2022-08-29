@@ -72,5 +72,9 @@ public class RecycleConfig {
      * 用户删除tadl算法版本文件后，文件最大有效时长，以天为单位
      */
     private Integer tadlValid;
+    /**
+     * 用户删除点云数据集文件后，文件最大有效时长，以天为单位
+     */
+    private Integer pointCloudValid;
 
 }

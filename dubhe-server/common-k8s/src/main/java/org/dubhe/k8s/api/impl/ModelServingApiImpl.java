@@ -173,6 +173,8 @@ public class ModelServingApiImpl implements ModelServingApi {
             if (StringUtils.isNotEmpty(buildIngressBO.getMaxUploadSize())) {
                 buildIngressBO.putAnnotation(K8sParamConstants.INGRESS_PROXY_BODY_SIZE_KEY, buildIngressBO.getMaxUploadSize());
             }
+            buildIngressBO.putAnnotation(K8sParamConstants.INGRESS_READ_TIMEOUT_KEY, String.valueOf(MagicNumConstant.TEN));
+            buildIngressBO.putAnnotation(K8sParamConstants.INGRESS_NEXT_UPSTREAM_TIMEOUT_KEY, String.valueOf(MagicNumConstant.TEN));
             if (bo.getHttpPort() != null) {
                 String httpHost = RandomUtil.randomString(MagicNumConstant.SIX) + SymbolConstant.DOT + servingHost;
                 buildIngressBO.addIngressRule(ResourceBuildUtils.buildIngressRule(httpHost, svcName, SymbolConstant.HTTP));

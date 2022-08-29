@@ -13,11 +13,7 @@ the License. * ============================================================= */
         <i class="el-icon-warning" style="color: #3253d6;" />
         天枢命令行工具支持导入本地已有自定义数据集、标准数据集
       </span>
-      <a
-        class="primary"
-        href="http://docs.tianshu.org.cn/docs/module/dataset/cli/new"
-        target="_blank"
-      >
+      <a class="primary" :href="`${docsUrl}module/dataset/cli/new`" target="_blank">
         使用文档
       </a>
     </div>
@@ -36,7 +32,10 @@ the License. * ============================================================= */
 <script>
 import { Message } from 'element-ui';
 import CopyToClipboard from 'vue-copy-to-clipboard';
+
 import { datasetCode } from '../util';
+
+const docsUrl = process.env.VUE_APP_DOCS_URL;
 
 export default {
   name: 'ImportDataset',
@@ -52,6 +51,7 @@ export default {
     return {
       datasetCode,
       handleCopy,
+      docsUrl,
     };
   },
 };

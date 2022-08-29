@@ -21,7 +21,7 @@
 @import 'element-ui';
 @import 'sidebar';
 @import 'common';
-@import url('//at.alicdn.com/t/font_1756495_ohftzv0cq9c.css');
+@import url('//at.alicdn.com/t/font_1756495_ruu4wftj3kf.css');
 
 @media screen and (max-width: 768px) {
   .mb-dn {
@@ -35,11 +35,12 @@
 
 body {
   height: 100%;
+  font-family: Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Arial, sans-serif;
+  line-height: 1.5715;
+  color: rgba(0, 0, 0, 0.85);
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  font-family: Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Arial, sans-serif;
-  color: rgba(0, 0, 0, 0.85);
 }
 
 label {
@@ -72,6 +73,11 @@ ol {
   margin: 0;
 }
 
+* {
+  border-style: solid;
+  border-width: 0;
+}
+
 *,
 *:focus,
 *:active {
@@ -99,7 +105,7 @@ ol li {
   cursor: not-allowed;
 }
 
-.infoColor {
+.c-info {
   color: $infoColor;
 }
 

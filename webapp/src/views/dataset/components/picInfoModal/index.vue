@@ -20,10 +20,11 @@
     title="查看图片"
     width="720px"
     class="carousel-figure-dialog"
-    :showCancel="false"
-    okText="关闭"
-    @change="hanleChange"
-    @ok="hanleCancel"
+    v-bind="$attrs"
+    @change="handleChange"
+    @ok="handleOk"
+    @cancel="handleCancel"
+    @close="handleCancel"
   >
     <el-carousel
       ref="carouselRef"
@@ -77,8 +78,18 @@ export default {
       type: Number,
       default: 0,
     },
-    hanleChange: Function,
-    hanleCancel: Function,
+    handleChange: {
+      type: Function,
+      default: () => ({}),
+    },
+    handleCancel: {
+      type: Function,
+      default: () => ({}),
+    },
+    handleOk: {
+      type: Function,
+      default: () => ({}),
+    },
   },
   setup() {
     const buildBackground = (file = {}) => {

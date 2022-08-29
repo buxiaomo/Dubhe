@@ -16,6 +16,7 @@
 
 import request from '@/utils/request';
 import { API_MODULE_NAME } from '@/config';
+import { fileCodeMap } from '@/views/dataset/util/biz';
 
 export function list(params) {
   return request({
@@ -111,7 +112,7 @@ export function toggleVersion({ datasetId, versionName }) {
 }
 
 // 切换OfRecord
-export function shiftOfRecord({ datasetId, versionName }) {
+export function generateOfRecord({ datasetId, versionName }) {
   return request({
     url: `/${API_MODULE_NAME.DATA}/datasets/versions/${datasetId}/ofRecord`,
     method: 'put',
@@ -150,7 +151,7 @@ export function detectFileList(datasetId, params) {
     params,
   });
 }
-
+// 获取视觉/语音/文本数据集名称
 export function getPublishedDatasets(params) {
   return request({
     url: `/${API_MODULE_NAME.DATA}/datasets/versions/filter`,
@@ -244,11 +245,18 @@ export function queryDatasetsProgress(params) {
 }
 
 // 查询数据集该搜索条件下的文件数量
-export function count(datasetId, params) {
+export function count(datasetId, params = {}) {
+  const newParams = {
+    // annotationResult必填，但只传该参数时，不影响数量统计，是筛选时结合下面两个参数使用
+    annotationResult: params?.status || fileCodeMap.HAVE_ANNOTATION,
+    annotationStatus: params?.annotateStatus || [],
+    annotationMethod: params?.annotateType || [],
+    labelIds: params?.labelId || [],
+  };
   return request({
     url: `/${API_MODULE_NAME.DATA}/datasets/${datasetId}/count`,
     method: 'get',
-    params,
+    params: newParams,
   });
 }
 
@@ -257,6 +265,23 @@ export function getPresetDataset() {
   return request({
     url: `/${API_MODULE_NAME.DATA}/datasets/getPresetDataset`,
     method: 'get',
+  });
+}
+
+// 停止进行中的任务 包括 采样 自动标注 目标跟踪 数据增强 ofrecord转换
+export function stopRunning(datasetId) {
+  return request({
+    url: `/${API_MODULE_NAME.DATA}/datasets/task/${datasetId}/stop`,
+    method: 'put',
+  });
+}
+
+// 停止ofrecord转换
+export function stopOfRecord(datasetId, version) {
+  return request({
+    url: `/${API_MODULE_NAME.DATA}/datasets/ofRecord/${datasetId}/stop`,
+    method: 'put',
+    params: { version },
   });
 }
 

@@ -16,7 +16,7 @@
  =============================================================
 """
 from utils.cache_io import CacheIO
-from utils.path_utils import get_file_path
+from utils.logfile_utils import get_file_path
 from .dist_read import distribution_read
 from backend.api.utils import get_api_params
 
@@ -25,8 +25,7 @@ def dist_provider(file_path, samples=None):
     # read from cache
     res = CacheIO(file_path).get_cache()
     if res:
-        dist_data = distribution_read(samples=samples, data=res)\
-            .get_data()
+        dist_data = distribution_read(samples=samples, data=res).get_data()
         return dist_data
     else:
         raise ValueError('Parameter error, no data found')

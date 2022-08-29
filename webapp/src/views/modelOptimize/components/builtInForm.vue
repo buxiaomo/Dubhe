@@ -16,6 +16,30 @@
 
 <template>
   <div>
+    <el-form-item ref="algorithmPath" label="优化算法" prop="algorithmPath">
+      <el-select v-model="form.algorithmType" clearable filterable @change="onAlgorithmTypeChange">
+        <el-option
+          v-for="item in algorithmTypeList"
+          :key="item.type"
+          :label="item.name"
+          :value="item.type"
+        />
+      </el-select>
+      <el-select
+        v-model="selectedOptimizeAlgorithm"
+        value-key="algorithm"
+        clearable
+        filterable
+        @change="onOptimizeAlgoritmhChange"
+      >
+        <el-option
+          v-for="(item, index) in optimizeAlgorithmList"
+          :key="index"
+          :label="item.algorithm"
+          :value="item"
+        />
+      </el-select>
+    </el-form-item>
     <el-form-item ref="modelName" label="选择模型" prop="modelName">
       <el-select
         v-model="selectedOptimizeModel"
@@ -48,30 +72,6 @@
           :key="item.dataset"
           :value="item"
           :label="item.dataset"
-        />
-      </el-select>
-    </el-form-item>
-    <el-form-item ref="algorithmPath" label="优化算法" prop="algorithmPath">
-      <el-select v-model="form.algorithmType" clearable filterable @change="onAlgorithmTypeChange">
-        <el-option
-          v-for="item in algorithmTypeList"
-          :key="item.type"
-          :label="item.name"
-          :value="item.type"
-        />
-      </el-select>
-      <el-select
-        v-model="selectedOptimizeAlgorithm"
-        value-key="algorithm"
-        clearable
-        filterable
-        @change="onOptimizeAlgoritmhChange"
-      >
-        <el-option
-          v-for="(item, index) in optimizeAlgorithmList"
-          :key="index"
-          :label="item.algorithm"
-          :value="item"
         />
       </el-select>
     </el-form-item>

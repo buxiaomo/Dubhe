@@ -32,4 +32,19 @@ public class TrainConstant {
 
     public static final String MODEL_VOLUME_MOUNTS = "/model";
 
+    /**
+     * 训练文件目录pattern,eg: /${minio.bucketName}/train-manage/1/xxx
+     */
+    public static final String TRAIN_PATH_PATTERN = "%s/%s/%s";
+
+    /**
+     * 训练文件相对目录pattern, eg: /train-manage/1/xxx
+     */
+    public static final String TRAIN_RELATIVE_PATH_PATTERN = "/%s/%s/%s";
+
+    /**
+     * 训练运行命令的长度限制
+     */
+    public static final int RUN_COMMAND_LENGTH_LIMIT = 8192;
+
 }

@@ -39,6 +39,7 @@
             :placeholder="queryPlaceholder"
             class="filter-item"
             style="width: 200px;"
+            @clear="crud.toQuery"
             @keyup.enter.native="crud.toQuery"
           />
           <rrOperation />
@@ -65,17 +66,43 @@
       <el-table-column v-if="!isPreset" prop="id" label="ID" width="80" sortable="custom" />
       <el-table-column prop="name" label="模型名称" min-width="180px" />
       <el-table-column prop="frameType" label="框架名称" min-width="150px">
+        <template #header>
+          <dropdown-header
+            title="框架名称"
+            :list="frameTypeDropdownList"
+            :filtered="Boolean(filterParams.frameType)"
+            @command="(cmd) => filter('frameType', cmd)"
+          />
+        </template>
         <template slot-scope="scope">{{
           dict.label.frame_type[scope.row.frameType] || '--'
         }}</template>
       </el-table-column>
       <el-table-column prop="modelType" label="模型格式" min-width="150px">
+        <template #header>
+          <dropdown-header
+            title="模型格式"
+            :list="modelTypeDropdownList"
+            :filtered="Boolean(filterParams.modelType)"
+            @command="(cmd) => filter('modelType', cmd)"
+          />
+        </template>
         <template slot-scope="scope">{{
           dict.label.model_type[scope.row.modelType] || '--'
         }}</template>
       </el-table-column>
       <el-table-column prop="modelClassName" label="模型类别" min-width="150px">
-        <template slot-scope="scope">{{ scope.row.modelClassName || '--' }}</template>
+        <template #header>
+          <dropdown-header
+            title="模型类别"
+            :list="modelClassDropdownList"
+            :filtered="Boolean(filterParams.modelClassName)"
+            @command="(cmd) => filter('modelClassName', cmd)"
+          />
+        </template>
+        <template slot-scope="scope">{{
+          dict.label.model_class[scope.row.modelClassName] || '--'
+        }}</template>
       </el-table-column>
       <el-table-column
         prop="modelDescription"
@@ -91,6 +118,7 @@
           <span v-if="!scope.row.version">--</span>
         </template>
       </el-table-column>
+      <el-table-column v-if="isAdmin" prop="createUserName" label="创建者" min-width="100" />
       <el-table-column prop="updateTime" label="更新时间" width="160" sortable="custom">
         <template slot-scope="scope">
           <span>{{ parseTime(scope.row.updateTime) }}</span>
@@ -225,24 +253,6 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="模型类别" prop="modelClassName">
-          <el-select
-            id="modelClassName"
-            v-model="form.modelClassName"
-            placeholder="请选择或输入模型类别"
-            filterable
-            allow-create
-            style="width: 300px;"
-            @change="onAlgorithmUsageChange"
-          >
-            <el-option
-              v-for="item in algorithmUsageList"
-              :key="item.id"
-              :label="item.auxInfo"
-              :value="item.auxInfo"
-            />
-          </el-select>
-        </el-form-item>
         <el-form-item label="模型描述" prop="modelDescription">
           <el-input
             id="modelDescription"
@@ -282,6 +292,7 @@ import {
 } from '@/api/algorithm/algorithmUsage';
 import CRUD, { presenter, header, form, crud } from '@crud/crud';
 import BaseModal from '@/components/BaseModal';
+import DropdownHeader from '@/components/DropdownHeader';
 import rrOperation from '@crud/RR.operation';
 import pagination from '@crud/Pagination';
 import {
@@ -297,19 +308,19 @@ const defaultForm = {
   name: null,
   frameType: null,
   modelType: null,
-  modelClassName: null,
   modelDescription: null,
 };
 
 export default {
   name: 'Model',
-  dicts: ['model_type', 'frame_type'],
+  dicts: ['model_type', 'frame_type', 'model_class'],
   components: {
     BaseModal,
     pagination,
     rrOperation,
     AddModelDialog,
     PackageForm,
+    DropdownHeader,
   },
   cruds() {
     return CRUD({
@@ -322,6 +333,9 @@ export default {
       },
       optShow: {
         del: false,
+      },
+      query: {
+        name: undefined,
       },
     });
   },
@@ -342,13 +356,6 @@ export default {
         ],
         frameType: [{ required: true, message: '请选择模型框架', trigger: 'blur' }],
         modelType: [{ required: true, message: '请选择模型格式', trigger: 'blur' }],
-        modelClassName: [
-          {
-            required: true,
-            message: '请输入模型类别',
-            trigger: ['blur', 'change'],
-          },
-        ],
         modelDescription: [{ max: 255, message: '长度在255个字符以内', trigger: 'blur' }],
       },
       algorithmUsageList: [],
@@ -358,10 +365,24 @@ export default {
       packageVisible: false, // 炼知模型打包弹窗
       packageSubmitting: false,
       modelTypeMap: {},
+      filterParams: {
+        frameType: undefined,
+        modelType: undefined,
+        modelClassName: undefined,
+      },
     };
   },
   computed: {
     ...mapGetters(['isAdmin']),
+    frameTypeDropdownList() {
+      return [{ label: '全部', value: null }].concat(this.dict.frame_type);
+    },
+    modelTypeDropdownList() {
+      return [{ label: '全部', value: null }].concat(this.dict.model_type);
+    },
+    modelClassDropdownList() {
+      return [{ label: '全部', value: null }].concat(this.dict.model_class);
+    },
     isCustom() {
       return this.active === String(MODEL_RESOURCE_ENUM.CUSTOM);
     },
@@ -401,6 +422,12 @@ export default {
     }
   },
   methods: {
+    filter(column, value) {
+      this.filterParams[column] = value || undefined;
+      this.crud.query[column] = value;
+      this.crud.toQuery();
+    },
+
     getAlgorithmUsages() {
       const params = {
         isContainDefault: true,

@@ -70,15 +70,13 @@ public class PtTrainAlgorithmCreateDTO implements Serializable {
     @Length(max = MagicNumConstant.ONE_HUNDRED_TWENTY_EIGHT, message = "运行命令-输入长度不能超过128个字符")
     private String runCommand;
 
-    @ApiModelProperty("运行参数(算法来源为我的算法时为调优参数，算法来源为预置算法时为运行参数)，管理员使用")
-    private JSONObject runParams;
-
     @ApiModelProperty("算法来源(1为我的算法，2为预置算法)，管理员使用")
     private Integer algorithmSource;
 
     @ApiModelProperty("算法用途，输入长度不能超过128个字符")
     @Length(max = MagicNumConstant.ONE_HUNDRED_TWENTY_EIGHT, message = "算法用途-输入长度不能超过128个字符")
     private String algorithmUsage;
+
 
     @ApiModelProperty("是否输出训练结果，不填则默认为true")
     private Boolean isTrainModelOut;

@@ -47,7 +47,7 @@
         <div class="label">开发环境</div>
       </el-col>
       <el-col :span="19">
-        <div class="text">{{ itemObj.k8sImageName.split('jupyterlab:')[1] || '--' }}</div>
+        <div class="text">{{ getImageInfo(itemObj.k8sImageName) || '--' }}</div>
       </el-col>
     </el-row>
     <el-row class="row">
@@ -148,6 +148,10 @@ export default {
   },
   methods: {
     parseTime,
+    getImageInfo(imgName) {
+      const startIndex = imgName.lastIndexOf('/') + 1;
+      return imgName.substring(startIndex, imgName.length);
+    },
   },
 };
 </script>

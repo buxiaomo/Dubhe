@@ -40,7 +40,8 @@ public enum RecycleModuleEnum {
     BIZ_DATAMEDICINE(8, "医学影像",SERVER_DATA_DCM),
     BIZ_MEASURE(9, "度量管理",SERVER_MEASURE),
     BIZ_SERVING(10, "云端部署", SERVER_SERVING),
-    BIZ_TADL(11,"自动机器学习",SERVER_TADL);
+    BIZ_TADL(11,"自动机器学习",SERVER_TADL),
+    BIZ_POINT_CLOUD(12,"3D点云",SERVER_POINT_CLOUD);
 
     private Integer value;
 

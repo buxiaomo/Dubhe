@@ -14,6 +14,88 @@
  * =============================================================
  */
 
+<style lang="less" scoped>
+.statisticPanel {
+  width: 100%;
+}
+
+.rangeNumber:hover {
+  cursor: pointer;
+}
+
+.statisticPanelContent {
+  padding: 5% 10% 8% 10%;
+  font-size: 11px;
+  text-align: left;
+  border-radius: 0 0 3px 3px;
+}
+
+.spanCenter {
+  text-align: center;
+}
+
+.scroll1 {
+  margin-top: 7%;
+}
+
+.scroll2 {
+  margin-top: 10%;
+}
+
+.scroll .rangeNumber {
+  margin-top: 1%;
+}
+
+.selectMode {
+  margin-top: 12%;
+  line-height: 30px;
+}
+
+.statisticInfo {
+  margin-bottom: 6%;
+}
+
+.info {
+  width: 100%;
+}
+
+.statisticPanel .infoTitle:hover {
+  cursor: pointer;
+}
+
+.infoTitle {
+  height: 30px;
+  padding-left: 5%;
+  font-size: 12px;
+  line-height: 30px;
+  color: white;
+  text-align: left;
+  background-color: #625eb3;
+  border-radius: 3px;
+
+  .dot {
+    margin-right: 2%;
+  }
+}
+
+.infoContent {
+  padding: 5% 10% 3% 10%;
+  font-size: 11px;
+  text-align: left;
+}
+
+.infoContent div {
+  margin-bottom: 3%;
+}
+
+.el-select-dropdown__item.selected {
+  color: #625eb3;
+}
+
+.el-select-dropdown__item {
+  font-size: 11px;
+}
+</style>
 <template>
   <div class="temp statisticPanelTemp">
     <div v-show="myHistShow" class="statisticInfo">
@@ -63,12 +145,8 @@
       <el-card>
         <div class="statisticPanel">
           <div class="infoTitle" @click="scrollToTop(1)">分布图</div>
-          <div class="statisticPanelContent">
-            <div class="distPanel">
-              <div style="text-align: center;">
-                <span>暂无功能</span>
-              </div>
-            </div>
+          <div class="statisticPanelContent spanCenter">
+            <span>暂无功能</span>
           </div>
         </div>
       </el-card>
@@ -77,7 +155,9 @@
       <el-card>
         <div class="info">
           <div class="infoTitle"><i class="el-icon-chat-dot-round dot" />数据信息栏</div>
-          <div v-show="!infoShowFlag" class="infoContent">暂无信息</div>
+          <div v-show="!infoShowFlag" class="statisticPanelContent spanCenter">
+            <span>暂无信息</span>
+          </div>
           <div v-show="infoShowFlag" class="infoContent">
             <div>
               <el-row>
@@ -137,7 +217,7 @@ export default {
       'getStatisticInfo',
       'getHistShow',
       'getDistShow',
-      'getDrawAllSvgFinished',
+      'getFeatchHistDataFinished',
     ]),
   },
   // 控制面板和左侧内容绑定
@@ -168,19 +248,12 @@ export default {
     this.myDistShow = this.getDistShow;
   },
   methods: {
-    ...mapStatisticMutations([
-      'changeShownumber',
-      'changeMode',
-      'setBinNum',
-      'setDataSetsState',
-      'setHistShow',
-      'setDistShow',
-    ]),
+    ...mapStatisticMutations(['changeShownumber', 'changeMode', 'setBinNum']),
     scrollToTop(index) {
       document.getElementsByClassName('statistics-container')[index].scrollIntoView(true);
     },
     myChangeShownumber(showNumber) {
-      if (!this.getDrawAllSvgFinished) {
+      if (!this.getFeatchHistDataFinished) {
         // 没有绘制完，不允许操作控制面板，并还原数据
         this.$message({
           message: '统计分析页面还在渲染中，勿操作控制面板',
@@ -192,7 +265,7 @@ export default {
       }
     },
     myChangeMode(mode) {
-      if (!this.getDrawAllSvgFinished) {
+      if (!this.getFeatchHistDataFinished) {
         this.$message({
           message: '统计分析页面还在渲染中，勿操作控制面板',
           type: 'warning',
@@ -203,7 +276,7 @@ export default {
       }
     },
     mySetBinNum(binNumber) {
-      if (!this.getDrawAllSvgFinished) {
+      if (!this.getFeatchHistDataFinished) {
         this.$message({
           message: '统计分析页面还在渲染中，勿操作控制面板',
           type: 'warning',
@@ -216,97 +289,16 @@ export default {
   },
 };
 </script>
->
-
-<style lang="less" scoped>
-.statisticPanel {
-  width: 100%;
-}
-
-.rangeNumber:hover {
-  cursor: pointer;
-}
-
-.statisticPanelContent {
-  padding: 5% 10% 8% 10%;
-  font-size: 11px;
-  text-align: left;
-  border-radius: 0 0 3px 3px;
-}
-
-.scroll1 {
-  margin-top: 7%;
-}
-
-.scroll2 {
-  margin-top: 10%;
-}
-
-.scroll .rangeNumber {
-  margin-top: 1%;
-}
-
-.selectMode {
-  margin-top: 12%;
-  line-height: 30px;
-}
-
-.statisticInfo {
-  margin-bottom: 6%;
-}
-
-.info {
-  width: 100%;
-}
-
-.infoTitle {
-  height: 30px;
-  padding-left: 5%;
-  font-size: 12px;
-  line-height: 30px;
-  color: white;
-  text-align: left;
-  background-color: #625eb3;
-  border-radius: 3px;
-
-  .dot {
-    margin-right: 2%;
-  }
-}
-
-.statisticPanel .infoTitle:hover {
-  cursor: pointer;
-}
-
-.infoContent {
-  padding: 5% 10% 3% 10%;
-  font-size: 11px;
-  text-align: left;
-}
-
-.infoContent div {
-  margin-bottom: 3%;
-}
-
-.el-select-dropdown__item.selected {
-  color: #625eb3;
-}
-
-.el-select-dropdown__item {
-  font-size: 11px;
-}
-
-/deep/ .rangeNumber .el-slider__bar {
+<style>
+.rangeNumber .el-slider__bar {
   background-color: #625eb3;
 }
 
-/deep/ .rangeNumber .el-slider__button {
-  width: 8px;
-  height: 8px;
+.rangeNumber .el-slider__button {
   border-color: #625eb3;
 }
 
-/deep/ .histmodeselect .el-input__inner {
+.histmodeselect .el-input__inner {
   height: 30px;
   font-size: 11px;
   line-height: 30px;
@@ -315,44 +307,49 @@ export default {
   border-radius: 50px;
 }
 
-/deep/ .histmodeselect .el-input__inner:focus {
+.histmodeselect .el-input.is-focus .el-input__inner {
   border-color: #625eb3;
 }
 
-/deep/ .el-select:hover .el-input__inner {
+.histmodeselect .el-input__inner:focus {
   border-color: #625eb3;
 }
 
-/deep/ .histmodeselect .el-input.is-focus .el-input__inner {
-  border-color: #625eb3;
-}
-
-/deep/ .histmodeselect .el-input__icon {
+.histmodeselect .el-input__icon {
   line-height: 30px;
 }
 
-/deep/ .statisticPanelTemp .el-card__body {
+.statisticPanelTemp .el-card__body {
   padding: 0;
   border-radius: 0 0 3px 3px;
 }
 
-/deep/ .statisticPanelTemp .el-card {
+.statisticPanelTemp .el-card {
   margin: 3.5% 5% 4% 0%;
   border-top: 0;
 }
 
-/deep/ .histmodeselect .el-input .el-select__caret {
+.histmodeselect .el-input .el-select__caret {
   font-size: 20px;
   color: #9492cb;
 }
 
-/deep/ .histmodeselect [class*=' el-icon-'],
+.histmodeselect [class*=' el-icon-'],
 [class^='el-icon-'] {
   font-weight: 900;
 }
 
-/deep/ .rangeNumber .el-slider__runway,
-/deep/ .rangeNumber .el-slider__bar {
+.el-select:hover .el-input__inner {
+  border-color: #625eb3;
+}
+
+.rangeNumber .el-slider__button {
+  width: 8px;
+  height: 8px;
+}
+
+.rangeNumber .el-slider__runway,
+.rangeNumber .el-slider__bar {
   height: 5px;
 }
 </style>

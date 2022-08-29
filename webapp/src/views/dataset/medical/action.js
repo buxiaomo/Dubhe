@@ -14,19 +14,20 @@
  * =============================================================
  */
 
-import { isStatus, isPresetDataset } from '../util';
+import { isStatus, isIncludeStatus, isPresetDataset } from '../util';
 import { medicalAnnotationCodeMap } from './constant';
 
 export default {
   name: 'DatasetAction',
   functional: true,
   props: {
+    stopRunning: Function,
     goDetail: Function,
     autoAnnotate: Function,
     editDataset: Function,
   },
   render(h, { data, props }) {
-    const { goDetail, autoAnnotate, editDataset } = props;
+    const { stopRunning, goDetail, autoAnnotate, editDataset } = props;
     const columnProps = {
       ...data,
       scopedSlots: {
@@ -62,9 +63,18 @@ export default {
             </el-button>
           );
 
-          // 自动标注按钮只在未标注且目前算法支持的情形下显示
+          // 停止按钮在自动标注中时显示
+          let showStopButton = isStatus(row, 'AUTO_ANNOTATING');
+          // 停止按钮
+          const stopButton = (
+            <el-button {...btnProps} onClick={() => stopRunning(row)}>
+              停止
+            </el-button>
+          );
+
+          // 自动标注按钮在 未在进行自动标注中时 且目前算法支持的情形下显示
           let showAutoButton =
-            isStatus(row, 'UNANNOTATED') &&
+            isIncludeStatus(row, ['UNANNOTATED', 'AUTO_ANNOTATED', 'ANNOTATED', 'ANNOTATING']) &&
             row.bodyPartExamined === 'LUNG' &&
             row.modality === 'CT' &&
             row.annotateType === medicalAnnotationCodeMap.OrganSegmentation;
@@ -86,6 +96,7 @@ export default {
           // 预置数据集只具备查阅影像功能
           if (isPresetDataset(row.type)) {
             showCheckButton = true;
+            showStopButton = false;
             showAutoButton = false;
             showEditButton = false;
           }
@@ -93,6 +104,7 @@ export default {
           return (
             <span>
               {showCheckButton && checkButton}
+              {showStopButton && stopButton}
               {showAutoButton && autoButton}
               {showEditButton && editButton}
             </span>

@@ -1,4 +1,4 @@
-/** Copyright 2020 Tianshu AI Platform. All Rights Reserved.
+/** Copyright 2021 Tianshu AI Platform. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,10 +13,9 @@
  * limitations under the License.
  * =============================================================
  */
-
+import http from '@/utils/VisualUtils/request';
+import port from '@/utils/VisualUtils/api';
 import constants from '@/utils/VisualUtils/constants';
-// eslint-disable-next-line import/no-cycle
-import { initVisual, getCategory } from '@/api/visual';
 
 const state = {
   stateStore: {},
@@ -31,7 +30,7 @@ const state = {
   svgDownloadList: [],
   subCategoryTimerId: null,
   initWaitingMessage: '',
-  timeSyncInterval: '',
+  timeSyncInterval: false,
   errorMessage: '',
   params: {
     id: '',
@@ -48,20 +47,21 @@ const getters = {
   getErrorMessage: (state) => state.errorMessage,
   setDownloadSvgClass: (state) => state.svgDownloadList,
   getStateStore: (state) => state.stateStore,
+  getTimer: (state) => state.timeSyncInterval,
 };
 
 const actions = {
   async initWaitingPage(context, params) {
-    await initVisual(params).then((data) => {
-      context.commit('setCookie', 'session_id', data.session_id);
-      context.commit('setWaitingMessage', data.msg);
+    await http.useGet('/api/init', params).then((res) => {
+      context.commit('setCookie', res.data.data.session_id);
+      context.commit('setWaitingMessage', res.data.data.msg);
     });
   },
   async initFeatchCategory(context, path) {
     const splitArray = path.split('/');
     const cate = splitArray[splitArray.length - 1];
-    await getCategory({}).then((res) => {
-      const dataCategoryInfo = res;
+    await http.useGet(port.manage.initCategory, {}).then((res) => {
+      const dataCategoryInfo = res.data.data;
       let categorys = [];
       const runFile = [];
       const categoryToRunFile = {}; // 根据所选类目显示run信息
@@ -75,9 +75,9 @@ const actions = {
       categorys.forEach((val) => {
         categoryOrder.push(constants.CATEGORYORDER.indexOf(val));
       });
-      categoryOrder.sort();
+      categoryOrder.sort((a, b) => a - b);
       let newIndex = 0;
-      if (cate === 'visual') {
+      if (cate === 'index') {
         newIndex = 0;
       } else {
         newIndex = categoryOrder.indexOf(constants.CATEGORYORDER.indexOf(cate));
@@ -120,6 +120,69 @@ const actions = {
           'setErrorMessage',
           `${'日志文件中尚未发现可展示信息！_'}${new Date().getTime()}`
         );
+        categoryToRunFile.custom = ['Ax7yxZA1'];
+        categoryOrder.push(constants.CATEGORYORDER.length - 1);
+        newIndex = 0;
+      }
+      // ! features测试
+      // categoryToRunFile['features'] = ['Ax7yxZA1456']
+      // categoryOrder.push(5)
+
+      context.commit('setRunCategoryDetail', categoryToRunFile);
+      context.commit('setCategory', [categoryOrder, newIndex]);
+      context.commit('setRunCategory', constants.CATEGORYORDER[categoryOrder[newIndex]]);
+    });
+  },
+  async featchCategory(context, path) {
+    const splitArray = path.split('/');
+    const cate = splitArray[splitArray.length - 1];
+    await http.useGet(port.manage.initCategory, {}).then((res) => {
+      const dataCategoryInfo = res.data.data;
+      let categorys = [];
+      const runFile = [];
+      const categoryToRunFile = {}; // 根据所选类目显示run信息
+      Object.keys(dataCategoryInfo).forEach((val) => {
+        categorys = categorys.concat(
+          Object.keys(dataCategoryInfo[val]).filter((v) => !categorys.includes(v))
+        );
+        runFile.push(val);
+      });
+      const categoryOrder = [];
+      categorys.forEach((val) => {
+        categoryOrder.push(constants.CATEGORYORDER.indexOf(val));
+      });
+      categoryOrder.sort((a, b) => a - b);
+      let newIndex = 0;
+      if (cate === 'index') {
+        newIndex = 0;
+      } else {
+        newIndex = categoryOrder.indexOf(constants.CATEGORYORDER.indexOf(cate));
+      }
+      if (categorys.length !== 0) {
+        categorys.forEach((ce) => {
+          const detailTag = [];
+          const tempRunFile = [];
+          const temp = [];
+          runFile.forEach((res) => {
+            if (dataCategoryInfo[res].hasOwnProperty(ce)) {
+              tempRunFile.push(res);
+              detailTag.push(dataCategoryInfo[res][ce]);
+              temp.push(res);
+            }
+            categoryToRunFile[ce] = temp;
+          });
+          context.dispatch(`${ce}/getIntervalSelfCategoryInfo`, [tempRunFile, detailTag], {
+            root: true,
+          });
+        });
+      } else {
+        context.commit(
+          'setErrorMessage',
+          `${'日志文件中尚未发现可展示信息！_'}${new Date().getTime()}`
+        );
+        categoryToRunFile.custom = ['Ax7yxZA1'];
+        categoryOrder.push(constants.CATEGORYORDER.length - 1);
+        newIndex = 0;
       }
       context.commit('setRunCategoryDetail', categoryToRunFile);
       context.commit('setCategory', [categoryOrder, newIndex]);
@@ -131,8 +194,8 @@ const actions = {
     const splitArray = parm[1].split('/');
     const cate = splitArray[splitArray.length - 1];
     const t = setInterval(async () => {
-      await getCategory({ test: 1 }).then((res) => {
-        const dataCategoryInfo = res;
+      http.useGet(port.manage.initCategory, { test: 1 }).then((res) => {
+        const dataCategoryInfo = res.data.data;
         let categorys = [];
         const runFile = [];
         const categoryToRunFile = {};
@@ -146,7 +209,7 @@ const actions = {
         categorys.forEach((val) => {
           categoryOrder.push(constants.CATEGORYORDER.indexOf(val));
         });
-        categoryOrder.sort();
+        categoryOrder.sort((a, b) => a - b);
         let newIndex = 0;
         if (cate === 'index') {
           newIndex = 0;
@@ -202,8 +265,8 @@ const actions = {
   async timingFeatchCategoryOnce(context, parm) {
     const splitArray = parm.split('/');
     const cate = splitArray[splitArray.length - 1];
-    await getCategory({}).then((res) => {
-      const dataCategoryInfo = res;
+    await http.useGet(port.manage.initCategory, {}).then((res) => {
+      const dataCategoryInfo = res.data.data;
       let categorys = [];
       const runFile = [];
       const categoryToRunFile = {};
@@ -217,9 +280,9 @@ const actions = {
       categorys.forEach((val) => {
         categoryOrder.push(constants.CATEGORYORDER.indexOf(val));
       });
-      categoryOrder.sort();
+      categoryOrder.sort((a, b) => a - b);
       let newIndex = 0;
-      if (cate === 'visual') {
+      if (cate === 'index') {
         newIndex = 0;
       } else {
         newIndex = categoryOrder.indexOf(constants.CATEGORYORDER.indexOf(cate));
@@ -284,9 +347,10 @@ const mutations = {
   setParams: (state, params) => {
     state.params = params;
   },
-  setCookie: (state, name, value) => {
+  setCookie: (state, value) => {
     const days = 14;
     const exp = new Date();
+    const name = 'session_id';
     exp.setTime(exp.getTime() + days * 24 * 60 * 60 * 1000);
     document.cookie = `${name}=${escape(value)};expires=${exp.toGMTString()}; path=/`;
   },
@@ -294,6 +358,7 @@ const mutations = {
     // eslint-disable-next-line
     state.categoryIndex = value[0];
     const CategoryInfomation = [];
+
     Array.from(value[0]).forEach((order, index) => {
       CategoryInfomation.push({
         id: index,
@@ -320,8 +385,8 @@ const mutations = {
     });
     state.svgDownloadList = download;
   },
-  setSyncTime: (state, value) => {
-    state.timeSyncInterval = value;
+  setSyncTime: (state) => {
+    state.timeSyncInterval = !state.timeSyncInterval;
   },
   clearSync: (state) => {
     clearInterval(state.timeSyncInterval);
@@ -333,31 +398,33 @@ const mutations = {
     let detailInfo = [];
     let initOption = [];
     let temp = '';
-    state.runCategoryDetail[value].forEach((val, i) => {
-      detailInfo.push({
-        value: val,
-        label: val,
-      });
-      if (constants.RUNFILESHOWFlAG[value] === 0) {
-        temp = false;
-        if (i === 0) {
-          initOption = val;
+    if (state.runCategoryDetail[value] !== undefined) {
+      state.runCategoryDetail[value].forEach((val, i) => {
+        detailInfo.push({
+          value: val,
+          label: val,
+        });
+        if (constants.RUNFILESHOWFlAG[value] === 0) {
+          temp = false;
+          if (i === 0) {
+            initOption = val;
+          }
+        } else {
+          initOption.push(val);
+          temp = true;
         }
+        if (constants.RUNFILESHOWFlAG[value] === 2) {
+          detailInfo = [];
+          initOption = [];
+          temp = 2;
+        }
+      });
+      if (value in state.stateStore) {
+        state.userSelectRunFile = state.stateStore[value];
       } else {
-        initOption.push(val);
-        temp = true;
+        state.stateStore[value] = initOption;
+        state.userSelectRunFile = initOption;
       }
-      if (constants.RUNFILESHOWFlAG[value] === 2) {
-        detailInfo = [];
-        initOption = [];
-        temp = 2;
-      }
-    });
-    if (value in state.stateStore) {
-      state.userSelectRunFile = state.stateStore[value];
-    } else {
-      state.stateStore[value] = initOption;
-      state.userSelectRunFile = initOption;
     }
     state.runFileCategory = detailInfo;
     state.multipleFlag = temp;
@@ -368,8 +435,8 @@ const mutations = {
   setRunCategoryDetail: (state, value) => {
     state.runCategoryDetail = value;
   },
-  setTimer: (state, value) => {
-    state.subCategoryTimerId = value;
+  setTimer: (state) => {
+    state.timeSyncInterval = !state.timeSyncInterval;
   },
   setErrorMessage: (state, param) => {
     state.errorMessage = param;

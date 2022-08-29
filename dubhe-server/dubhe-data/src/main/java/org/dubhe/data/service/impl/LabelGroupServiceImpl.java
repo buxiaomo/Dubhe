@@ -23,6 +23,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.dubhe.biz.base.vo.LabelGroupBaseVO;
 import org.dubhe.biz.permission.annotation.DataPermissionMethod;
 import org.dubhe.biz.permission.annotation.RolePermission;
 import org.dubhe.biz.base.constant.MagicNumConstant;
@@ -43,6 +44,7 @@ import org.dubhe.cloud.authconfig.utils.JwtUtils;
 import org.dubhe.data.constant.*;
 import org.dubhe.data.dao.DatasetMapper;
 import org.dubhe.data.dao.LabelGroupMapper;
+import org.dubhe.data.dao.PcDatasetMapper;
 import org.dubhe.data.domain.dto.*;
 import org.dubhe.data.domain.entity.DatasetGroupLabel;
 import org.dubhe.data.domain.entity.Label;
@@ -87,6 +89,9 @@ public class LabelGroupServiceImpl extends ServiceImpl<LabelGroupMapper, LabelGr
 
     @Autowired
     private DatasetLabelService datasetLabelService;
+
+    @Autowired
+    private PcDatasetMapper pcDatasetMapper;
 
     @Autowired
     private DatasetMapper datasetService;
@@ -286,6 +291,11 @@ public class LabelGroupServiceImpl extends ServiceImpl<LabelGroupMapper, LabelGr
             throw new BusinessException(ErrorEnum.LABELGROUP_LABEL_GROUP_QUOTE_DEL_ERROR);
         }
 
+        // 校验标签组是否被点云数据集引用
+        if (pcDatasetMapper.getCountPCByLabelGroupId(labelGroupId) > 0) {
+            throw new BusinessException(ErrorEnum.LABELGROUP_LABEL_GROUP_PC_DEL_ERROR);
+        }
+
         List<Label> labels = labelService.listByGroupId(labelGroupId);
 
         if (!CollectionUtils.isEmpty(labels)) {
@@ -340,7 +350,7 @@ public class LabelGroupServiceImpl extends ServiceImpl<LabelGroupMapper, LabelGr
                 .recycleCustom(RecycleResourceEnum.LABEL_GROUP_RECYCLE_FILE.getClassName())
                 .restoreCustom(RecycleResourceEnum.LABEL_GROUP_RECYCLE_FILE.getClassName())
                 .recycleDelayDate(NumberConstant.NUMBER_1)
-                .recycleNote(RecycleTool.generateRecycleNote("删除标签组相关信息", labelGroup.getId()))
+                .recycleNote(RecycleTool.generateRecycleNote("删除标签组相关信息", labelGroup.getName(), labelGroup.getId()))
                 .detailList(detailList)
                 .build();
         recycleService.createRecycleTask(recycleCreateDTO);
@@ -470,6 +480,9 @@ public class LabelGroupServiceImpl extends ServiceImpl<LabelGroupMapper, LabelGr
                     || AnnotateTypeEnum.OBJECT_TRACK.getValue().compareTo(labelGroupQueryDTO.getAnnotateType()) == 0
                     || AnnotateTypeEnum.SEMANTIC_CUP.getValue().compareTo(labelGroupQueryDTO.getAnnotateType()) == 0){
                 labelGroupLambdaQueryWrapper.ne(LabelGroup::getId,MagicNumConstant.TWO);
+            }
+            if (AnnotateTypeEnum.CLASSIFICATION.getValue().equals(labelGroupQueryDTO.getAnnotateType())) {
+                labelGroupLambdaQueryWrapper.ne(LabelGroup::getId,MagicNumConstant.ONE);
             }
             labelGroupLambdaQueryWrapper.orderByAsc(LabelGroup::getId);
         }else {
@@ -616,7 +629,7 @@ public class LabelGroupServiceImpl extends ServiceImpl<LabelGroupMapper, LabelGr
         if(Objects.isNull(labelGroup)){
             throw new BusinessException(ErrorEnum.LABELGROUP_DOES_NOT_EXIST);
         }
-        return MagicNumConstant.ONE == labelGroup.getType();
+        return true;
     }
 
 
@@ -658,6 +671,24 @@ public class LabelGroupServiceImpl extends ServiceImpl<LabelGroupMapper, LabelGr
     @Override
     public void updateStatusByGroupId(Long groupId, Boolean deletedFlag) {
             baseMapper.updateStatusByGroupId(groupId,deletedFlag);
+    }
+
+    @Override
+    public List<LabelGroupBaseVO> queryLabelGroupList(Set<Long> labelGroupIds) {
+        if (CollectionUtils.isEmpty(labelGroupIds)){
+            return new ArrayList<>();
+        }
+        List<LabelGroup> labelGroupList = baseMapper.selectBatchIds(labelGroupIds);
+        if (CollectionUtils.isEmpty(labelGroupList)) {
+            throw new BusinessException(ErrorEnum.LABELGROUP_DOES_NOT_EXIST);
+        }
+        List<LabelGroupBaseVO> labelGroupBaseVOList = labelGroupList.stream().map(labelGroup -> {
+            LabelGroupBaseVO labelGroupBaseVO = new LabelGroupBaseVO();
+            BeanUtils.copyProperties(labelGroup, labelGroupBaseVO);
+            return labelGroupBaseVO;
+        }).collect(Collectors.toList());
+
+        return labelGroupBaseVOList;
     }
 
 

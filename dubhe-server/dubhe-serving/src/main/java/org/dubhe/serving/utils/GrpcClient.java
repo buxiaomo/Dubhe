@@ -17,6 +17,8 @@
 
 package org.dubhe.serving.utils;
 
+import cn.hutool.core.codec.Base64;
+import cn.hutool.core.io.FileUtil;
 import io.grpc.ManagedChannel;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NegotiationType;
@@ -33,6 +35,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLException;
+import java.io.File;
 import java.io.InputStream;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,15 +53,23 @@ public class GrpcClient {
      */
     public static ConcurrentHashMap<Long, ManagedChannel> channelMap = new ConcurrentHashMap<>();
     /**
+     * 项目根路径
+     */
+    private final static String USER_DIR_SYSTEM_PROPERTY = "user.dir";
+    /**
+     * k8s crt证书文件名
+     */
+    private final static String TLS_CRT = "server.crt";
+    /**
      * k8s grpc端口
      */
     @Value("${k8s.https-port:31365}")
     private String grpcPort;
     /**
-     * tls证书路径
+     * k8s 模型部署tls证书 crt
      */
-    @Value("${serving.crtPath}")
-    private String crtPath;
+    @Value("${k8s.serving.tls-crt}")
+    private String tlsCrt;
 
     /**
      * 创建带tls认证的grpc通道
@@ -68,9 +79,21 @@ public class GrpcClient {
      * @throws SSLException
      */
     public ManagedChannel createTlsChannel(String url) throws Exception {
-        SslContext sslContext = buildSslContext(crtPath);
+        String path = getTlsCrt();
+        SslContext sslContext = GrpcSslContexts.forClient().trustManager(new File(path)).build();
         ManagedChannel channel = NettyChannelBuilder.forAddress(url, Integer.parseInt(grpcPort)).maxInboundMessageSize(NumberConstant.MAX_MESSAGE_LENGTH).negotiationType(NegotiationType.TLS).sslContext(sslContext).build();
         return channel;
+    }
+
+    /**
+     * 获取crt证书路径
+     */
+    public String getTlsCrt() {
+        String path = System.getProperty(USER_DIR_SYSTEM_PROPERTY) + File.separator.concat(TLS_CRT);
+        if(!FileUtil.exist(path)) {
+            FileUtil.writeUtf8String(Base64.decodeStr(tlsCrt), path);
+        }
+        return path;
     }
 
 
@@ -169,25 +192,5 @@ public class GrpcClient {
             }
         }
     }
-
-    /**
-     * 创建ssl连接
-     *
-     * @param crtPath 证书路径
-     * @return SslContext对象
-     * @throws Exception 异常
-     */
-    public static SslContext buildSslContext(String crtPath) throws Exception {
-        SslContext sslContext;
-        InputStream in = null;
-        try {
-            in = GrpcClient.class.getResourceAsStream(crtPath);
-            sslContext = GrpcSslContexts.forClient().trustManager(in).build();
-        } finally {
-            if (in != null) {
-                in.close();
-            }
-        }
-        return sslContext;
-    }
+    
 }

@@ -64,7 +64,15 @@ public enum BizEnum {
     /**
      * TADL
      */
-    TADL("TADL服务", "tadl", 8);
+    TADL("TADL服务", "tadl", 8),
+    /**
+     * POINT_CLOUD
+     */
+    POINT_CLOUD("点云服务","pointcloud",9),
+    /**
+     * DATA
+     */
+    DATA("数据服务","data",10);
 
     /**
      * 业务模块名称

@@ -16,7 +16,7 @@
  =============================================================
 """
 from utils.cache_io import CacheIO
-from utils.path_utils import get_file_path
+from utils.logfile_utils import get_file_path
 from .image_read import image_read
 from backend.api.utils import get_api_params
 import base64
@@ -54,6 +54,7 @@ def get_image_meta_data(request):
 def get_image_data(request):
     params = ['uid', 'trainJobName', 'run', 'tag', 'step']
     uid, trainJobName, run, tag, step = get_api_params(request, params)
+
     file_path = get_file_path(uid, run, 'image', tag)
     data = base64.b64encode(image_provider(file_path, step=int(step)))
     res = "data:image/png;base64,%s" % data.decode()

@@ -77,6 +77,9 @@ public class DatasetVersion extends BaseEntity {
     @ApiModelProperty(value = "是否生成ofRecord文件")
     private Integer ofRecord;
 
+    @ApiModelProperty(value = "格式")
+    private String format;
+
     public DatasetVersion() {
     }
 

@@ -41,4 +41,7 @@ public class BizContainerStatus {
 
     @K8sField("containerID")
     private String containerID;
+
+    @K8sField("ready")
+    private Boolean ready;
 }

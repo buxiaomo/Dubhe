@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 """
- Copyright 2020 Tianshu AI Platform. All Rights Reserved.
+ Copyright 2021 Tianshu AI Platform. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,35 +15,33 @@
  limitations under the License.
  =============================================================
 """
-import os
 from watchdog.observers.polling import PollingObserver
 from watchdog.events import *
 from python_io.logfile_loader import Trace_Thread
-from .logfile_utils import *
-
+from utils.logfile_utils import *
 
 class Watcher_Handler(FileSystemEventHandler):
-    def __init__(self, run, uid, cache_path):
-        self.runname = run
+    def __init__(self, uid, run, path, cache_path):
         self.uid = uid
+        self.runname = run
+        self.runpath = path
         self.cache_path = cache_path
 
     def on_created(self, event):
-        print("创建--> %s" % event.src_path)
         filename = Path(event.src_path)
         if filename.is_file():
+            print("创建文件 --> %s" % event.src_path)
             if is_available_flie(event.src_path):
-                current_size = os.path.getsize(event.src_path)
-                Trace_Thread(self.runname, filename, current_size,
-                             self.uid, self.cache_path).start()
+                runname = self.runname if filename.parent == self.runpath else filename.parts[-2]
+                Trace_Thread(self.uid, runname, filename, self.cache_path).start()
             else:
                 print("非有效日志文件 %s" % filename.name)
         else:
             pass
 
 
-def start_run_watcher(run, path, uid, cache_path):
-    event_handler = Watcher_Handler(run, uid, cache_path)
+def start_run_watcher(uid, run, path, cache_path):
+    event_handler = Watcher_Handler(uid, run, path, cache_path)
     observer = PollingObserver()
-    observer.schedule(event_handler, path, recursive=False)
+    observer.schedule(event_handler, path, recursive=True)
     observer.start()

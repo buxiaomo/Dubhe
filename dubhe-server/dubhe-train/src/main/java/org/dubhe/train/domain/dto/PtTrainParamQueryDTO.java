@@ -19,13 +19,14 @@ package org.dubhe.train.domain.dto;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
-import lombok.experimental.Accessors;;
+import lombok.experimental.Accessors;
 import org.dubhe.biz.base.constant.MagicNumConstant;
 import org.dubhe.biz.db.base.PageQueryBase;
-import org.dubhe.train.utils.TrainUtil;
 import org.hibernate.validator.constraints.Length;
 
 import java.io.Serializable;
+
+;
 
 /**
  * @description 任务参数查询条件
@@ -43,5 +44,8 @@ public class PtTrainParamQueryDTO extends PageQueryBase implements Serializable 
 
     @ApiModelProperty(value = "规格类型(0为CPU, 1为GPU)")
     private Integer resourcesPoolType;
+
+    @ApiModelProperty("训练类型 0：普通训练，1：分布式训练，2：炼知重组任务")
+    private Integer trainType;
 
 }

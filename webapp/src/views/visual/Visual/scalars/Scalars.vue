@@ -14,6 +14,23 @@
  * =============================================================
  */
 
+<style lang="less" scoped>
+.scalars {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  background-color: white;
+}
+
+.display-panel {
+  height: 97.5%;
+  margin: 1% 1% 0 1%;
+  overflow-y: auto;
+  background-color: white;
+  border-radius: 5px 5px 0 0;
+  box-shadow: rgba(0, 0, 0, 0.3) 0 0 10px;
+}
+</style>
 <template>
   <div>
     <div class="scalars">
@@ -38,6 +55,9 @@ const {
   mapMutations: mapScalarMutations,
   mapActions: mapScalarActions,
 } = createNamespacedHelpers('Visual/scalar');
+const { mapState: mapLayoutStates, mapGetters: mapLayoutGetters } = createNamespacedHelpers(
+  'Visual/layout'
+);
 export default {
   components: {
     subScalars,
@@ -50,7 +70,15 @@ export default {
     };
   },
   computed: {
-    ...mapScalarGetters(['categoryInfo', 'getTotaltag', 'getErrorMessage', 'getFreshInfo']),
+    ...mapScalarGetters([
+      'categoryInfo',
+      'getTotaltag',
+      'getErrorMessage',
+      'getFreshInfo',
+      'getIntervalChange',
+    ]),
+    ...mapLayoutStates(['userSelectRunFile']),
+    ...mapLayoutGetters(['getTimer']),
   },
   watch: {
     categoryInfo() {
@@ -61,6 +89,11 @@ export default {
         message: val.split('_')[0],
         type: 'error',
       });
+    },
+    // 定时请求数据
+    getIntervalChange() {
+      this.settotaltag();
+      this.totaltag = this.getTotaltag;
     },
   },
   created() {
@@ -81,9 +114,9 @@ export default {
       this.data = [].concat(JSON.parse(JSON.stringify(this.categoryInfo)));
       this.totaltag = {};
       let param = {};
-      for (let i = 0; i < this.data[1].length; i += 1) {
+      for (let i = 0; i < this.data[1].length; i++) {
         param = JSON.parse(JSON.stringify(this.data[1][i]));
-        for (let j = 0; j < Object.keys(param).length; j += 1) {
+        for (let j = 0; j < Object.keys(param).length; j++) {
           if (this.totaltag[Object.keys(param)[j]] === undefined) {
             this.totaltag[Object.keys(param)[j]] = [];
           }
@@ -102,21 +135,3 @@ export default {
   },
 };
 </script>
-
-<style lang="less" scoped>
-.scalars {
-  width: 100%;
-  height: 100%;
-  overflow-y: auto;
-  background-color: white;
-}
-
-.display-panel {
-  height: 97.5%;
-  margin: 1% 1% 0 1%;
-  overflow-y: auto;
-  background-color: white;
-  border-radius: 5px 5px 0 0;
-  box-shadow: rgba(0, 0, 0, 0.3) 0 0 10px;
-}
-</style>

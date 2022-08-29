@@ -182,3 +182,62 @@ export const fetchMetric = async (experimentId, stageOrder, metricStr) => {
   const metric = await metricMap[metricStr](experimentId, stageOrder);
   return metric;
 };
+
+// 最大运行时间规则为小数点前5位小数点后4位
+export const isVaildMaxExecDuration = (value) => /^([1-9]\d{0,4}|0)(\.\d{1,4})?$/.test(value);
+
+export const getPublicRules = (form, key = 'maxExecDurationUnit') => ({
+  maxExecDuration: [
+    {
+      required: true,
+      validator: (rule, value, callback) => {
+        if (!value && value !== 0) {
+          callback(new Error('请设置时间'));
+        }
+        if (value <= 0) {
+          callback(new Error('时间设置必须大于0'));
+        }
+        if (!isVaildMaxExecDuration(value)) {
+          callback(new Error('时间为数值,并保持在5位整数位和4位小数位之间'));
+        }
+        if (!form[key]) {
+          callback(new Error('请选择时间单位'));
+        }
+        callback();
+      },
+      trigger: ['blur', 'change'],
+    },
+  ],
+  maxTrialNum: [
+    { required: true, message: '请输入最大Trial次数', trigger: ['blur', 'change'] },
+    { type: 'number', message: '所填必须为数字' },
+    {
+      validator: (rule, value, callback) => {
+        if (!value && value !== 0) {
+          callback();
+        }
+        if (value < 1 || value > 2147483647) {
+          callback(new Error('最大Trial次数需要在1到2147483647之间'));
+        }
+        callback();
+      },
+      trigger: ['blur', 'change'],
+    },
+  ],
+  trialConcurrentNum: [
+    { required: true, message: '请输入Trial并发数量', trigger: ['blur', 'change'] },
+    { type: 'number', message: '所填必须为数字' },
+    {
+      validator: (rule, value, callback) => {
+        if (!value && value !== 0) {
+          callback();
+        }
+        if (value < 1 || value > 20) {
+          callback(new Error('Trial并发数量需要在1到20之间'));
+        }
+        callback();
+      },
+      trigger: ['blur', 'change'],
+    },
+  ],
+});

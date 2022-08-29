@@ -75,4 +75,11 @@ export function submitUserConfig(data) {
   });
 }
 
+export function getVisUserInfo() {
+  return request({
+    url: `/${API_MODULE_NAME.ADMIN}/users/decryptVisUser`,
+    method: 'get',
+  });
+}
+
 export default { list, add, edit, del };

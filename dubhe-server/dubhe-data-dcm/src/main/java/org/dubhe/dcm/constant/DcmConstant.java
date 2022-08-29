@@ -78,6 +78,11 @@ public class DcmConstant {
     /**
      * dcm文件上传
      */
-    public static final String DCM_UPLOAD = "ssh %s@%s \"docker run --rm -v %s:/nfs dcm4che/dcm4che-tools:5.10.5 storescu -c DCM4CHEE@%s:%s %s\"";
+    public static final String DCM_UPLOAD = "docker run --rm -v %s:/nfs dcm4che/dcm4che-tools:5.10.5 storescu -c DCM4CHEE@%s:%s %s";
+
+    /**
+     * dcm数据存储路径
+     */
+    public static final String DCM_DATA_URL = "dataset/dcm/%s";
 
 }

@@ -20,6 +20,9 @@ export const moduleMap = {
   2: 'train',
   3: 'serving',
   4: 'tadl',
+  5: 'pointCloud',
+  6: 'dataAnnotation',
+  7: 'atlas',
 };
 
 const resourcesPoolTypeMap = {

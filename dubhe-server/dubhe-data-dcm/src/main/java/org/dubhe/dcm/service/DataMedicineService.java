@@ -22,9 +22,11 @@ import org.dubhe.biz.base.enums.OperationTypeEnum;
 import org.dubhe.dcm.domain.dto.*;
 import org.dubhe.dcm.domain.entity.DataMedicine;
 import org.dubhe.dcm.domain.vo.DataMedicineCompleteAnnotationVO;
+import org.dubhe.dcm.domain.vo.DataMedicineSmallVO;
 import org.dubhe.dcm.domain.vo.DataMedicineVO;
 import org.dubhe.recycle.domain.dto.RecycleCreateDTO;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -146,4 +148,15 @@ public interface DataMedicineService {
      * @param datasetId         医学数据集Id
      */
     void deleteByDatasetId(Long datasetId);
+
+    /**
+     * 获取医学数据集列表
+     *
+     * @return
+     */
+    List<DataMedicineSmallVO> getList();
+
+    void taskStop(Long medicalId);
+
+    DataMedicine getOneById(Long datasetId);
 }

@@ -54,7 +54,4 @@ public class PtTrainAlgorithmQueryDTO extends PageQueryBase implements Serializa
 
     @ApiModelProperty(value = "算法用途")
     private String algorithmUsage;
-
-    @ApiModelProperty(value = "上传算法是否支持推理(true:可推理，false：不可推理)")
-    private Boolean inference;
 }

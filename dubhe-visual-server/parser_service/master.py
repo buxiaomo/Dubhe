@@ -17,102 +17,86 @@
 """
 import sys
 sys.path.append('../service_utils')
-from python_io import logfile_utils
-from python_io.lazy_load import LazyLoad
-from multiprocessing import Process
 from pathlib import Path
-from shutil import rmtree
 from utils.redis_utils import RedisInstance
+from tbparser.log_parser import LogParser
+from threading import Thread
+import time
 import json
 
-
-def load_logs(uid, run_dirs, cache_path):
-    msg = '({}) starts successfully'.format(uid)
-    RedisInstance.lpush('parser_statu' + uid, json.dumps(
-        {'code': 200, 'msg': msg}
-    ))
-    print(msg)
-    for key, val in run_dirs.items():
-        LazyLoad(key, val).init_load(uid=uid, cache_path=cache_path)
-
-
-def set_cache_path(cache_dir):
-    cache_dir = Path(cache_dir).absolute()
-    if cache_dir.exists():
-        rmtree(cache_dir)
-    return cache_dir.absolute()
-
+def response(stateId, code, msg):
+    # 通过redis消息队列通知当前状态
+    s = json.dumps({'code': code, 'msg': msg})
+    RedisInstance.lpush(stateId, s)
 
 class Master:
+    fileParsers = {}
     def __init__(self):
-        self.file_parsers = {}
-        self.r = RedisInstance
-        self.r.flushdb()
+        RedisInstance.flushdb()
 
     def set_parser(self, uid, log_dir, cache_dir):
-        if Path(log_dir).exists():
-            run_dirs = logfile_utils.get_runinfo(log_dir)
-            if run_dirs:
-                if uid in self.file_parsers.keys():
-                    msg = "User {} has already started".format(uid)
-                    RedisInstance.lpush('parser_statu' + uid, json.dumps(
-                        {'code': 200, 'msg': msg}
-                    ))
-                    print(msg)
-                    return
-                cache_path = set_cache_path(cache_dir)
-                self.r.set(uid, str(cache_path))
-                p = Process(target=load_logs,
-                            args=(uid, run_dirs, cache_path))
-                p.start()
-                self.file_parsers[uid] = p
-            else:
-                msg = 'No related logs found'
-                RedisInstance.lpush('parser_statu' + uid, json.dumps(
-                    {'code': 500, 'msg': msg}
-                ))
-                print(msg)
+        # 日志路径不存在
+        if not Path(log_dir).exists():
+            return response(stateId='parser_statu' + uid,
+                            code = 500,
+                            msg = 'User does not exist or log path not found error: {}'.format(log_dir))
+
+        # 若当前任务已经解析，则跳过
+        if uid in self.fileParsers.keys():
+            response(stateId='parser_statu' + uid,
+                     code=200,
+                     msg="User {} has already started".format(uid))
         else:
-            msg = 'User does not exist or log path not found error: {}'\
-                .format(log_dir)
-            RedisInstance.lpush('parser_statu' + uid, json.dumps(
-                {'code': 500, 'msg': msg}
-            ))
-            print(msg)
+            response(stateId='parser_statu' + uid,
+                     code=200,
+                     msg='({}) starts successfully'.format(uid))
+
+            parser = LogParser(uid, log_dir, cache_dir)
+            parser.start()
+            self.fileParsers[uid] = parser
+
+        response(stateId='parser_statu' + uid,
+                 code=200,
+                 msg='({}) is finished'.format(uid))
 
     def kill_parser(self, uid):
-        if uid in self.file_parsers.keys():
-            cache_path = Path(self.r.get(uid))
-            self.file_parsers[uid].terminate()
-            # 清除redis缓存
-            for key in self.r.keys(uid + '*'):
-                self.r.delete(key)
-            import time
-            time.sleep(2)  # 等待file_parsers线程关闭
-            if not self.file_parsers[uid].is_alive():
-                self.file_parsers.pop(uid)
-                if cache_path.exists():
-                    rmtree(cache_path)
-                print('({}) terminates successfully'.format(uid))
+        if uid in self.fileParsers.keys():
+            parser = self.fileParsers.pop(uid)
+            if parser.alive:
+                parser.close()
 
     def run_server(self):
         while True:
-            _, request = self.r.brpop('sessions')
+            _, request = RedisInstance.brpop('sessions') #取出django的通知消息
             request = json.loads(request)
             if request['type'] == 'run':
-                uid = request['uid']
-                logdir = request['logdir']
-                cachedir = request['cachedir']
-                self.set_parser(uid, logdir, cachedir)
+                self.set_parser(uid = request['uid'],
+                                log_dir = request['logdir'],
+                                cache_dir = request['cachedir'])
             elif request['type'] == 'kill':
-                uid = request['uid']
-                self.kill_parser(uid)
+                self.kill_parser(uid=request['uid'])
             else:
                 print('Unrecognized request')
 
+def run():
+    Master().run_server()
+
+def cleanup(signum=None, frame=None):
+    # 正常退出，触发每个parser的线程回收函数cleanup,清空所有的cache文件
+    for parser in Master.fileParsers.values():
+        parser.close()
+    print('closing master ...')
+    sys.exit()
 
 if __name__ == '__main__':
-    # logdir = '../../demo_logs'
-    # Master().set_parser('a',logdir)
+    import signal
+    # 为响应信号绑定触发函数
+    signal.signal(signal.SIGINT, cleanup) # ctrl + c 退出
+    signal.signal(signal.SIGTERM, cleanup) # kill pids 退出
+
     print("Master running...")
-    Master().run_server()
+    p = Thread(target=run, daemon=True)
+    p.start()
+
+    while True:
+        time.sleep(100)

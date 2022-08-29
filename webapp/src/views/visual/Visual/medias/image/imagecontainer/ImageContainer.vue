@@ -15,12 +15,8 @@
  */
 
 <style lang="less" scoped>
-/deep/ .el-icon-circle-close {
+/deep/.el-icon-circle-close {
   color: white;
-}
-
-.el-col {
-  margin-bottom: 20px;
 }
 
 .imagecontainer {
@@ -28,16 +24,16 @@
   height: 100%;
   background-color: rgb(255, 255, 255);
 
-  /deep/ .el-slider__runway {
+  /deep/.el-slider__runway {
     width: 95%;
     margin: 16px auto;
   }
 
-  /deep/ .el-slider__button {
+  /deep/.el-slider__button {
     border-color: #625eb3;
   }
 
-  /deep/ .el-slider__bar {
+  /deep/.el-slider__bar {
     background-color: #625eb3;
   }
 }
@@ -52,17 +48,17 @@
   height: auto;
 }
 
-/deep/ .el-image {
-  width: 100%;
-  height: auto;
-}
-
-/deep/ .el-image__preview {
+/deep/.el-image {
   width: 100%;
   height: 400px;
 }
 
-/deep/ .el-image-viewer__img {
+/deep/.el-image__preview {
+  width: 100%;
+  height: 400px;
+}
+
+/deep/.el-image-viewer__img {
   height: 100%;
 }
 
@@ -79,29 +75,29 @@
   margin-right: 1%;
   margin-left: auto;
 
-  /deep/ .checked {
+  /deep/.checked {
     width: 20px;
     height: 20px;
   }
 
-  /deep/ .el-checkbox__inner {
-    font-size: 20px;
-  }
-
-  /deep/ .el-checkbox__inner:hover {
+  /deep/.el-checkbox__inner:hover {
     border-color: #8f8bd9;
   }
 
-  /deep/ .el-checkbox {
+  /deep/.el-checkbox__inner {
     font-size: 20px;
   }
 
-  /deep/ .el-checkbox__input.is-checked .el-checkbox__inner {
+  /deep/.el-checkbox {
+    font-size: 20px;
+  }
+
+  /deep/.el-checkbox__input.is-checked .el-checkbox__inner {
     background-color: #8f8bd9;
     border-color: #8f8bd9;
   }
 
-  /deep/ .el-checkbox__input.is-focus .el-checkbox__inner {
+  /deep/.el-checkbox__input.is-focus .el-checkbox__inner {
     border-color: gray;
   }
 }
@@ -123,9 +119,13 @@ input {
   color: white;
   background-color: #8f8bd8;
 
-  /deep/ .el-col {
+  /deep/.el-col {
     margin-bottom: 10px;
   }
+}
+
+.el-col {
+  margin-bottom: 20px;
 }
 
 .imagetext {
@@ -154,6 +154,12 @@ p {
             </el-col>
             <el-col :span="12">
               <div class="titleRight">
+                <!-- <span class="scale" @click="scaleLarge()">
+                  <i class="iconfont icon-fangda" />
+                </span>
+                <span class="scale" @click="scaleSmall()">
+                  <i class="iconfont icon-suoxiao1" />
+                </span> -->
                 <el-tooltip
                   class="item"
                   effect="dark"
@@ -206,23 +212,29 @@ p {
           </el-row>
         </div>
       </div>
-      <div class="imagecontent">
-        <!-- <img :src="imgurl"> -->
-        <el-image :src="imgurl" :preview-src-list="[imgurl]" />
+      <div class="imagecontent demo-image__placeholder">
+        <div class="block">
+          <!-- <span class="demonstration">默认</span> -->
+          <el-image :src="imgurl" :preview-src-list="[imgurl]">
+            <div slot="placeholder" class="image-slot">加载中<span class="dot">...</span></div>
+          </el-image>
+        </div>
       </div>
       <el-slider
         v-model="scrollvalue"
         :max="imagecontent.length - 1"
         :disabled="imagecontent.length - 1 === 0"
+        :format-tooltip="formatTooltip"
         class="slider"
       />
     </el-col>
   </div>
 </template>
 <script>
+import http from '@/utils/VisualUtils/request';
+import port from '@/utils/VisualUtils/api';
 import 'element-ui/lib/theme-chalk/display.css';
 import { createNamespacedHelpers } from 'vuex';
-import { getImageRaw } from '@/api/visual';
 
 const { mapMutations: mapCustomMutations, mapGetters: mapCustomGetters } = createNamespacedHelpers(
   'Visual/custom'
@@ -246,18 +258,24 @@ export default {
   },
   computed: {
     ...mapCustomGetters(['getImage']),
-    ...mapLayoutGetters(['getParams']),
+    ...mapLayoutGetters(['getParams', 'getTimer']),
   },
   watch: {
+    getTimer() {
+      this.imagecontent = this.content.value[Object.keys(this.content.value)[0]];
+    },
     async scrollvalue(val) {
       const params = {
         step: this.imagecontent[val].step.toString(),
         run: this.content.run,
         tag: Object.keys(this.content.value)[0],
-        trainJobName: this.getParams.trainJobName,
       };
-      await getImageRaw(params).then((res) => {
-        this.imgurl = res;
+      await http.useGet(port.category.image_raw, params).then((res) => {
+        if (+res.data.code !== 200) {
+          this.setErrorMessage(`${res.data.msg}_${new Date().getTime()}`);
+          return;
+        }
+        this.imgurl = res.data.data;
       });
     },
   },
@@ -267,15 +285,18 @@ export default {
       step: this.imagecontent[0].step.toString(),
       run: this.content.run,
       tag: Object.keys(this.content.value)[0],
-      trainJobName: this.getParams.trainJobName,
     };
-    await getImageRaw(params).then((res) => {
-      this.imgurl = res;
+    await http.useGet(port.category.image_raw, params).then((res) => {
+      if (+res.data.code !== 200) {
+        this.setErrorMessage(`${res.data.msg}_${new Date().getTime()}`);
+        return;
+      }
+      this.imgurl = res.data.data;
     });
   },
   mounted() {
     const paramStringIndex = `${this.content.run}/${Object.keys(this.content.value)[0]}`;
-    for (let i = 0; i < this.getImage.length; i += 1) {
+    for (let i = 0; i < this.getImage.length; i++) {
       if (paramStringIndex === this.getImage[i].stringIndex) {
         this.checked = true;
         break;
@@ -307,6 +328,12 @@ export default {
     scaleSmall() {
       this.size = 8;
       this.scaleLargeSmall = false;
+    },
+    formatTooltip(val) {
+      if (val === null) {
+        return 0;
+      }
+      return this.imagecontent[val].step;
     },
   },
 };

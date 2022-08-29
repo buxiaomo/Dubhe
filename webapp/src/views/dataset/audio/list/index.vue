@@ -35,8 +35,8 @@
           <!-- tabs页和工具栏 -->
           <div class="audio-classify-tab">
             <el-tabs :value="lastTabName" @tab-click="handleTabClick">
-              <el-tab-pane :label="countInfoAudio.unfinished" name="unfinished" />
-              <el-tab-pane :label="countInfoAudio.finished" name="finished" />
+              <el-tab-pane :label="countInfoAudio.noAnnotation" name="noAnnotation" />
+              <el-tab-pane :label="countInfoAudio.haveAnnotation" name="haveAnnotation" />
             </el-tabs>
             <SearchBox
               ref="searchBox"
@@ -146,7 +146,7 @@ import { Message, MessageBox } from 'element-ui';
 import { pick } from 'lodash';
 import { computed, reactive, toRefs, watch } from '@vue/composition-api';
 import cx from 'classnames';
-import { isStatus, fileCodeMap, getFileFromMinIO, annotationCodeMap } from '@/views/dataset/util';
+import { isStatus, fileCodeMap, getFileFromMinIO, annotationMap } from '@/views/dataset/util';
 import { list as listRequest, submit, del } from '@/api/preparation/datafile';
 import {
   detail,
@@ -174,20 +174,20 @@ export default {
   setup(props, { root }) {
     const data = reactive({
       uploadDialogVisible: false,
-      lastTabName: 'unfinished',
+      lastTabName: 'noAnnotation',
       countInfo: {
-        unfinished: 0,
-        finished: 0,
+        noAnnotation: 0,
+        haveAnnotation: 0,
       },
       statusMap: {
-        unfinished: [fileCodeMap.UNFINISHED],
-        finished: [fileCodeMap.FINISHED],
+        noAnnotation: [fileCodeMap.NO_ANNOTATION],
+        haveAnnotation: [fileCodeMap.HAVE_ANNOTATION],
       },
       datasetId: parseInt(root.$route.params.datasetId, 10),
       datasetInfo: {},
       queryParams: {
         datasetId: parseInt(root.$route.params.datasetId, 10),
-        status: fileCodeMap.UNFINISHED,
+        status: fileCodeMap.NO_ANNOTATION,
       }, // 查询参数
       audioStatusFilter: null,
       audioDataList: [],
@@ -270,7 +270,7 @@ export default {
 
     // computed
     const formItems = computed(() =>
-      data.lastTabName === 'unfinished' ? data.formItemsUnfinish : data.formItemsFinish
+      data.lastTabName === 'noAnnotation' ? data.formItemsUnfinish : data.formItemsFinish
     );
     const uploadParams = computed(() => ({
       datasetId: data.datasetId,
@@ -278,13 +278,13 @@ export default {
     }));
     const countInfoAudio = computed(() => {
       return {
-        unfinished: `无标注信息（${data.countInfo.unfinished}）`,
-        finished: `有标注信息（${data.countInfo.finished}）`,
+        noAnnotation: `无标注信息（${data.countInfo.noAnnotation}）`,
+        haveAnnotation: `有标注信息（${data.countInfo.haveAnnotation}）`,
       };
     });
     // 是否禁用文件导入
     const disableImport = computed(() => {
-      if (data.lastTabName === 'finished') return true;
+      if (data.lastTabName === 'haveAnnotation') return true;
       if (data.isTable && isStatus(data.datasetInfo, 'IMPORTING')) return true;
       return false;
     });
@@ -305,7 +305,7 @@ export default {
       return selectId;
     });
     const audioType = computed(
-      () => data.datasetInfo?.annotateType || annotationCodeMap.AUDIOCLASSIFY
+      () => data.datasetInfo?.annotateType || annotationMap.AudioClassify.code
     );
 
     /** methods */
@@ -447,9 +447,9 @@ export default {
 
     const goDetail = (index = 0) => {
       const query =
-        data.lastTabName === 'finished'
+        data.lastTabName === 'haveAnnotation'
           ? {
-              tab: 'finished',
+              tab: 'haveAnnotation',
             }
           : {};
       root.$router.push({
@@ -505,8 +505,8 @@ export default {
     };
 
     setCountInfo().then(() => {
-      if (data.countInfo.unfinished === 0 && data.countInfo.finished !== 0) {
-        data.lastTabName = 'finished';
+      if (data.countInfo.noAnnotation === 0 && data.countInfo.haveAnnotation !== 0) {
+        data.lastTabName = 'haveAnnotation';
         data.queryParams.status = data.statusMap[data.lastTabName];
       }
       query();

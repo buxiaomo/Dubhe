@@ -64,6 +64,9 @@ public class PtTrainVO implements Serializable {
     @ApiModelProperty("创建人")
     private Long createUserId;
 
+    @ApiModelProperty("创建人用户名")
+    private String createUserName;
+
     @ApiModelProperty("创建时间")
     private Timestamp createTime;
 
@@ -75,4 +78,7 @@ public class PtTrainVO implements Serializable {
 
     @ApiModelProperty("资源拥有者ID")
     private Long originUserId;
+
+    @ApiModelProperty("训练类型(0为普通训练，1为分布式训练，2：炼知重组训练)不能为空")
+    private Integer trainType;
 }

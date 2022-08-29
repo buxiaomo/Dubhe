@@ -22,6 +22,7 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.sql.Timestamp;
+import java.util.List;
 
 /**
  * @description 返回镜像查询结果
@@ -33,9 +34,6 @@ public class PtImageQueryVO implements Serializable {
     private static final long serialVersionUID = 1L;
     @ApiModelProperty("镜像ID")
     private Long id;
-
-    @ApiModelProperty("镜像项目名")
-    private String projectName;
 
     @ApiModelProperty("镜像名称")
     private String imageName;
@@ -57,4 +55,7 @@ public class PtImageQueryVO implements Serializable {
 
     @ApiModelProperty("镜像来源")
     private Integer imageResource;
+
+    @ApiModelProperty("镜像用途")
+    private List<Integer> imageTypes;
 }

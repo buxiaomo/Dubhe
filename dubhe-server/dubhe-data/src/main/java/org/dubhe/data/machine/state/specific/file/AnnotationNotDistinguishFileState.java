@@ -17,6 +17,7 @@
 package org.dubhe.data.machine.state.specific.file;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import org.dubhe.biz.base.utils.StringUtils;
 import org.dubhe.biz.log.enums.LogEnum;
 import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.data.constant.Constant;
@@ -27,6 +28,8 @@ import org.dubhe.data.machine.state.AbstractFileState;
 import org.dubhe.data.machine.statemachine.FileStateMachine;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.HashSet;
 
 /**
  * @description 自动标注未识别
@@ -96,6 +99,36 @@ public class AnnotationNotDistinguishFileState extends AbstractFileState {
                 updatawrapper);
         fileStateMachine.setMemoryFileState(fileStateMachine.getAnnotationCompleteFileState());
         LogUtil.debug(LogEnum.STATE_MACHINE, " 【自动标注未识别】 执行事件后内存状态机的切换： {}", fileStateMachine.getMemoryFileState());
+    }
+
+    /**
+     * 文件  未标注-->自动标注完成(批量保存图片状态)-->自动标注完成未识别
+     *
+     * @param filesId       文件ID
+     * @param datasetId     数据集ID
+     * @param versionName   数据集版本名称
+     */
+    @Override
+    public void doFinishAutoAnnotationInfoIsEmptyBatchEvent(HashSet<Long> filesId, Long datasetId, String versionName) {
+        LogUtil.info(LogEnum.STATE_MACHINE, " 【未标注】 执行事件前内存中状态机的状态 : {} ", fileStateMachine.getMemoryFileState());
+        LogUtil.info(LogEnum.STATE_MACHINE, " 接受参数： {} ", filesId.toString(), versionName, datasetId);
+        LambdaUpdateWrapper<DatasetVersionFile> updatawrapper = new LambdaUpdateWrapper<>();
+        if (StringUtils.isBlank(versionName)) {
+            updatawrapper.isNull(DatasetVersionFile::getVersionName);
+        } else {
+            updatawrapper.eq(DatasetVersionFile::getVersionName, versionName);
+        }
+        updatawrapper.eq(DatasetVersionFile::getDatasetId, datasetId);
+        updatawrapper.in(DatasetVersionFile::getFileId, filesId);
+        datasetVersionFileMapper.update(new DatasetVersionFile() {{
+                                            setAnnotationStatus(FileStateEnum.ANNOTATION_NOT_DISTINGUISH_FILE_STATE.getCode());
+                                            if (versionName != null) {
+                                                setChanged(Constant.CHANGED);
+                                            }
+                                        }},
+                updatawrapper);
+        fileStateMachine.setMemoryFileState(fileStateMachine.getAnnotationNotDistinguishFileState());
+        LogUtil.info(LogEnum.STATE_MACHINE, " 【未标注】 执行事件后内存状态机的切换： {}", fileStateMachine.getMemoryFileState());
     }
 
 }

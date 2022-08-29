@@ -158,7 +158,7 @@ export default {
 
     // 编辑标签
     const edit = (labelId, data) => {
-      return editLabel(labelId, data).then(refreshLabel);
+      return editLabel(labelId, data, props.state.datasetId.value).then(refreshLabel);
     };
 
     // 选择系统预置标签

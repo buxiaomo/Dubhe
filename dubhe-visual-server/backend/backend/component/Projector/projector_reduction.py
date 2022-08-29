@@ -15,7 +15,7 @@
  limitations under the License.
  =============================================================
 """
-from sklearn.decomposition import PCA
+from scipy import linalg as la
 import numpy as np
 from tsne import bh_sne
 
@@ -31,27 +31,39 @@ class projector_reduction:
 
     def data_preprocess(self, data):
         data = np.array(data)
-        _ndim = data.ndim
-        if _ndim == 2:
-            pass
-        elif _ndim > 3:
-            data = data.reshape(data.shape[0], -1)
-        else:
+        data = data.reshape(data.shape[0], -1)
+        if data.ndim < 2:
             raise ValueError('The processed data dimension should be >=2, '
-                             'but the dimension given is {}'.format(_ndim))
+                             'but the dimension given is {}'.format(data.ndim))
+
+        if data.shape[1] == 2 and self.dimension==3:
+            pad = np.zeros(shape=(data.shape[0], 1), dtype=data.dtype)
+            data = np.hstack((data, pad))
+
         return data
 
     def Pca(self):
-        pca = PCA(n_components=self.dimension)  # 确定想要的维度 PCA
-        return pca.fit_transform(self.data).tolist()  # 得到处理的结果
+        assert self.dimension <= self.data.shape[1]
+        # do PCA
+        data = self.data
+        data -= data.mean(axis=0)
+
+        # working with covariance + (svd on cov.) is
+        # much faster than svd on data directly.
+        cov = np.dot(data.T, data) / data.shape[0]
+        u, s, v = la.svd(cov, full_matrices=False)
+        u = u[:, 0:self.dimension]
+        return np.dot(data, u).tolist()
 
     def Tsne(self):
         if self.dimension > 3:
             raise ValueError('The dimension of the tsne method must be 2 or 3')
         _data = np.array(self.data)
         seed = np.random.RandomState(0)
-        perplexity = _data.shape[0]//4 if _data.shape[0]-1 < 3*30 else 30 
-        data = bh_sne(_data, pca_d=True, d=self.dimension, perplexity=perplexity, random_state=seed)
+
+        perplexity = _data.shape[0]//4 if _data.shape[0] < 100 else 25
+        data = bh_sne(_data, max_iter=50, pca_d=_data.shape[1], d=self.dimension, perplexity=perplexity,
+                      random_state=seed)
         return data.tolist()
 
 

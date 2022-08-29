@@ -124,7 +124,7 @@ import DropdownHeader from '@/components/DropdownHeader';
 import { Constant, downloadFileAsStream, minioBaseUrl, generateMap, hasPermission } from '@/utils';
 
 import MeasureForm from './components/measureForm';
-import { MEASURE_STATUS_ENUM, MEASURE_STATUS_MAP } from './util';
+import { MEASURE_STATUS_ENUM, MEASURE_STATUS_MAP } from './utils';
 
 const defaultQuery = {
   nameOrId: null,

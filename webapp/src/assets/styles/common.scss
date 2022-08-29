@@ -298,3 +298,14 @@ pre {
   color: $tipColor;
   background-color: $tipBgColor;
 }
+
+.training-area-title {
+  display: flex;
+  align-items: center;
+  padding-bottom: 12px;
+  margin: 40px 0 24px;
+  font-size: 16px;
+  font-weight: bold;
+  color: $areaTitleColor;
+  border-bottom: 1px solid $areaBorderColor;
+}

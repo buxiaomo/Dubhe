@@ -115,8 +115,15 @@ public enum ModelOptErrorEnum implements ErrorCode {
     /**
      * 数据集名称已存在
      */
-    DATASET_NAME_EXIST(1418, "数据集名称已存在");
-
+    DATASET_NAME_EXIST(1418, "数据集名称已存在"),
+    /**
+     * 算法路径错误
+     */
+    ALGORITHM_PATH_ERROR(1419, "算法路径异常"),
+    /**
+     *模型优化实例创建异常
+     */
+    CREATE_MODEL_INSTANCE_ERROR(1420, "模型优化实例创建异常");
     private Integer code;
     private String msg;
 

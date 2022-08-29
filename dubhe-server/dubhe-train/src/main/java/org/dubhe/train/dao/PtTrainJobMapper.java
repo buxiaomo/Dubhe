@@ -20,6 +20,7 @@ package org.dubhe.train.dao;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Update;
 import org.dubhe.biz.base.annotation.DataPermission;
 import org.dubhe.train.domain.entity.PtTrainJob;
 import org.dubhe.train.domain.vo.PtTrainVO;
@@ -44,7 +45,20 @@ public interface PtTrainJobMapper extends BaseMapper<PtTrainJob> {
      * @return PtTrainVO
      */
     Page<PtTrainVO> getPageTrain(Page page, @Param("createUserId") Long createUserId,
-                                 @Param("trainStatus") Integer trainStatus, @Param("trainName") String trainName, @Param("sort") String sort,
+                                 @Param("trainType") Integer trainType,
+                                 @Param("trainStatus") Integer trainStatus,
+                                 @Param("trainName") String trainName,
+                                 @Param("sort") String sort,
                                  @Param("order") String order);
+
+    /**
+     * 还原回收数据
+     *
+     * @param id            训练任务id
+     * @param deleteFlag    删除标识
+     * @return int 数量
+     */
+    @Update("update pt_train_job set deleted = #{deleteFlag} where id = #{id}")
+    int updateDeletedById(@Param("id") Long id, @Param("deleteFlag") boolean deleteFlag);
 
 }

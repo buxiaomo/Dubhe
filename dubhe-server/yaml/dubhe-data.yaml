@@ -6,7 +6,30 @@ spring:
       max-file-size: 10MB
       # 设置单次请求的文件的总大小
       max-request-size: 100MB
+  shardingsphere:
+    #指定data_dataset表 主键id 生成策略
+    sharding:
+      tables:
+        data_file:
+          actual-data-nodes: master.data_file_$->{1..250}
+          table-strategy:
+            standard:
+              sharding-column: dataset_id
+              precise-algorithm-class-name: org.dubhe.data.util.MyPreciseShardingAlgorithm
 
+        data_dataset_version_file:
+          actual-data-nodes: master.data_dataset_version_file_$->{1..250}
+          table-strategy:
+            standard:
+              sharding-column: dataset_id
+              precise-algorithm-class-name: org.dubhe.data.util.MyPreciseShardingAlgorithm
+
+        data_file_annotation:
+          actual-data-nodes: master.data_file_annotation_$->{1..250}
+          table-strategy:
+            standard:
+              sharding-column: dataset_id
+              precise-algorithm-class-name: org.dubhe.data.util.MyPreciseShardingAlgorithm
 k8s:
   # nfs服务暴露的IP地址 如需测试需修改为合适的地址
   nfs: 127.0.0.1
@@ -31,8 +54,6 @@ data:
   server:
     # 文件存储服务器用户名
     userName: root
-  #数据集训练配置
-  ptversion: http://127.0.0.1:8000/
 
 minioweb:
   GetToken:
@@ -60,7 +81,7 @@ recycle:
 # ES服务地址及端口
 es:
   host: 127.0.0.1
-  serverPort: 9200
-  transportPort: 9300
-  clusterName: docker-cluster
+  serverPort: 32321
+  transportPort: 32322
+  clusterName: kubenets-logging
   index: dataset_text_test

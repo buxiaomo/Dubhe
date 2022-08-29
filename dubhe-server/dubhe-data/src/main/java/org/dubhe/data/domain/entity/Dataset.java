@@ -135,6 +135,12 @@ public class Dataset {
     @TableField(exist = false)
     private UserDTO updateUser;
 
+    @ApiModelProperty(value = "模板")
+    private Integer templateType;
+
+    @ApiModelProperty(value = "所属模块")
+    private Integer module;
+
     public Dataset() {
     }
 
@@ -152,6 +158,7 @@ public class Dataset {
         this.annotateType = datasetCreateDTO.getAnnotateType();
         this.isImport = datasetCreateDTO.isImport();
         this.labelGroupId = datasetCreateDTO.getLabelGroupId();
+        this.templateType=datasetCreateDTO.getTemplateType();
     }
 
     /**

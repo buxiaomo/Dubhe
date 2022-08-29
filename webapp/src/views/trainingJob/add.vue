@@ -18,20 +18,34 @@
   <div class="app-container">
     <!--任务版本新增-->
     <job-form ref="jobForm" :type="formType" @getForm="getForm" />
-    <el-button type="primary" :loading="loading" style="margin-left: 120px;" @click="save"
-      >开始训练</el-button
-    >
-    <el-button @click="reset">清空</el-button>
+    <div class="action-container">
+      <el-button type="primary" :loading="loading" @click="save">开始训练</el-button>
+      <el-button @click="reset">清空</el-button>
+    </div>
   </div>
 </template>
 
 <script>
 import { add as addJob } from '@/api/trainingJob/job';
 import JobForm from '@/components/Training/jobForm';
+import { updateTitle } from '@/utils';
+
+const title = {
+  add: '添加任务 ',
+  learning: '创建强化学习任务',
+};
 
 export default {
   name: 'JobAdd',
   components: { JobForm },
+  beforeRouteEnter(to, from, next) {
+    const newTitle = title[to.query.from || 'add'];
+    // 修改 navbar 中的 title
+    to.meta.title = newTitle;
+    // 修改页面 title
+    updateTitle(newTitle);
+    next();
+  },
   data() {
     return {
       formType: 'add',
@@ -39,7 +53,7 @@ export default {
     };
   },
   created() {
-    const from = this.$route.params.from || 'job';
+    const from = this.$route.query.from || 'job';
     const { params, paramsInfo } = this.$route.params;
     switch (from) {
       case 'algorithm':
@@ -54,6 +68,12 @@ export default {
         this.formType = 'paramsAdd';
         this.$nextTick(() => {
           this.$refs.jobForm.initForm(paramsInfo);
+        });
+        break;
+      case 'learning':
+        this.formType = 'learning';
+        this.$nextTick(() => {
+          this.$refs.jobForm.initForm(params);
         });
         break;
       default:
@@ -86,3 +106,12 @@ export default {
   },
 };
 </script>
+
+<style lang="scss" scoped>
+@import '~@/assets/styles/variables.scss';
+
+.action-container {
+  padding-top: 24px;
+  border-top: 1px solid $areaBorderColor;
+}
+</style>

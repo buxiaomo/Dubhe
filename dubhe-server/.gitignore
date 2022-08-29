@@ -49,3 +49,5 @@ output/
 .classpath
 logs/
 *.log
+
+kubeconfig_test

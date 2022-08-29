@@ -36,6 +36,8 @@ public class PtModelUtil {
 
     public static final int NUMBER_EIGHT = 8;
 
+    public static final int NUMBER_THIRTY_TWO = 32;
+
     public static final int NUMBER_ONE_HUNDRED_TWENTY_EIGHT = 128;
 
     public static final int NUMBER_TWO_HUNDRED_FIFTY_FIVE = 255;

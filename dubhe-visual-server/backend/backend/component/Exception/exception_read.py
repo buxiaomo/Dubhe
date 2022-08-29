@@ -26,11 +26,23 @@ class Exception_read:
         self.step = step
 
     def get_histogram(self):
-        for _data in self.data:
-            if _data['step'] == self.step:
-                # [min,max,buckets]
-                res = [Histogram(_data['value']).get_data()]
-                return res
+        # 二分查找step
+        lo, hi = 0, len(self.data)
+        idx = -1
+        while lo < hi:
+            mid = (lo + hi) >> 1
+            if self.data[mid]["step"] == self.step:
+                idx = mid
+                break
+            elif self.data[mid]["step"] < self.step:
+                lo = mid + 1
+            else:
+                hi = mid
+        if idx != -1:
+            res = [Histogram(self.data[idx]['value'], buckets_count=100).get_data()]
+            return res
+        else:
+            raise ValueError(f'cannot find data in step = {self.step}')
 
     def get_flatten_shape(self, k):
         n = math.floor(pow(k / 2, 0.5))
@@ -117,9 +129,13 @@ class Exception_read:
                 res = [_shape, _min, _max, _mean, flatten_data.tolist()]
                 return res
 
+        raise Exception(f'cannot find data in step = {self.step}')
+
     def get_outlier(self, limit):
         for _data in self.data:
             if _data['step'] == self.step:
                 data = _data['value']
                 res = self.box_exception(data, limit)
                 return res
+
+        raise Exception(f'cannot find data in step = {self.step}')

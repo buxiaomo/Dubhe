@@ -34,19 +34,10 @@ export function delAnnotation(id) {
   });
 }
 
-export function track(id) {
+export function track(id, modelServiceId) {
   return request({
-    url: `/${API_MODULE_NAME.DATA}/datasets/files/annotations/auto/track/${id}`,
+    url: `/${API_MODULE_NAME.DATA}/datasets/files/annotations/auto/track/${id}/${modelServiceId}`,
     method: 'get',
-  });
-}
-
-export function autoAnnotate(ids) {
-  const data = { datasetIds: ids };
-  return request({
-    url: `/${API_MODULE_NAME.DATA}/datasets/files/annotations/auto`,
-    method: 'post',
-    data,
   });
 }
 

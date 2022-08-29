@@ -103,6 +103,38 @@ public class TaskUtils {
     }
 
     /**
+     * 获取完成任务
+     *
+     *
+     */
+    public String getFinishedTask(String queueName) {
+        DefaultRedisScript<String> finishedTaskScript = new DefaultRedisScript<>();
+        finishedTaskScript.setResultType(String.class);
+        finishedTaskScript.setLocation(new ClassPathResource("getFinishedTask.lua"));
+        try {
+            return redisTemplate.execute(finishedTaskScript, redisTemplate.getStringSerializer(),redisTemplate.getStringSerializer(),Collections.singletonList(queueName));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 获取失败任务
+     *
+     *
+     */
+    public String getFailedTask(String queueName) {
+        DefaultRedisScript<String> failedTaskScript = new DefaultRedisScript<>();
+        failedTaskScript.setResultType(String.class);
+        failedTaskScript.setLocation(new ClassPathResource("getFailedTask.lua"));
+        try {
+            return redisTemplate.execute(failedTaskScript, redisTemplate.getStringSerializer(),redisTemplate.getStringSerializer(), Collections.singletonList(queueName));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * 重启任务
      *
      * @param keyId           keyId

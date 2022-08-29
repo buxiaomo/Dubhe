@@ -136,4 +136,20 @@ export function getTrainingVisualList(params) {
   });
 }
 
+export function getAtlasParams(params) {
+  return request({
+    url: `/${API_MODULE_NAME.TRAIN}/trainJob/defaultAtlasParams`,
+    method: 'get',
+    params,
+  });
+}
+
+export function getLearningParams(params) {
+  return request({
+    url: `/${API_MODULE_NAME.TRAIN}/trainJob/defaultDdrlParams`,
+    method: 'get',
+    params,
+  });
+}
+
 export default { list, add, edit, del };

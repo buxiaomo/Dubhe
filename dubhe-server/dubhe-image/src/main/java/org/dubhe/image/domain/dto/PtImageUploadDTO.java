@@ -26,9 +26,10 @@ import org.dubhe.biz.base.constant.StringConstant;
 import org.hibernate.validator.constraints.Length;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Pattern;
 import java.io.Serializable;
+import java.util.List;
 
 
 /**
@@ -41,9 +42,9 @@ public class PtImageUploadDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty(value = "镜像项目类型", required = true)
-    @NotNull(message = "镜像项目类型不能为空")
-    private Integer projectType;
+    @ApiModelProperty(value = "镜像用途", required = true)
+    @NotEmpty(message = "镜像用途(0:notebook , 1:train , 2:serving, 3:terminal, 4:point-cloud)不能为空")
+    private List<Integer> imageTypes;
 
     @ApiModelProperty(value = "镜像来源(0为我的镜像, 1为预置镜像)")
     @FlagValidator(value = {"0", "1"}, message = "无效镜像来源")

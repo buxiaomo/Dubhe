@@ -14,6 +14,50 @@
  * =============================================================
  */
 
+<style lang="less" scoped>
+.statisticContainer {
+  width: 100%;
+  height: 100%;
+  background-color: white;
+
+  .statisticContainerTitle,
+  .statisticContainerTitleLarge {
+    display: flex;
+    height: 30px;
+    padding: 0 2% 0 2%;
+    line-height: 30px;
+    color: white;
+    text-align: left;
+    border-radius: 2px;
+
+    .scale:hover,
+    .checkedBox:hover {
+      cursor: pointer;
+    }
+
+    .titleRight {
+      margin-right: 1%;
+      margin-left: auto;
+    }
+  }
+
+  .statisticContainerTitle {
+    font-size: 11px;
+
+    .iconfont {
+      font-size: 11px;
+    }
+  }
+
+  .statisticContainerTitleLarge {
+    font-size: 16px;
+
+    .iconfont {
+      font-size: 16px;
+    }
+  }
+}
+</style>
 <template>
   <div class="statisticContainer">
     <el-card>
@@ -56,7 +100,6 @@
         :className="className"
         :runColor="runColor"
       />
-      <!--添加一个缩放flag，告诉子组件坐标文字的大小应该选取多少，:scaleFlag='scaleLargeSmall'-->
     </el-card>
   </div>
 </template>
@@ -111,10 +154,10 @@ export default {
     ...mapLayoutGetters(['setDownloadSvgClass']),
   },
   watch: {
-    getShowNumber() {
+    getShowNumber(val) {
       this.setRangeNumber();
     },
-    getStatisticShowNumber() {
+    getStatisticShowNumber(val) {
       // 用户定制控制面板
       this.setRangeNumber();
     },
@@ -169,8 +212,7 @@ export default {
           this.setDistCheckedArray({ idx, value: this.rightTopShow });
         }
       }
-      // // 用户定制
-      // // 二维三维需要分别存储吗，但二维三维共用复选框
+      // 用户定制
       // substatistics中的操作在statistic上
       // custom中的×点击直接操作在statisticData上
       let componentNameTemp = this.componentName;
@@ -200,84 +242,42 @@ export default {
       this.setDownloadSvgClass.statistic = this.getDownLoadArray;
     },
     setRangeNumber() {
-      if (this.componentName === 'overlook') {
-        this.rateData = this.data;
-        return;
-      }
-      let newNumber = this.getShowNumber;
-      if (!this.parentComponent) newNumber = this.getStatisticShowNumber;
-      const datalen = this.data.length;
-      const count = Math.ceil((newNumber / 100.0) * datalen);
-      const stepspace = datalen / count;
-      this.rateData = [];
-      for (let j = 0; j < count; j += 1) {
-        const step = Math.floor(stepspace * j);
-        this.rateData.push(this.data[step]);
+      if (this.componentName !== 'overlook') {
+        let newNumber = this.getShowNumber;
+        if (!this.parentComponent) newNumber = this.getStatisticShowNumber;
+        const datalen = this.data.length;
+        const count = Math.ceil((newNumber / 100.0) * datalen);
+        const stepspace = datalen / count;
+        this.rateData = [];
+        for (let j = 0; j < count; j++) {
+          const step = Math.floor(stepspace * j);
+          this.rateData.push(this.data[step]);
+        }
       }
     },
   },
 };
 </script>
-
-<style lang="less" scoped>
-.statisticContainer {
-  width: 100%;
-  height: 100%;
-  background-color: white;
-
-  .statisticContainerTitle,
-  .statisticContainerTitleLarge {
-    display: flex;
-    height: 30px;
-    padding: 0 2% 0 2%;
-    line-height: 30px;
-    color: white;
-    text-align: left;
-    border-radius: 2px;
-
-    .scale:hover,
-    .checkedBox:hover {
-      cursor: pointer;
-    }
-
-    .titleRight {
-      margin-right: 1%;
-      margin-left: auto;
-    }
-  }
-
-  .statisticContainerTitle {
-    font-size: 11px;
-
-    .iconfont {
-      font-size: 11px;
-    }
-  }
-
-  .statisticContainerTitleLarge {
-    font-size: 16px;
-
-    .iconfont {
-      font-size: 16px;
-    }
-  }
-}
-
-.statisticContainer /deep/ .el-card__body {
-  padding: 0;
-}
-
-.statisticContainer /deep/ .el-card {
-  border-radius: 0 0 3px 3px;
-}
-
-/deep/ .axis line,
-/deep/ .axis path {
+<style lang="less">
+.statisticContainer .axis line,
+.statisticContainer .axis path {
   stroke: gainsboro;
 }
 
-/deep/ .axis text {
+.statisticContainer .axis text {
   font-size: 6px;
   color: grey;
+}
+
+.statisticContainer .grid {
+  stroke: gainsboro;
+}
+
+.statisticContainer .el-card__body {
+  padding: 0;
+}
+
+.statisticContainer .el-card {
+  border-radius: 0 0 3px 3px;
 }
 </style>

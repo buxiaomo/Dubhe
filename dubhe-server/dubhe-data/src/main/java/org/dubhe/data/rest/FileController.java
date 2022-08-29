@@ -29,8 +29,8 @@ import org.dubhe.biz.file.utils.MinioWebTokenBody;
 import org.dubhe.data.constant.Constant;
 import org.dubhe.data.domain.dto.BatchFileCreateDTO;
 import org.dubhe.data.domain.dto.DatasetCsvImportDTO;
-import org.dubhe.data.domain.dto.FileCreateDTO;
 import org.dubhe.data.domain.dto.FileDeleteDTO;
+import org.dubhe.data.domain.dto.FileScreenStatSearchDTO;
 import org.dubhe.data.domain.vo.FileQueryCriteriaVO;
 import org.dubhe.data.service.DatasetService;
 import org.dubhe.data.service.FileService;
@@ -38,10 +38,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Objects;
 
 
 /**
@@ -100,8 +106,8 @@ public class FileController {
     @ApiOperation(value = "视频提交")
     @PostMapping(value = "/{datasetId}/video")
     @PreAuthorize(Permissions.DATA)
-    public DataResponseBody uploadVideo(@PathVariable(name = "datasetId") Long datasetId, @Validated @RequestBody FileCreateDTO fileCreateDTO) {
-        datasetService.uploadVideo(datasetId, fileCreateDTO);
+    public DataResponseBody uploadVideo(@PathVariable(name = "datasetId") Long datasetId, @Validated @RequestBody BatchFileCreateDTO batchFileCreateDTO) {
+        datasetService.uploadVideo(datasetId, batchFileCreateDTO);
         return new DataResponseBody();
     }
 
@@ -194,11 +200,6 @@ public class FileController {
         return new DataResponseBody(minioUtil.getEncryptedPutUrls(bucketName, objectNames, expiry));
     }
 
-    @ApiOperation("获取MinIO相关信息")
-    @GetMapping(value = "/minio/info")
-    public DataResponseBody getMinIOInfo() {
-        return new DataResponseBody(fileService.getMinIOInfo());
-    }
 
     @ApiOperation("获取文件对应增强文件列表")
     @GetMapping(value = "/{datasetId}/{fileId}/enhanceFileList")
@@ -210,8 +211,8 @@ public class FileController {
     @ApiOperation("文本状态数量统计")
     @GetMapping(value = "/{datasetId}/count")
     @PreAuthorize(Permissions.DATA)
-    public DataResponseBody getFileCountByStatus(@PathVariable(value = "datasetId") Long datasetId,FileQueryCriteriaVO fileQueryCriteria) {
-        return new DataResponseBody(fileService.getFileCountByStatus(datasetId, fileQueryCriteria));
+    public DataResponseBody getFileCountByStatus(@PathVariable(value = "datasetId") Long datasetId, @Validated FileScreenStatSearchDTO fileScreenStatSearchDTO) {
+        return new DataResponseBody(fileService.getFileCountByStatus(datasetId, fileScreenStatSearchDTO));
     }
 
     @ApiOperation("文本数据集csv/xlsx导入")

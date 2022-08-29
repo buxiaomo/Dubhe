@@ -87,7 +87,7 @@ public class PaginationInterceptor extends AbstractSqlParserHandler implements I
     /**
      * 单页限制 500 条，小于 0 如 -1 不受限制
      */
-    protected long limit = 500L;
+    protected long limit = -1L;
     /**
      * 数据类型
      */

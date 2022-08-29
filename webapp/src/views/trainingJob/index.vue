@@ -18,17 +18,25 @@
   <div class="app-container">
     <!--顶栏-->
     <div class="head-container">
+      <div class="flex mt-10 mb-20 ml-4">
+        <div v-for="item in trainCreateList" :key="item.type">
+          <el-card shadow="never" class="job-create-card"
+            ><div class="f14 mb16">{{ item.title }}</div>
+            <img :src="item.img" :alt="item.title" />
+            <el-button
+              :disabled="isParams"
+              type="primary"
+              icon="el-icon-plus"
+              class="create-btn"
+              @click="handleAdd(item.type)"
+              >创建</el-button
+            >
+          </el-card>
+        </div>
+      </div>
+
       <div class="cd-opts">
         <span class="cd-opts-left">
-          <el-button
-            id="toAdd"
-            :disabled="isParams"
-            type="primary"
-            icon="el-icon-plus"
-            round
-            @click="toAdd"
-            >创建训练任务</el-button
-          >
           <el-button :disabled="isParams" type="danger" round @click="batchStopTraining"
             >一键停止</el-button
           >
@@ -81,10 +89,11 @@
 </template>
 
 <script>
-import { batchStop } from '@/api/trainingJob/job';
+import { batchStop, getLearningParams } from '@/api/trainingJob/job';
 
 import jobList from './jobList';
 import jobParam from './jobParam';
+import { trainCreateList, TRAINING_TYPE_ENUM, ATLAS_ALGORITHM_TYPE_ENUM } from './utils';
 
 export default {
   name: 'Job',
@@ -101,6 +110,7 @@ export default {
       paramQuery: {
         paramName: null,
       },
+      trainCreateList,
     };
   },
   computed: {
@@ -130,6 +140,26 @@ export default {
     next();
   },
   methods: {
+    async handleAdd(type) {
+      if (type === TRAINING_TYPE_ENUM.TRAINING) {
+        this.$router.push({ name: 'jobAdd' });
+      } else if (type === TRAINING_TYPE_ENUM.ATLAS) {
+        this.$router.push({ name: 'AtlasJobAdd' });
+      } else {
+        const params = await getLearningParams({
+          ddrlAlgorithmType: ATLAS_ALGORITHM_TYPE_ENUM.DDRL,
+        });
+        this.$router.push({
+          name: 'jobAdd',
+          params: {
+            params,
+          },
+          query: {
+            from: 'learning',
+          },
+        });
+      }
+    },
     // tab change
     handleClick() {
       this.currentPage = 1;
@@ -147,9 +177,6 @@ export default {
           this.$refs.jobList.toQuery(this.jobQuery);
         });
       }
-    },
-    toAdd() {
-      this.$router.push({ path: '/training/jobadd' });
     },
     resetQuery() {
       if (this.isParams) {
@@ -179,3 +206,23 @@ export default {
   },
 };
 </script>
+<style lang="scss" scoped>
+.job-create-card {
+  width: 160px;
+  height: 197px;
+  margin-right: 16px;
+  text-align: center;
+
+  ::v-deep .el-card__body {
+    padding: 12px 0;
+  }
+
+  .create-btn {
+    display: inline-flex;
+    justify-content: center;
+    width: 62px;
+    margin-top: 10px;
+    font-size: 12px;
+  }
+}
+</style>

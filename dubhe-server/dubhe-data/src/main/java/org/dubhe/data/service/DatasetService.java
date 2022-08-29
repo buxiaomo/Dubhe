@@ -54,9 +54,9 @@ public interface DatasetService {
      * 上传视频
      *
      * @param datasetId     数据集id
-     * @param fileCreateDTO 上传视频参数
+     * @param batchFileCreateDTO 上传视频参数
      */
-    void uploadVideo(Long datasetId, FileCreateDTO fileCreateDTO);
+    void uploadVideo(Long datasetId, BatchFileCreateDTO batchFileCreateDTO);
 
     /**
      * 数据集正在自动标注中的文件不允许删除,否则会导致进行中的任务完成的文件数达不到总文件数，无法完成
@@ -308,4 +308,25 @@ public interface DatasetService {
      */
     List<Dataset> getPresetDataset();
 
+    /**
+     * 停止任务
+     * @param datasetId 数据集ID
+     */
+    void taskStop(Long datasetId);
+
+    /**
+     * 停止ofRecord任务
+     *
+     * @param datasetId 数据集id
+     * @param version 版本名称
+     */
+    void ofRecordStop(Long datasetId,String version);
+
+    /**
+     * 根据名称获取指定的预置数据集
+     *
+     * @param datasetName 数据集名称
+     * @return {@code DatasetVO}
+     */
+    DatasetVO getPresetDatasetByName(String datasetName);
 }

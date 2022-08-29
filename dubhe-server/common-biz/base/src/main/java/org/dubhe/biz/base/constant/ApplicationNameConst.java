@@ -94,4 +94,9 @@ public class ApplicationNameConst {
      * 专业版终端
      */
     public final static String TERMINAL = "dubhe-terminal";
+
+    /**
+     * 点云服务
+     */
+    public final static String SERVER_POINT_CLOUD ="dubhe-point-cloud";
 }

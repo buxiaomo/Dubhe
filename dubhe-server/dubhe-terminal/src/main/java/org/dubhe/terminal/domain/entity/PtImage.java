@@ -66,12 +66,6 @@ public class PtImage extends BaseEntity {
     private String remark;
 
     /**
-     * projectName
-     */
-    @TableField(value = "project_name")
-    private String projectName;
-
-    /**
      * 镜像来源
      */
     @TableField(value = "image_resource")

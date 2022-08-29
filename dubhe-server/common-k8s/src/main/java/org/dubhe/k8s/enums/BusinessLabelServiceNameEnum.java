@@ -55,7 +55,15 @@ public enum BusinessLabelServiceNameEnum {
     /**
      * TADL
      */
-    TADL(BizEnum.TADL.getBizCode(), ApplicationNameConst.SERVER_TADL);
+    TADL(BizEnum.TADL.getBizCode(), ApplicationNameConst.SERVER_TADL),
+    /**
+     * POINT_CLOUD
+     */
+    POINT(BizEnum.POINT_CLOUD.getBizCode(),ApplicationNameConst.SERVER_POINT_CLOUD),
+    /**
+     * DATA
+     */
+    DATA(BizEnum.DATA.getBizCode(),ApplicationNameConst.SERVER_DATA);
     /**
      * 业务标签
      */

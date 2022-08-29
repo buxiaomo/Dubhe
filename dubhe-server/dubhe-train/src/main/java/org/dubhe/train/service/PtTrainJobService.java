@@ -20,8 +20,25 @@ package org.dubhe.train.service;
 
 import org.dubhe.biz.base.dto.PtModelStatusQueryDTO;
 import org.dubhe.biz.base.dto.PtTrainDataSourceStatusQueryDTO;
-import org.dubhe.train.domain.dto.*;
-import org.dubhe.train.domain.vo.*;
+import org.dubhe.recycle.domain.dto.RecycleCreateDTO;
+import org.dubhe.train.domain.dto.PtTrainJobCreateDTO;
+import org.dubhe.train.domain.dto.PtTrainJobDeleteDTO;
+import org.dubhe.train.domain.dto.PtTrainJobDetailQueryDTO;
+import org.dubhe.train.domain.dto.PtTrainJobResumeDTO;
+import org.dubhe.train.domain.dto.PtTrainJobStopDTO;
+import org.dubhe.train.domain.dto.PtTrainJobUpdateDTO;
+import org.dubhe.train.domain.dto.PtTrainJobVersionQueryDTO;
+import org.dubhe.train.domain.dto.PtTrainModelDTO;
+import org.dubhe.train.domain.dto.PtTrainQueryDTO;
+import org.dubhe.train.domain.dto.VisualTrainQueryDTO;
+import org.dubhe.train.domain.vo.DefaultAtlasTrainParamsVo;
+import org.dubhe.train.domain.vo.PtJobMetricsGrafanaVO;
+import org.dubhe.train.domain.vo.PtTrainJobDeleteVO;
+import org.dubhe.train.domain.vo.PtTrainJobDetailQueryVO;
+import org.dubhe.train.domain.vo.PtTrainJobDetailVO;
+import org.dubhe.train.domain.vo.PtTrainJobModelVO;
+import org.dubhe.train.domain.vo.PtTrainJobStatisticsMineVO;
+import org.dubhe.train.domain.vo.PtTrainJobStopVO;
 
 import java.util.List;
 import java.util.Map;
@@ -154,4 +171,19 @@ public interface PtTrainJobService {
      *
      */
     void batchStopTrainJob();
+
+    /**
+     * 根据算法创建默认的炼知重组任务
+     *
+     * @param atlasAlgorithmType
+     * @return {@code DefaultAtlasTrainParamsVo}
+     */
+    DefaultAtlasTrainParamsVo getDefaultAtlasParam(Integer atlasAlgorithmType);
+
+    /**
+     * 训练任务删除回收还原
+     *
+     * @param dto 还原DTO对象
+     */
+    void recycleRollback(RecycleCreateDTO dto);
 }

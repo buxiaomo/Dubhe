@@ -54,7 +54,11 @@
 </template>
 
 <script>
+import { provide, onMounted, ref } from '@vue/composition-api';
 import { mapState } from 'vuex';
+
+import { dictDetail } from '@/api/user';
+import { modelTypeSymbol, datasetOccasionSymbol } from '@/utils/constant';
 import ResizeMixin from './mixin/ResizeHandler';
 import { AppMain, Navbar, Sidebar, Guideline, Feedback, ResourceMonitoring } from './components';
 
@@ -129,6 +133,27 @@ export default {
       }
     },
   },
+  setup() {
+    const modelTypeEnum = ref(null);
+    const datasetOccasionEnum = ref(null);
+
+    onMounted(async () => {
+      // 获取模型状态枚举值
+      // 获取数据集场景枚举值
+      Promise.all([dictDetail('model_class'), dictDetail('dataset_occasion')]).then(
+        ([res1, res2]) => {
+          modelTypeEnum.value = res1.dictDetails.map((d) => ({ ...d, value: Number(d.value) }));
+          datasetOccasionEnum.value = res2.dictDetails.map((d) => ({
+            ...d,
+            value: Number(d.value),
+          }));
+        }
+      );
+    });
+
+    provide(modelTypeSymbol, modelTypeEnum);
+    provide(datasetOccasionSymbol, datasetOccasionEnum);
+  },
 };
 </script>
 
@@ -186,7 +211,7 @@ export default {
   bottom: 0;
   z-index: 99;
   width: 100%;
-  height: 33px;
+  height: $footerHeight;
   padding: 10px 6px 0 6px;
   overflow: hidden;
   font-family: Arial, sans-serif !important;

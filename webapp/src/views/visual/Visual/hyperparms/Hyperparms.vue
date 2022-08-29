@@ -14,70 +14,6 @@
  * =============================================================
  */
 
-<template>
-  <div class="temp">
-    <div :class="['display-panel']">
-      <HyperPara />
-    </div>
-  </div>
-</template>
-<script>
-import { createNamespacedHelpers } from 'vuex';
-import HyperPara from './HyperPara';
-
-const {
-  mapActions: maphyperparmActions,
-  mapGetters: maphyperparmGetters,
-  mapMutations: maphyperparmMutations,
-} = createNamespacedHelpers('Visual/hyperparm');
-const { mapState: mapLayoutStates } = createNamespacedHelpers('Visual/layout');
-export default {
-  components: {
-    HyperPara,
-  },
-  computed: {
-    ...maphyperparmGetters(['getAllData', 'getCategoryInfo', 'getRequestState', 'getErrorMessage']),
-    ...mapLayoutStates(['userSelectRunFile']),
-  },
-  watch: {
-    userSelectRunFile(val) {
-      // this.$message(val)
-      if (!this.getCategoryInfo) {
-        if (val === '') {
-          this.setAllData('null');
-          this.setHypEmpty(true);
-        } else {
-          const param = { run: val };
-          this.featchAllData(param);
-          this.setHypEmpty(false);
-        }
-      } else {
-        this.setSelfCategoryInfo(false);
-      }
-    },
-    getErrorMessage(val) {
-      this.$message({
-        message: val.split('_')[0],
-        type: 'error',
-      });
-    },
-  },
-  mounted() {
-    if (this.userSelectRunFile) {
-      const param = { run: this.userSelectRunFile };
-      this.featchAllData(param);
-    }
-  },
-  destroyed() {
-    this.setAllData('null');
-  },
-  methods: {
-    ...maphyperparmActions(['featchAllData']),
-    ...maphyperparmMutations(['setAllData', 'setHypEmpty', 'setSelfCategoryInfo']),
-  },
-};
-</script>
-
 <style lang="less" scoped>
 .temp {
   width: 100%;
@@ -95,3 +31,76 @@ export default {
   box-shadow: rgba(0, 0, 0, 0.3) 0 0 10px;
 }
 </style>
+<template>
+  <div class="temp">
+    <div :class="['display-panel']">
+      <HyperPara />
+    </div>
+  </div>
+</template>
+<script>
+import { createNamespacedHelpers } from 'vuex';
+import HyperPara from './HyperPara';
+
+const {
+  mapActions: maphyperparmActions,
+  mapGetters: maphyperparmGetters,
+  mapMutations: maphyperparmMutations,
+} = createNamespacedHelpers('Visual/hyperparm');
+const { mapState: mapLayoutStates, mapGetters: mapLayoutGetters } = createNamespacedHelpers(
+  'Visual/layout'
+);
+export default {
+  components: {
+    HyperPara,
+  },
+  computed: {
+    ...maphyperparmGetters([
+      'getAllData',
+      'getCategoryInfo',
+      'getRequestState',
+      'getErrorMessage',
+      'getIntervalChange',
+    ]),
+    ...mapLayoutStates(['userSelectRunFile']),
+    ...mapLayoutGetters(['getTimer']),
+  },
+  watch: {
+    userSelectRunFile(val) {
+      if (val === '') {
+        this.setAllData('null');
+        this.setHypEmpty(true);
+      } else {
+        const param = { run: val };
+        this.featchAllData(param);
+        this.setHypEmpty(false);
+      }
+    },
+    getErrorMessage(val) {
+      this.$message({
+        message: val.split('_')[0],
+        type: 'error',
+      });
+    },
+    getIntervalChange() {
+      if (this.userSelectRunFile) {
+        const param = { run: this.userSelectRunFile };
+        this.featchAllData(param);
+      }
+    },
+  },
+  mounted() {
+    if (this.userSelectRunFile) {
+      const param = { run: this.userSelectRunFile };
+      this.featchAllData(param);
+    }
+  },
+  destroyed() {
+    this.setAllData('null');
+  },
+  methods: {
+    ...maphyperparmActions(['featchAllData']),
+    ...maphyperparmMutations(['setAllData', 'setHypEmpty', 'setSelfCategoryInfo']),
+  },
+};
+</script>

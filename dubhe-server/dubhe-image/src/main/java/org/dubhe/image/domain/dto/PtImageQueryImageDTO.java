@@ -22,6 +22,7 @@ import lombok.experimental.Accessors;
 
 import javax.validation.constraints.NotBlank;
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * @description 查询镜像
@@ -33,10 +34,13 @@ public class PtImageQueryImageDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty(value = "镜像项目类型(0:notebook , 1:train , 2:serving)")
-    private Integer projectType;
-
     @ApiModelProperty(value = "镜像名称", required = true)
     @NotBlank(message = "源镜像名称不能为空")
     private String imageName;
+
+    @ApiModelProperty(value = "镜像用途(0:notebook , 1:train , 2:serving, 3:terminal, 4:point-cloud)", required = true)
+    List<Integer> imageTypes;
+
+    @ApiModelProperty(value = "镜像来源(0为我的镜像, 1为预置镜像)")
+    private Integer imageResource;
 }

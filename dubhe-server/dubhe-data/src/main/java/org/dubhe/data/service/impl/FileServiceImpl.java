@@ -46,7 +46,6 @@ import org.dubhe.biz.base.dto.CommonPermissionDataDTO;
 import org.dubhe.biz.base.enums.DatasetTypeEnum;
 import org.dubhe.biz.base.exception.BusinessException;
 import org.dubhe.biz.base.service.UserContextService;
-import org.dubhe.biz.base.utils.RsaEncrypt;
 import org.dubhe.biz.db.utils.PageUtil;
 import org.dubhe.biz.db.utils.WrapperHelp;
 import org.dubhe.biz.log.enums.LogEnum;
@@ -57,13 +56,14 @@ import org.dubhe.cloud.authconfig.utils.JwtUtils;
 import org.dubhe.data.constant.*;
 import org.dubhe.data.dao.FileMapper;
 import org.dubhe.biz.base.vo.ProgressVO;
+import org.dubhe.data.domain.bo.FileAnnotationBO;
 import org.dubhe.data.domain.bo.TaskSplitBO;
+import org.dubhe.data.domain.bo.TextAnnotationBO;
 import org.dubhe.data.domain.dto.*;
 import org.dubhe.data.domain.entity.*;
 import org.dubhe.data.domain.vo.*;
 import org.dubhe.data.machine.constant.DataStateMachineConstant;
 import org.dubhe.data.machine.constant.FileStateCodeConstant;
-import org.dubhe.data.machine.enums.DataStateEnum;
 import org.dubhe.data.machine.enums.FileStateEnum;
 import org.dubhe.data.machine.utils.StateMachineUtil;
 import org.dubhe.data.service.*;
@@ -711,16 +711,21 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
                 String annotation = fileVO.getAnnotation();
                 if (StringUtils.isNotEmpty(annotation)) {
                     JSONArray jsonArray = JSON.parseArray(annotation);
+                    Long[] labels = new Long[jsonArray.size()];
                     for(int i = 0; i < jsonArray.size(); i++) {
                         JSONObject jsonObject = jsonArray.getJSONObject(i);
                         String categoryIdStr = jsonObject.getString("category_id");
                         if (!NumberUtil.isNumber(categoryIdStr)) {
                             if (labelMaps.containsKey(categoryIdStr)) {
                                 jsonObject.put("category_id", labelMaps.get(categoryIdStr));
+                                labels[i] = labelMaps.get(categoryIdStr);
                             }
+                        } else {
+                            labels[i] = jsonObject.getLong("category_id");
                         }
                     }
                     fileVO.setAnnotation(JSON.toJSONString(jsonArray));
+                    fileVO.setLabelId(labels);
                 }
             }
             return fileVO;
@@ -784,18 +789,22 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void videoSample() {
+    public void videoSample(String finishedQueue, String failedQueue) {
         try {
-            Object object = redisUtils.lpop(SAMPLE_FINISHED_QUEUE_NAME);
+            Object object = taskUtils.getFinishedTask(finishedQueue);
             if (ObjectUtil.isNotNull(object)) {
-                String taskId = object.toString();
-                JSONObject jsonObject = JSONObject.parseObject(JSON.toJSONString(redisUtils.get(taskId)));
+                JSONObject jsonObject = JSONObject.parseObject(JSON.toJSONString(redisUtils.get(object.toString())));
                 String datasetIdAndSub = jsonObject.getString("datasetIdAndSub");
                 List<String> pictureNames = JSON.parseObject(jsonObject.getString("pictureNames"), ArrayList.class);
                 Long datasetId = Long.valueOf(StringUtils.substringBefore(String.valueOf(datasetIdAndSub), ":"));
                 QueryWrapper<Task> taskQueryWrapper = new QueryWrapper<>();
                 taskQueryWrapper.lambda().eq(Task::getId, Long.valueOf(jsonObject.getString("id")));
                 Task task = taskService.selectOne(taskQueryWrapper);
+                if (taskService.isStop(task.getId())) {
+                    redisUtils.del(object.toString());
+                    redisUtils.del(object.toString().replace("annotation","detail"));
+                    return;
+                }
                 Integer segment = Integer.valueOf(StringUtils.substringAfter(String.valueOf(datasetIdAndSub), ":"));
                 if (segment.equals(task.getFinished() + MagicNumConstant.ONE)) {
                     try {
@@ -803,9 +812,11 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
                     } catch (Exception exception) {
                         LogUtil.error(LogEnum.BIZ_DATASET, "videoFinishedTask exception:{}", exception);
                     }
-                    redisUtils.del(taskId);
+                    redisUtils.del(object.toString());
+                    redisUtils.del(object.toString().replace("annotation","detail"));
                 } else {
-                    redisUtils.rpush(SAMPLE_FINISHED_QUEUE_NAME, taskId);
+                    //再将元素放入队列
+                    redisUtils.zAdd(object.toString().replace("task","finished"), System.currentTimeMillis()/1000, ("\"" + object.toString() + "\"").getBytes("utf-8"));
                 }
             } else {
                 TimeUnit.MILLISECONDS.sleep(MagicNumConstant.THREE_THOUSAND);
@@ -814,7 +825,7 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
             LogUtil.error(LogEnum.BIZ_DATASET, "get videoSample finish task failed:{}", e);
         }
         try {
-            Object object = redisUtils.lpop(SAMPLE_FAILED_QUEUE_NAME);
+            Object object = taskUtils.getFailedTask(failedQueue);
             if (ObjectUtil.isNotNull(object)) {
                 String taskId = object.toString();
                 JSONObject jsonObject = JSONObject.parseObject(JSON.toJSONString(redisUtils.get(taskId)));
@@ -856,7 +867,8 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
         QueryWrapper<File> queryWrapper = new QueryWrapper<>();
         queryWrapper.lambda().eq(File::getDatasetId, task.getDatasetId())
                 .eq(File::getFileType, MagicNumConstant.ONE)
-                .eq(File::getStatus, FileTypeEnum.UNFINISHED.getValue());
+                .eq(File::getStatus, FileTypeEnum.UNFINISHED.getValue())
+                .eq(File::getId, task.getTargetId());
         File file = getBaseMapper().selectOne(queryWrapper);
         saveVideoPic(picNames, file);
         task.setFinished(task.getFinished() + MagicNumConstant.ONE);
@@ -865,17 +877,24 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
         if (task.getTotal().equals(task.getFinished())) {
             file.setStatus(FileStateCodeConstant.AUTO_TAG_COMPLETE_FILE_STATE);
             getBaseMapper().updateFileStatus(file.getDatasetId(), file.getId(), file.getStatus());
-            //创建入参请求体
-            StateChangeDTO stateChangeDTO = new StateChangeDTO();
-            //创建需要执行事件的方法的传入参数
-            Object[] objects = new Object[1];
-            objects[0] = file.getDatasetId().intValue();
-            stateChangeDTO.setObjectParam(objects);
-            //添加需要执行的状态机类
-            stateChangeDTO.setStateMachineType(DataStateMachineConstant.DATA_STATE_MACHINE);
-            //采样事件
-            stateChangeDTO.setEventMethodName(DataStateMachineConstant.DATA_SAMPLING_EVENT);
-            StateMachineUtil.stateChange(stateChangeDTO);
+            QueryWrapper<File> statusQuery = new QueryWrapper<>();
+            statusQuery.lambda().eq(File::getDatasetId,task.getDatasetId())
+                    .eq(File::getFileType, MagicNumConstant.ONE)
+                    .ne(File::getStatus,FileStateCodeConstant.AUTO_TAG_COMPLETE_FILE_STATE);
+            Integer unfinishedNum = baseMapper.selectCount(statusQuery);
+            if(unfinishedNum.equals(MagicNumConstant.ZERO)){
+                //创建入参请求体
+                StateChangeDTO stateChangeDTO = new StateChangeDTO();
+                //创建需要执行事件的方法的传入参数
+                Object[] objects = new Object[1];
+                objects[0] = file.getDatasetId().intValue();
+                stateChangeDTO.setObjectParam(objects);
+                //添加需要执行的状态机类
+                stateChangeDTO.setStateMachineType(DataStateMachineConstant.DATA_STATE_MACHINE);
+                //采样事件
+                stateChangeDTO.setEventMethodName(DataStateMachineConstant.DATA_SAMPLING_EVENT);
+                StateMachineUtil.stateChange(stateChangeDTO);
+            }
         }
     }
 
@@ -922,27 +941,6 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
         baseMapper.update(file, fileUpdateWrapper);
     }
 
-    /**
-     * 对minio 的账户密码进行加密操作
-     *
-     * @return Map<String, String> 加密后minio账户密码
-     */
-    @Override
-    public Map<String, String> getMinIOInfo() {
-        try {
-            Map<String, String> keyPair = RsaEncrypt.genKeyPair();
-            String publicKey = RsaEncrypt.getPublicKey(keyPair);
-            String privateKey = RsaEncrypt.getPrivateKey(keyPair);
-            return new HashMap<String, String>(MagicNumConstant.FOUR) {{
-                put("url", RsaEncrypt.encrypt(url, publicKey));
-                put("accessKey", RsaEncrypt.encrypt(accessKey, publicKey));
-                put("secretKey", RsaEncrypt.encrypt(secretKey, publicKey));
-                put("privateKey", privateKey);
-            }};
-        } catch (Exception e) {
-            throw new BusinessException(ErrorEnum.DATA_ERROR);
-        }
-    }
 
     /**
      * 获取文件对应所有增强文件
@@ -1011,13 +1009,14 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
      * @param datasetId 数据集ID
      * @param offset    偏移量
      * @param batchSize 批大小
+     * @param status    文件标注状态
      * @return 文件列表
      */
     @Override
-    public List<File> listBatchFile(Long datasetId, int offset, int batchSize) {
+    public List<File> listBatchFile(Long datasetId, int offset, int batchSize, Collection<Integer> status) {
         try{
             Dataset dataset = datasetService.getOneById(datasetId);
-            return baseMapper.selectListOne(datasetId, dataset.getCurrentVersionName(), offset, batchSize);
+            return baseMapper.selectListOne(datasetId, dataset.getCurrentVersionName(), offset, batchSize, status);
         } catch (Exception e) {
             LogUtil.error(LogEnum.BIZ_DATASET, "get annotation files error {}", e);
             return null;
@@ -1062,11 +1061,11 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
      * @param datasetId     数据集ID
      * @param changed       版本文件是否改动
      * @param versionName   版本名称
-     * @return List<name>   名称列表
+     * @return List<FileAnnotationBO>   名称列表
      */
     @Override
-    public List<String> selectNames(Long datasetId, Integer changed, String versionName) {
-        return baseMapper.selectNames(datasetId, changed, versionName);
+    public List<FileAnnotationBO> selectFileAnnotations(Long datasetId, Integer changed, String versionName) {
+        return baseMapper.selectFileAnnotations(datasetId, changed, versionName);
     }
 
     /**
@@ -1107,17 +1106,22 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
      * @return Integer[] 状态数组
      */
     private Integer[] findStatus(Integer[] status, Integer[] annotateStatus, Integer[] annotateType) {
-
-        if (!ArrayUtil.isEmpty(annotateType)) {
-            return annotateType;
+        Set<Integer> statusResult = new HashSet<>();
+        // 根据有无标注信息参数获取对应文件状态列表
+        statusResult.addAll(FileTypeEnum.getStatus(status[0]));
+        // 如果有标注状态，则需要获取标注状态，并和有无标注信息对应状态取交集
+        if (annotateStatus != null && annotateStatus.length > 0) {
+            statusResult.retainAll(FileTypeEnum.getStatus(Arrays.asList(annotateStatus)));
         }
-        if (!ArrayUtil.isEmpty(annotateStatus) && ArrayUtil.isEmpty(annotateType)) {
-            return annotateStatus;
+        // 如果有标注方式，则需要获取对应文件状态，并和有无标注信息对应状态取交集
+        if (annotateType != null && annotateType.length > 0) {
+            statusResult.retainAll(FileTypeEnum.getStatus(Arrays.asList(annotateType)));
         }
-        if (!ArrayUtil.isEmpty(status) && ArrayUtil.isEmpty(annotateStatus) && ArrayUtil.isEmpty(annotateType)) {
-            return status;
-        }
-        return status;
+        // 用于解决当用户选择状态，但是交集为空时会查出所有从而导致条件失效的问题
+        statusResult.add(-1);
+        Integer[] statusList = new Integer[statusResult.size()];
+        statusResult.toArray(statusList);
+        return statusList;
     }
 
 
@@ -1218,6 +1222,26 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
                                 , FileStateCodeConstant.AUTO_TAG_COMPLETE_FILE_STATE.toString()
                                 , FileStateCodeConstant.ANNOTATION_COMPLETE_FILE_STATE.toString()));
             }
+            if (fileQueryCriteria.getStatus()[0].equals(FileTypeEnum.HAVE_ANNOTATION.getValue())){
+                boolQueryBuilder = QueryBuilders.boolQuery()
+                        .must(fileQueryCriteria.getContent()==null?QueryBuilders.matchAllQuery()
+                                :QueryBuilders.matchPhraseQuery("content", fileQueryCriteria.getContent()))
+                        .must(QueryBuilders.termQuery("datasetId", fileQueryCriteria.getDatasetId().toString()))
+                        .must(QueryBuilders.termsQuery("status"
+                                , FileStateCodeConstant.MANUAL_ANNOTATION_FILE_STATE.toString()
+                                , FileStateCodeConstant.AUTO_TAG_COMPLETE_FILE_STATE.toString()
+                                , FileStateCodeConstant.ANNOTATION_COMPLETE_FILE_STATE.toString()
+                                , FileStateCodeConstant.TARGET_COMPLETE_FILE_STATE.toString()));
+            }
+            if(fileQueryCriteria.getStatus()[0].equals(FileTypeEnum.NO_ANNOTATION.getValue())){
+                boolQueryBuilder = QueryBuilders.boolQuery()
+                        .must(fileQueryCriteria.getContent()==null?QueryBuilders.matchAllQuery()
+                                :QueryBuilders.matchPhraseQuery("content", fileQueryCriteria.getContent()))
+                        .must(QueryBuilders.termQuery("datasetId", fileQueryCriteria.getDatasetId().toString()))
+                        .must(QueryBuilders.termsQuery("status"
+                                , FileStateCodeConstant.NOT_ANNOTATION_FILE_STATE.toString()
+                                , FileStateCodeConstant.ANNOTATION_NOT_DISTINGUISH_FILE_STATE.toString()));
+            }
         }
          else {
             if(fileQueryCriteria.getAnnotateType().length == MagicNumConstant.ONE){
@@ -1292,113 +1316,33 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
      * 文本状态数量统计
      *
      * @param datasetId 数据集ID
-     * @param fileQueryCriteria       文件查询条件
+     * @param fileScreenStatSearchDTO       文件查询条件
      * @return ProgressVO 文本状态数量统计
      */
     @Override
-    public ProgressVO getFileCountByStatus(Long datasetId, FileQueryCriteriaVO fileQueryCriteria) {
+    public FileScreenStatVO getFileCountByStatus(Long datasetId, FileScreenStatSearchDTO fileScreenStatSearchDTO) {
         Dataset dataset = datasetService.getOneById(datasetId);
-        if(dataset.getDataType().equals(MagicNumConstant.ZERO) || dataset.getDataType().equals(MagicNumConstant.FOUR)) {
-            if(fileQueryCriteria.getLabelId()!=null && fileQueryCriteria.getLabelId().length>0){
-                Integer[] status = findStatus(fileQueryCriteria.getStatus(), fileQueryCriteria.getAnnotateStatus(), fileQueryCriteria.getAnnotateType());
-                int count = datasetVersionFileService.selectFileListTotalCount(dataset.getId(), dataset.getCurrentVersionName(),
-                        status, fileQueryCriteria.getLabelId());
-                return new ProgressVO() {{
-                    setFinished((long) count);
-                    setUnfinished(0L);
-                }};
-            }
-            Set<Integer> unfinishedStatus = FileTypeEnum.getStatus(FileTypeEnum.UNFINISHED_FILE.getValue());
-            Set<Integer> finishedStatus = FileTypeEnum.getStatus(FileTypeEnum.FINISHED_FILE.getValue());
-            Set<Integer> annotationStatus = new HashSet<>();
-            if(fileQueryCriteria.getAnnotateType() != null && ArrayUtil.isNotEmpty(fileQueryCriteria.getAnnotateType())){
-                annotationStatus = Arrays.stream(fileQueryCriteria.getAnnotateType()).collect(Collectors.toSet());
-            }
-            Set<Integer> annoataionStautsFinal = annotationStatus;
-            return new ProgressVO() {{
-                if(fileQueryCriteria.getAnnotateType() == null || ArrayUtil.isEmpty(fileQueryCriteria.getAnnotateType())){
-                    setFinished(datasetVersionFileService.selectCount(new LambdaQueryWrapper<DatasetVersionFile>() {{
-                                                                          eq(DatasetVersionFile::getDatasetId, datasetId);
-                                                                          if (!StringUtils.isBlank(dataset.getCurrentVersionName())) {
-                                                                              eq(DatasetVersionFile::getVersionName, dataset.getCurrentVersionName());
-                                                                          } else {
-                                                                              isNull(DatasetVersionFile::getVersionName);
-                                                                          }
-                                                                          ne(DatasetVersionFile::getStatus, DataStatusEnum.DELETE.getValue());
-                                                                          in(DatasetVersionFile::getAnnotationStatus, finishedStatus);
-                                                                      }}
-                    ));
-                    setUnfinished(datasetVersionFileService.selectCount(new LambdaQueryWrapper<DatasetVersionFile>() {{
-                                                                            eq(DatasetVersionFile::getDatasetId, datasetId);
-                                                                            if (!StringUtils.isBlank(dataset.getCurrentVersionName())) {
-                                                                                eq(DatasetVersionFile::getVersionName, dataset.getCurrentVersionName());
-                                                                            } else {
-                                                                                isNull(DatasetVersionFile::getVersionName);
-                                                                            }
-                                                                            ne(DatasetVersionFile::getStatus, DataStatusEnum.DELETE.getValue());
-                                                                            in(DatasetVersionFile::getAnnotationStatus, unfinishedStatus);
-                                                                        }}
-                    ));
-                }
-                if(fileQueryCriteria.getAnnotateType() != null && ArrayUtil.isNotEmpty(fileQueryCriteria.getAnnotateType())
-                        && fileQueryCriteria.getStatus()[0].equals(FileTypeEnum.UNFINISHED_FILE.getValue())){
-                    setUnfinished(datasetVersionFileService.selectCount(new LambdaQueryWrapper<DatasetVersionFile>() {{
-                                                                            eq(DatasetVersionFile::getDatasetId, datasetId);
-                                                                            if (!StringUtils.isBlank(dataset.getCurrentVersionName())) {
-                                                                                eq(DatasetVersionFile::getVersionName, dataset.getCurrentVersionName());
-                                                                            } else {
-                                                                                isNull(DatasetVersionFile::getVersionName);
-                                                                            }
-                                                                            ne(DatasetVersionFile::getStatus, DataStatusEnum.DELETE.getValue());
-                                                                            in(DatasetVersionFile::getAnnotationStatus, annoataionStautsFinal);
-                                                                        }}
-                    ));
-                    setFinished(0L);
-                }
-                if(fileQueryCriteria.getAnnotateType() != null && ArrayUtil.isNotEmpty(fileQueryCriteria.getAnnotateType())
-                        && fileQueryCriteria.getStatus()[0].equals(FileTypeEnum.FINISHED_FILE.getValue())){
-                    setFinished(datasetVersionFileService.selectCount(new LambdaQueryWrapper<DatasetVersionFile>() {{
-                                                                          eq(DatasetVersionFile::getDatasetId, datasetId);
-                                                                          if (!StringUtils.isBlank(dataset.getCurrentVersionName())) {
-                                                                              eq(DatasetVersionFile::getVersionName, dataset.getCurrentVersionName());
-                                                                          } else {
-                                                                              isNull(DatasetVersionFile::getVersionName);
-                                                                          }
-                                                                          ne(DatasetVersionFile::getStatus, DataStatusEnum.DELETE.getValue());
-                                                                          in(DatasetVersionFile::getAnnotationStatus, annoataionStautsFinal);
-                                                                      }}
-                    ));
-                    setUnfinished(0L);
-                }
-            }};
-        } else {
-            Integer[] status = new Integer[MagicNumConstant.ONE];
-            status[0] = FileTypeEnum.FINISHED_FILE.getValue();
-            fileQueryCriteria.setStatus(status);
-            Long finishedFileCount = getTextFileCount(datasetId, fileQueryCriteria);
-            status[0] = FileTypeEnum.UNFINISHED_FILE.getValue();
-            fileQueryCriteria.setStatus(status);
-            fileQueryCriteria.setAnnotateType(null);
-            Long unFinishedFileCount = getTextFileCount(datasetId, fileQueryCriteria);
-            return new ProgressVO() {{
-                setFinished(finishedFileCount);
-                setUnfinished(unFinishedFileCount);
-            }};
-        }
+        Set<Integer> statusResult = Arrays.stream(findStatus(new Integer[]{fileScreenStatSearchDTO.getAnnotationResult()},
+                fileScreenStatSearchDTO.getAnnotationStatus(),
+                fileScreenStatSearchDTO.getAnnotationMethod())).collect(Collectors.toSet());
+        Long haveAnnotation = FileTypeEnum.HAVE_ANNOTATION.getValue() == fileScreenStatSearchDTO.getAnnotationResult().intValue()
+                ? getFileCount(dataset, statusResult, fileScreenStatSearchDTO.getLabelIds())
+                :getFileCount(dataset, FileTypeEnum.getStatus(FileTypeEnum.HAVE_ANNOTATION.getValue()), null);
+        Long noAnnotation = FileTypeEnum.NO_ANNOTATION.getValue() == fileScreenStatSearchDTO.getAnnotationResult().intValue()
+                ? getFileCount(dataset, statusResult, fileScreenStatSearchDTO.getLabelIds())
+                : getFileCount(dataset, FileTypeEnum.getStatus(FileTypeEnum.NO_ANNOTATION.getValue()), null);
+        return FileScreenStatVO.builder().haveAnnotation(haveAnnotation).noAnnotation(noAnnotation).build();
     }
 
     /**
-     * 获取文本数据集数量
+     * 获取数据集数量
      *
-     * @param  datasetId                         数据集ID
-     * @param  fileQueryCriteria                 查询条件
-     * @return Long                              文本文件数量
+     * @param  dataset           数据集
+     * @param  fileStatus        查询文件状态
+     * @return Long              文本文件数量
      */
-    private Long getTextFileCount(Long datasetId, FileQueryCriteriaVO fileQueryCriteria){
-        Page page = new Page(MagicNumConstant.ONE, MagicNumConstant.TEN);
-        Map<String, Object> textContent = txtContentByPage(datasetId, page, fileQueryCriteria);
-        HashMap<String, Long> pageMap = (HashMap)textContent.get("page");
-        return pageMap.get("total");
+    private Long getFileCount(Dataset dataset, Set<Integer> fileStatus, List<Long> labelIds){
+        return datasetVersionFileService.getVersionFileCountByStatusVersionAndLabelId(dataset.getId(), fileStatus, dataset.getCurrentVersionName(), labelIds);
     }
 
     /**
@@ -1530,6 +1474,23 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
     @Override
     public void transportTextToEs(Dataset dataset,List<Long> fileIdsNotToEs,Boolean ifImport) {
         List<EsTransportDTO> esTransportDTOList = fileMapper.selectTextDataNoTransport(dataset.getId(), fileIdsNotToEs, ifImport);
+        if(ifImport != null && ifImport){
+            List<TextAnnotationBO> textAnnotationBOS = fileMapper.selectTextAnnotation(dataset.getId(), fileIdsNotToEs);
+            Map<Long, List<TextAnnotationBO>> annotationGroup = textAnnotationBOS.stream().collect(Collectors.groupingBy(TextAnnotationBO::getId));
+            esTransportDTOList.stream().forEach(esTransportDTO -> {
+                List<TextAnnotationBO> annotationsById = annotationGroup.get(esTransportDTO.getId());
+                List<Long> labelIds = annotationsById.stream().map(TextAnnotationBO::getLabelId).collect(Collectors.toList());
+                esTransportDTO.setLabelId(labelIds.toArray(new Long[labelIds.size()]));
+                JSONArray annotations = new JSONArray();
+                annotationsById.forEach(annotation->{
+                    JSONObject jsonObject = new JSONObject();
+                    jsonObject.put("category_id",annotation.getLabelId());
+                    jsonObject.put("prediction", annotation.getPrediction());
+                    annotations.add(jsonObject);
+                });
+                esTransportDTO.setAnnotation(annotations.toJSONString());
+            });
+        }
         esTransportDTOList.forEach(esTransportDTO -> {
             FileInputStream fileInputStream = null;
             InputStreamReader reader = null;
@@ -1544,7 +1505,7 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
                 while ((tempContent = bufferedReader.readLine()) != null) {
                     testContent.append(tempContent);
                 }
-                Map<String, String> jsonMap = new HashMap<>();
+                Map<String, Object> jsonMap = new HashMap<>();
                 jsonMap.put("content", testContent.toString());
                 jsonMap.put("name", esTransportDTO.getFileName());
                 jsonMap.put("status",esTransportDTO.getAnnotationStatus().toString());
@@ -1557,8 +1518,8 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
                 jsonMap.put("enhanceType",esTransportDTO.getEnhanceType()==null?null:esTransportDTO.getEnhanceType().toString());
                 jsonMap.put("originUserId",esTransportDTO.getOriginUserId().toString());
                 jsonMap.put("prediction",esTransportDTO.getPrediction()==null?null:esTransportDTO.getPrediction().toString());
-                jsonMap.put("labelId",esTransportDTO.getLabelId()==null?null:esTransportDTO.getLabelId().toString());
-                jsonMap.put("annotation", null);
+                jsonMap.put("labelId",esTransportDTO.getLabelId()==null?null:esTransportDTO.getLabelId());
+                jsonMap.put("annotation", esTransportDTO.getAnnotation()==null?null:esTransportDTO.getAnnotation());
                 jsonMap.put("versionName", StringUtils.isEmpty(dataset.getCurrentVersionName())?"V0000" : dataset.getCurrentVersionName());
                 IndexRequest request = new IndexRequest(esIndex);
                 request.source(jsonMap);
@@ -1640,7 +1601,6 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
         Queue<Long> dataFileIds = generatorKeyUtil.getSequenceByBusinessCode(Constant.DATA_FILE, 1);
         file.setId(dataFileIds.poll());
         baseMapper.saveList(Arrays.asList(new File[]{file}), contextService.getCurUserId(), dataset.getCreateUserId());
-
         Task task = Task.builder().build().setDatasetId(datasetCsvImportDTO.getDatasetId())
                 .setCreateUserId(contextService.getCurUserId())
                 .setLabels("")
@@ -1711,4 +1671,8 @@ public class FileServiceImpl extends ServiceImpl<FileMapper, File> implements Fi
         }
     }
 
+    @Override
+    public List<FileAnnotationBO> listByDatasetIdAndVersionName(Long datasetId, String versionName) {
+        return baseMapper.listByDatasetIdAndVersionName(datasetId,versionName);
+    }
 }

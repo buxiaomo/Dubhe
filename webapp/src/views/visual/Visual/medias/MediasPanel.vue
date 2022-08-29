@@ -20,6 +20,7 @@
       <el-card class="father">
         <div class="info">
           <div class="infoTitle">
+            <!-- <i class='iconfont icon-ziyuan41'></i> -->
             <span i class="iconfont icon-ziyuan41">&nbsp;&nbsp;数据信息栏</span>
           </div>
           <div class="infoContent">
@@ -34,9 +35,9 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex';
-// eslint-disable-next-line no-unused-vars
+
 const { mapMutations: mapMediaMutations, mapGetters: mapMediaGetters } = createNamespacedHelpers(
-  'media'
+  'Visual/media'
 );
 export default {};
 </script>
@@ -53,12 +54,12 @@ select {
 }
 
 .panel {
-  /deep/ .el-card {
+  /deep/.el-card {
     margin: 3.5% 5% 4% 0%;
     border-top: 0;
   }
 
-  /deep/ .el-card__body {
+  /deep/.el-card__body {
     padding: 0;
     border-radius: 0 0 3px 3px;
   }
@@ -85,7 +86,7 @@ select {
     }
   }
 
-  /deep/ .infoContent {
+  /deep/.infoContent {
     div {
       padding: 2% 5% 5% 5%;
     }

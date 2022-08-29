@@ -20,7 +20,9 @@
       <div :class="[showFlag ? 'sub' : 'sub1']">
         <div class="my-label">
           <div class="my-text"><span>文本</span></div>
-          <div class="circle-father"><div class="circle" /></div>
+          <div class="circle-father">
+            <div class="circle" />
+          </div>
           <div class="triangle-father">
             <div class="triangle" />
           </div>
@@ -82,12 +84,11 @@ export default {
         this.showFlag = false;
       }
     },
-    showFlag() {
+    showFlag(val) {
       this.setShowFlag([this.subname, this.showFlag]);
     },
   },
   created() {
-    // this.setshowrun(this.categoryInfo[0])
     this.setshowrun(this.userSelectRunFile);
     if (this.index === 0 && this.getShowFlag.firstTime) {
       this.showFlag = false;
@@ -121,6 +122,29 @@ export default {
 </script>
 
 <style lang="less" scoped>
+.textscontainer {
+  .texts-title {
+    display: flex;
+    align-items: center;
+    height: auto;
+    color: white;
+    background-color: white;
+
+    span {
+      font-weight: 700;
+      line-height: 30px;
+    }
+  }
+}
+
+.textscontent {
+  padding: 2%;
+}
+
+.showClass {
+  display: none;
+}
+
 .my-label {
   display: flex;
   width: 100%;
@@ -174,30 +198,6 @@ export default {
     line-height: 30px;
     color: white;
   }
-}
-
-.textscontainer {
-  .texts-title {
-    display: flex;
-    align-items: center;
-    height: auto;
-    color: white;
-    background-color: white;
-
-    span {
-      font-weight: 700;
-      // margin-left: 29%;
-      line-height: 30px;
-    }
-  }
-}
-
-.textscontent {
-  padding: 2%;
-}
-
-.showClass {
-  display: none;
 }
 
 .sub .triangle {

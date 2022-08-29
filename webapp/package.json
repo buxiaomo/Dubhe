@@ -1,6 +1,6 @@
 {
   "name": "dubhe-web",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "之江天枢人工智能开源平台",
   "author": "zhejianglab",
   "keywords": [
@@ -24,18 +24,6 @@
     "lint:style": "stylelint src/**/*.{html,vue,css,sass,scss}",
     "fix:style": "stylelint src/**/*.{html,vue,css,sass,scss} --fix"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged",
-      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
-    }
-  },
-  "lint-staged": {
-    "src/**/*.{js,vue}": [
-      "eslint --fix",
-      "git add"
-    ]
-  },
   "repository": {
     "type": "git",
     "url": "git@codeup.teambition.com:zhejianglab/dubhe-web.git"
@@ -50,6 +38,7 @@
     "add-dom-event-listener": "^1.1.0",
     "assert": "^2.0.0",
     "axios": "0.18.1",
+    "camera-controls": "^1.33.1",
     "chroma-js": "^2.1.0",
     "classnames": "^2.2.6",
     "clipboard": "^2.0.6",
@@ -67,6 +56,7 @@
     "element-ui": "2.13.2",
     "file-saver": "^2.0.2",
     "filereader-stream": "^2.0.0",
+    "flv.js": "^1.6.2",
     "immutability-helper": "^3.1.1",
     "jquery": "^3.5.1",
     "jquery-contextmenu": "^2.9.1",
@@ -93,6 +83,7 @@
     "screenfull": "^5.0.2",
     "stream-to-array": "^2.3.0",
     "streamsaver": "^2.0.4",
+    "three": "^0.136.0",
     "url-join": "^4.0.1",
     "v-click-outside": "^3.0.1",
     "v-hotkey": "^0.8.0",
@@ -146,6 +137,7 @@
     "stylelint-config-standard": "^20.0.0",
     "stylelint-order": "^4.1.0",
     "stylelint-scss": "^3.18.0",
+    "svg-sprite-loader": "^6.0.11",
     "vue-template-compiler": "2.6.10"
   },
   "engines": {

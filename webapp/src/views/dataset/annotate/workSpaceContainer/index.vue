@@ -214,11 +214,7 @@ const addEventListener = require('add-dom-event-listener');
 
 const FooterHeight = 0;
 
-// 侧边栏宽度
-export const ThumbWidth = 160;
-
-// msg 实例
-let msgInstance = null;
+export const ThumbWidth = 160; // 侧边栏宽度
 
 export default {
   name: 'WorkSpaceContainer',
@@ -251,6 +247,8 @@ export default {
     isTrack: Boolean,
     isSegmentation: Boolean,
     annotationType: String,
+    handlePrev: Function,
+    handleNext: Function,
   },
   setup(props, ctx) {
     const {
@@ -449,46 +447,6 @@ export default {
       return defaultDimension;
     });
 
-    const findImgIndex = () => {
-      const { files, currentImgId } = state;
-      const currentImgIndex = files.value.findIndex((d) => d.id === currentImgId.value);
-      return { currentImgIndex, files };
-    };
-
-    const onMessageClose = () => {
-      // 清理 message 实例
-      msgInstance = null;
-    };
-
-    const handlePrev = () => {
-      const { files, currentImgIndex } = findImgIndex();
-      if (currentImgIndex > 0) {
-        ctx.emit('changeImg', files.value[currentImgIndex - 1]);
-      } else if (!msgInstance) {
-        msgInstance = Message.warning({
-          message: '当前图片不存在或图片已经到顶了',
-          onClose: onMessageClose,
-        });
-      }
-    };
-
-    const handleNext = () => {
-      // 未标注文件全量更新，不需要切换到下一张
-      if (props.state.filterUnfinished.value) return;
-
-      const { files, currentImgIndex } = findImgIndex();
-      if (currentImgIndex > -1 && currentImgIndex < files.value.length - 1) {
-        ctx.emit('changeImg', files.value[currentImgIndex + 1]);
-        // 触发下一页数据
-        ctx.emit('nextPage', files.value[currentImgIndex + 1], currentImgIndex + 1, files);
-      } else if (!msgInstance) {
-        msgInstance = Message.warning({
-          message: '当前图片不存在或图片已经到底了',
-          onClose: onMessageClose,
-        });
-      }
-    };
-
     // 删除注释
     const removeAnnotation = () => {
       hideTooltip();
@@ -536,10 +494,10 @@ export default {
     // 快捷键
     const keymap = computed(() => ({
       left: {
-        keyup: handlePrev,
+        keyup: props.handlePrev,
       },
       right: {
-        keyup: handleNext,
+        keyup: props.handleNext,
       },
       backspace: removeAnnotation,
       delete: removeAnnotation,
@@ -687,7 +645,7 @@ export default {
     const confirm = () => {
       handleConfirm().then(() => {
         // 切换到下一页
-        Message.success({ message: '人工确认成功', duration: 400, onClose: handleNext });
+        Message.success({ message: '人工确认成功', duration: 400, onClose: props.handleNext });
       });
     };
 

@@ -1,4 +1,4 @@
--- DDL 脚本
+-- DML 脚本
 use `dubhe-cloud-prod`;
 
 -- 原boot单体项目 DDL 脚本内容

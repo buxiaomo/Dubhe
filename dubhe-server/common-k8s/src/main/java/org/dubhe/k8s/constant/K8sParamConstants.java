@@ -67,6 +67,8 @@ public class K8sParamConstants {
     public static final String INGRESS_CLASS_KEY = "kubernetes.io/ingress.class";
     public static final String INGRESS_SSL_REDIRECT_KEY = "nginx.ingress.kubernetes.io/ssl-redirect";
     public static final String INGRESS_BACKEND_PROTOCOL_KEY = "nginx.ingress.kubernetes.io/backend-protocol";
+    public static final String INGRESS_READ_TIMEOUT_KEY = "nginx.ingress.kubernetes.io/proxy-read-timeout";
+    public static final String INGRESS_NEXT_UPSTREAM_TIMEOUT_KEY = "nginx.ingress.kubernetes.io/proxy-next-upstream-timeout";
     /**
      * k8s资源对象名称校验正则表达式
      */

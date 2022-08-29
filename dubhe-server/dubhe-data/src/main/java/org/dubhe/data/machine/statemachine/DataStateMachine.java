@@ -170,7 +170,8 @@ public class DataStateMachine extends AbstractDataState implements Serializable 
         if (
                 memoryDataState != autoTagCompleteState &&
                         memoryDataState != annotationCompleteState &&
-                        memoryDataState != targetCompleteState
+                        memoryDataState != targetCompleteState &&
+                        memoryDataState != manualAnnotationState
         ) {
             throw new StateMachineException(ErrorMessageConstant.DATASET_CHANGE_ERR_MESSAGE);
         }
@@ -233,7 +234,9 @@ public class DataStateMachine extends AbstractDataState implements Serializable 
     @Override
     public void autoAnnotationsEvent(Integer primaryKeyId) {
         initMemoryDataState(primaryKeyId);
-        if (memoryDataState != manualAnnotationState && memoryDataState != notAnnotationState) {
+        if (memoryDataState == automaticLabelingState || memoryDataState == notSampledState
+                || memoryDataState == samplingState || memoryDataState == strengtheningState
+                || memoryDataState == targetFollowState || memoryDataState == importState) {
             throw new StateMachineException(ErrorMessageConstant.DATASET_CHANGE_ERR_MESSAGE);
         }
         memoryDataState.autoAnnotationsEvent(primaryKeyId);
@@ -533,7 +536,8 @@ public class DataStateMachine extends AbstractDataState implements Serializable 
         }
         if (memoryDataState != manualAnnotationState &&
                 memoryDataState != autoTagCompleteState &&
-                memoryDataState != annotationCompleteState
+                memoryDataState != annotationCompleteState &&
+                memoryDataState != targetCompleteState
         ) {
             throw new StateMachineException(ErrorMessageConstant.DATASET_CHANGE_ERR_MESSAGE);
         }
@@ -548,12 +552,11 @@ public class DataStateMachine extends AbstractDataState implements Serializable 
     @Override
     public void uploadFilesEvent(Dataset dataset) {
         initMemoryDataState(dataset.getId().intValue());
-        if (memoryDataState == notAnnotationState ||
-                memoryDataState == manualAnnotationState) {
+        if (memoryDataState == manualAnnotationState) {
             return;
         }
         if (memoryDataState != autoTagCompleteState &&
-                memoryDataState != annotationCompleteState) {
+                memoryDataState != annotationCompleteState && memoryDataState != notAnnotationState) {
             throw new StateMachineException(ErrorMessageConstant.DATASET_CHANGE_ERR_MESSAGE);
         }
         memoryDataState.uploadFilesEvent(dataset);

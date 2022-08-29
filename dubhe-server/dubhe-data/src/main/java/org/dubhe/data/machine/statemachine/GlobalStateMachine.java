@@ -37,4 +37,8 @@ public class GlobalStateMachine {
      */
     private FileStateMachine fileStateMachine;
 
+    /**
+     * 模型服务状态机
+     */
+    private ModelStateMachine modelStateMachine;
 }

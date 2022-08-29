@@ -11,3 +11,15 @@ spring:
   # 配置允许后面的Bean覆盖前面名称重复的Bean
   main:
     allow-bean-definition-overriding: true
+
+model:
+  atlas:
+    url:
+      # 流服务地址
+      rtmp: rtmp://127.0.0.1:1935/live/
+      # vms接口地址
+      vms: http://127.0.0.1:8000/api/vms
+      # 推理服务地址
+      video-serve: http://127.0.0.1:32761/video
+      # 拉流地址，需要拼接streamId
+      stream: http://127.0.0.1:8055/live?port=1935&app=live&stream=

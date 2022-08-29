@@ -96,4 +96,20 @@ public class DataMedicineController {
     public DataResponseBody getAuto(@PathVariable(name = "medicalId") Long medicalId) {
         return new DataResponseBody(dataMedicineService.getAuto(medicalId));
     }
+
+    @ApiOperation(value = "获取数据集列表")
+    @GetMapping("/list")
+    @PreAuthorize(Permissions.DATA)
+    public DataResponseBody list() {
+        return new DataResponseBody(dataMedicineService.getList());
+    }
+
+    @ApiOperation(value = "任务停止")
+    @PutMapping(value = "/task/{medicalId}/stop")
+    @PreAuthorize(Permissions.DATA)
+    public DataResponseBody taskStop(@PathVariable(name = "medicalId") Long medicalId) {
+        dataMedicineService.taskStop(medicalId);
+        return new DataResponseBody();
+    }
+
 }

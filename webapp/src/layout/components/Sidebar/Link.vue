@@ -15,7 +15,7 @@
 */
 
 <template>
-  <a v-if="isExternal" :href="url" target="_blank" rel="noopener noreferrer">
+  <a v-if="isExternal" target="_blank" rel="noopener noreferrer" @click="handleGoExternal">
     <slot />
   </a>
   <router-link v-else :to="to">
@@ -26,6 +26,7 @@
 <script>
 import { getToken } from '@/utils/auth';
 import { isExternal } from '@/utils/validate';
+import { externalFnMap } from './utils';
 
 export default {
   name: 'AppLink',
@@ -34,6 +35,9 @@ export default {
       type: String,
       required: true,
     },
+    route: {
+      type: Object,
+    },
   },
   computed: {
     url() {
@@ -41,6 +45,20 @@ export default {
     },
     isExternal() {
       return isExternal(this.to);
+    },
+    routeName() {
+      return this.route ? this.route.name : '';
+    },
+  },
+  methods: {
+    async handleGoExternal() {
+      let url;
+      if (this.routeName && externalFnMap[this.routeName]) {
+        url = await externalFnMap[this.routeName](this.url, this.route);
+      } else {
+        url = this.url;
+      }
+      window.open(url, '_blank');
     },
   },
 };

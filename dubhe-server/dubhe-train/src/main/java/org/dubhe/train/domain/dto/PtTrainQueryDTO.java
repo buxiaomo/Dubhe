@@ -47,4 +47,9 @@ public class PtTrainQueryDTO extends PageQueryBase implements Serializable {
     @Max(value = MagicNumConstant.SEVEN, message = "trainStatus错误")
     private Integer trainStatus;
 
+    @ApiModelProperty("训练作业job类型, 0：普通训练，1：分布式训练，2：炼知重组训练")
+    @Min(value = MagicNumConstant.ZERO, message = "trainType错误")
+    @Max(value = MagicNumConstant.TWO, message = "trainType错误")
+    private Integer trainType;
+
 }

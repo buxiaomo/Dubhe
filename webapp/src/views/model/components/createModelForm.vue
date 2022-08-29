@@ -19,7 +19,7 @@
     <el-form-item label="模型名称" prop="name">
       <el-input
         v-model.trim="form.name"
-        style="width: 300px;"
+        class="w-300"
         maxlength="32"
         placeholder="请输入模型名称"
         show-word-limit
@@ -29,7 +29,7 @@
       <el-select
         v-model="form.frameType"
         placeholder="请选择框架"
-        style="width: 400px;"
+        class="w-300"
         :disabled="isAtlas"
         filterable
         @change="onFrameTypeChange"
@@ -46,16 +46,15 @@
         content="模型炼知暂只支持 Pytorch 框架的模型"
         effect="dark"
         placement="top"
-        class="model-uploader-tooltip"
       >
         <i class="el-icon-warning-outline primary f18 v-text-top" />
       </el-tooltip>
     </el-form-item>
-    <el-form-item label="模型格式" prop="modelType">
+    <el-form-item v-if="!isAtlas" label="模型格式" prop="modelType">
       <el-select
         v-model="form.modelType"
         placeholder="请选择模型格式"
-        style="width: 400px;"
+        class="w-300"
         :disabled="isAtlas"
         filterable
       >
@@ -70,19 +69,60 @@
     <el-form-item label="模型类别" prop="modelClassName">
       <el-select
         v-model="form.modelClassName"
-        placeholder="请选择或输入模型类别"
+        placeholder="请选择模型类别"
         filterable
-        allow-create
-        style="width: 400px;"
-        @change="onAlgorithmUsageChange"
+        class="w-300"
       >
         <el-option
-          v-for="item in algorithmUsageList"
+          v-for="item in dict.model_class"
           :key="item.id"
-          :label="item.auxInfo"
-          :value="item.auxInfo"
+          :label="item.label"
+          :value="item.value"
         />
       </el-select>
+    </el-form-item>
+    <el-form-item v-if="isAtlas" label="模型结构" prop="structName">
+      <el-select
+        v-model="form.structName"
+        placeholder="请选择模型结构"
+        filterable
+        allow-create
+        class="w-300"
+      >
+        <el-option
+          v-for="item in structNameList"
+          :key="item"
+          :label="item"
+          :value="item"
+        /> </el-select
+    ></el-form-item>
+    <el-form-item v-if="isAtlas" label="任务类型" prop="jobType">
+      <el-select
+        v-model="form.jobType"
+        placeholder="请选择任务类型"
+        filterable
+        class="w-300"
+        @change="onJobTypeChange"
+      >
+        <el-option
+          v-for="item in jobTypeList"
+          :key="item.id"
+          :label="item.label"
+          :value="+item.value"
+        />
+      </el-select>
+      <el-tooltip content="若模型支持多任务场景，请选择“多任务”类型" effect="dark" placement="top">
+        <i class="el-icon-warning-outline primary f18 v-text-top" />
+      </el-tooltip>
+    </el-form-item>
+    <el-form-item v-if="isAtlas" label="输入尺寸" prop="modelSize">
+      <el-input-number
+        v-model="form.modelSize"
+        :controls="false"
+        :min="1"
+        step-strictly
+        class="w-300"
+      />
     </el-form-item>
     <el-form-item label="模型描述" prop="modelDescription">
       <el-input
@@ -104,12 +144,10 @@
 </template>
 
 <script>
-import {
-  list as getAlgorithmUsages,
-  add as addAlgorithmUsage,
-} from '@/api/algorithm/algorithmUsage';
+import { add as addAlgorithmUsage } from '@/api/algorithm/algorithmUsage';
 import { validateNameWithHyphen, MODEL_RESOURCE_ENUM } from '@/utils';
-import { getModelTypeMap } from '@/api/model/model';
+import { getModelTypeMap, getModelSturctNameList } from '@/api/model/model';
+import { JOB_TYPE_ENUM } from '@/views/trainingJob/utils';
 
 import ModelUploader from './modelUploader';
 import { atlasFrameTypeList, atlasModelTypeList } from '../util';
@@ -117,16 +155,19 @@ import { atlasFrameTypeList, atlasModelTypeList } from '../util';
 const defaultForm = {
   name: null,
   frameType: null,
+  jobType: JOB_TYPE_ENUM.SINGLE, // 任务类型，默认单任务
   modelType: null, // 模型格式
-  modelClassName: null, // 模型类别（用途）
   modelDescription: null,
   modelAddress: null, // 创建炼知模型时需要传递
   modelResource: null, // 创建炼知模型时需要传递
+  modelClassName: null, // 模型类别
+  structName: null, // 炼知模型结构名
+  modelSize: 224, // 炼知模型尺寸
 };
 
 export default {
   name: 'CreateModelForm',
-  dicts: ['model_type', 'frame_type'],
+  dicts: ['model_type', 'frame_type', 'model_class', 'job_type'],
   components: {
     ModelUploader,
   },
@@ -138,8 +179,6 @@ export default {
   },
   data() {
     return {
-      algorithmUsageList: [],
-
       form: { ...defaultForm },
       rules: {
         name: [
@@ -152,15 +191,16 @@ export default {
         ],
         frameType: [{ required: true, message: '请选择模型框架', trigger: 'blur' }],
         modelType: [{ required: true, message: '请选择模型格式', trigger: 'blur' }],
-        modelClassName: [
-          { required: true, message: '请输入模型类别', trigger: ['blur', 'change'] },
-        ],
         modelDescription: [{ max: 255, message: '长度在255个字符以内', trigger: 'blur' }],
         modelAddress: [
           { required: true, message: '请上传有效的模型', trigger: ['blur', 'manual'] },
         ],
+        modelClassName: [{ required: true, message: '请选择模型类别', trigger: 'blur' }],
+        structName: [{ required: true, message: '请选择模型结构', trigger: 'blur' }],
+        modelSize: [{ required: true, message: '请输入模型尺寸', trigger: 'blur' }],
       },
       modelTypeMap: {},
+      structNameList: [],
     };
   },
   computed: {
@@ -175,15 +215,19 @@ export default {
         this.modelTypeMap[this.form.frameType].includes(+type.value)
       );
     },
+    // 任务类型
+    jobTypeList() {
+      return this.dict.job_type;
+    },
   },
   created() {
-    this.getAlgorithmUsages();
     this.getModelTypeMap();
 
     if (this.isAtlas) {
       // 炼知模型使用默认值，目前只支持 Pytorch
       this.form.frameType = atlasFrameTypeList[0].value;
       this.form.modelType = atlasModelTypeList[0].value;
+      this.getStructNameList();
     }
   },
   methods: {
@@ -214,29 +258,15 @@ export default {
       });
     },
 
-    getAlgorithmUsages() {
-      const params = {
-        isContainDefault: true,
-        current: 1,
-        size: 1000,
-      };
-      getAlgorithmUsages(params).then((res) => {
-        this.algorithmUsageList = res.result;
-      });
-    },
     async createAlgorithmUsage(auxInfo) {
       await addAlgorithmUsage({ auxInfo });
-      this.getAlgorithmUsages();
-    },
-    onAlgorithmUsageChange(value) {
-      const usage = this.algorithmUsageList.find((usage) => usage.auxInfo === value);
-      if (!usage) {
-        this.createAlgorithmUsage(value);
-      }
     },
     onModelAddressChange(modelAddress) {
       this.form.modelAddress = modelAddress;
       this.$refs.modelAddress.validate('manual');
+    },
+    onJobTypeChange() {
+      this.getStructNameList();
     },
 
     // 获取模型框架 —— 模型格式匹配关系
@@ -247,6 +277,11 @@ export default {
     // 模型框架
     onFrameTypeChange() {
       this.form.modelType = null;
+    },
+
+    // 获取模型结构列表
+    async getStructNameList() {
+      this.structNameList = await getModelSturctNameList({ jobType: this.form.jobType });
     },
   },
 };

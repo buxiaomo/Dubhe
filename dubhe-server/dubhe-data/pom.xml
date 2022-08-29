@@ -83,6 +83,12 @@
             <artifactId>log</artifactId>
             <version>${org.dubhe.biz.log.version}</version>
         </dependency>
+        <!-- common-k8s -->
+        <dependency>
+            <groupId>org.dubhe</groupId>
+            <artifactId>common-k8s</artifactId>
+            <version>${org.dubhe.common-k8s.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

@@ -19,6 +19,11 @@
     <!--工具栏-->
     <div class="head-container">
       <cdOperation :addProps="operationProps">
+        <template v-if="hasPermission('training:image:editDefault')" #left>
+          <el-button type="primary" round class="filter-item" @click="doSetDefaultImage">
+            Notebook默认镜像设置
+          </el-button>
+        </template>
         <span slot="right">
           <el-input
             v-model="localQuery.imageNameOrId"
@@ -33,12 +38,12 @@
         </span>
       </cdOperation>
     </div>
-    <el-tabs v-model="active" class="eltabs-inlineblock" @tab-click="handleClick">
-      <el-tab-pane id="tab_0" label="我的镜像" :name="IMAGE_RESOURCE_ENUM.CUSTOM" />
-      <el-tab-pane id="tab_1" label="预置镜像" :name="IMAGE_RESOURCE_ENUM.PRESET" />
-      <el-tab-pane id="tab_2" label="Notebook 镜像" :name="IMAGE_RESOURCE_ENUM.NOTEBOOK" />
-      <el-tab-pane id="tab_4" label="终端镜像" :name="IMAGE_RESOURCE_ENUM.TERMINAL" />
-    </el-tabs>
+    <div class="list-head">
+      <el-tabs v-model="active" class="eltabs-inlineblock" @tab-click="handleClick">
+        <el-tab-pane id="tab_0" label="我的镜像" :name="IMAGE_RESOURCE_ENUM.CUSTOM" />
+        <el-tab-pane id="tab_1" label="预置镜像" :name="IMAGE_RESOURCE_ENUM.PRESET" />
+      </el-tabs>
+    </div>
     <!--表格渲染-->
     <el-table
       v-if="prefabricate"
@@ -52,7 +57,7 @@
       <el-table-column v-if="!isPreset" prop="id" label="ID" sortable="custom" width="80px" />
       <el-table-column prop="imageName" label="镜像名称" sortable="custom" />
       <el-table-column prop="imageTag" label="镜像版本号" sortable="custom" />
-      <el-table-column prop="imageStatus" label="状态" width="160px">
+      <el-table-column prop="imageStatus" label="状态" width="130px">
         <template #header>
           <dropdown-header
             title="状态"
@@ -65,6 +70,19 @@
           <el-tag effect="plain" :type="map[scope.row.imageStatus]">
             {{ statusMap[scope.row.imageStatus] }}
           </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="imageTypes" label="镜像用途" width="180px">
+        <template #header>
+          <dropdown-header
+            title="镜像用途"
+            :list="imageTypesList"
+            :filtered="Boolean(localQuery.imageTypes)"
+            @command="filterImageTypes"
+          />
+        </template>
+        <template slot-scope="scope">
+          <div>{{ getImageTypes(scope.row.imageTypes) }}</div>
         </template>
       </el-table-column>
       <el-table-column prop="remark" label="镜像描述" show-overflow-tooltip />
@@ -99,7 +117,7 @@
             </el-button>
           </el-tooltip>
           <el-button
-            v-if="hasPermission('training:image:edit') && isCustom"
+            v-if="(hasPermission('training:image:edit') && isCustom) || (isPreset && isAdmin)"
             :id="`doEdit_` + scope.$index"
             type="text"
             @click.stop="doEdit(scope.row)"
@@ -133,18 +151,8 @@
       @ok="crud.submitCU"
     >
       <el-form ref="form" :model="form" :rules="rules" label-width="120px">
-        <el-form-item v-if="isEdit && isAdmin" label="镜像类型" prop="imageType">
-          <el-radio-group v-model="form.projectType" @change="onImageTypeChange">
-            <el-radio :label="IMAGE_PROJECT_TYPE.TRAIN" border class="mr-0">训练镜像</el-radio>
-            <el-radio :label="IMAGE_PROJECT_TYPE.NOTEBOOK" border>Notebook 镜像</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item
-          v-if="isEdit && isAdmin && form.projectType === IMAGE_PROJECT_TYPE.TRAIN"
-          label="镜像来源"
-          prop="imageResource"
-        >
-          <el-radio-group v-model="form.imageResource">
+        <el-form-item v-if="isEdit && isAdmin" label="镜像类别" prop="imageResource">
+          <el-radio-group v-model="form.imageResource" @change="imageResourceChange">
             <el-radio :label="Number(IMAGE_RESOURCE_ENUM.CUSTOM)" border class="mr-0"
               >我的镜像</el-radio
             >
@@ -152,17 +160,31 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item v-if="isEdit" label="镜像名称" prop="imageName">
-          <el-select
-            id="imageName"
+          <el-autocomplete
+            ref="imageName"
             v-model="form.imageName"
+            class="inline-input"
+            :fetch-suggestions="querySearchAsync"
             placeholder="请选择或输入镜像名称"
             style="width: 400px;"
-            clearable
+          ></el-autocomplete>
+        </el-form-item>
+        <el-form-item label="镜像用途">
+          <el-select
+            v-model="form.imageTypes"
+            placeholder="请选择或输入镜像用途"
+            style="width: 400px;"
+            multiple
             filterable
             allow-create
             default-first-option
           >
-            <el-option v-for="item in harborProjectList" :key="item" :label="item" :value="item" />
+            <el-option
+              v-for="item in imageTypesList.slice(1)"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item v-if="isEdit" ref="imagePath" label="镜像文件路径" prop="imagePath">
@@ -210,6 +232,52 @@
         </el-form-item>
       </el-form>
     </BaseModal>
+    <!--Notebook默认镜像设置表单-->
+    <BaseModal
+      :visible.sync="formVisible"
+      title="Notebook默认镜像设置"
+      :loading="formSubmitting"
+      width="800px"
+      @cancel="formVisible = false"
+      @ok="onSubmitForm"
+    >
+      <el-form
+        ref="noteBookFormRef"
+        :model="noteBookForm"
+        :rules="noteBookRules"
+        label-width="120px"
+        @submit.native.prevent
+      >
+        <el-form-item label="默认镜像" prop="defaultTag">
+          <el-select
+            id="defaultImage"
+            v-model="noteBookForm.defaultImage"
+            placeholder="请选择镜像"
+            style="width: 400px;"
+            filterable
+            allow-create
+            default-first-option
+            @change="getNoteBookTags"
+          >
+            <el-option v-for="item in noteBookImages" :key="item" :label="item" :value="item" />
+          </el-select>
+          <el-select
+            id="defaultTag"
+            v-model="noteBookForm.id"
+            placeholder="请选择镜像版本"
+            style="width: 200px;"
+            filterable
+          >
+            <el-option
+              v-for="(item, index) in noteBookTags"
+              :key="index"
+              :label="item.imageTag"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+    </BaseModal>
   </div>
 </template>
 
@@ -222,7 +290,14 @@ import cdOperation from '@crud/CD.operation';
 import rrOperation from '@crud/RR.operation';
 import pagination from '@crud/Pagination';
 import CRUD, { presenter, header, form, crud } from '@crud/crud';
-import trainingImageApi, { getImageNameList, del, setPrecast } from '@/api/trainingImage/index';
+import trainingImageApi, {
+  del,
+  setPrecast,
+  setDefaultImage,
+  getDefaultImage,
+  getImageNameList,
+  getImageTagList,
+} from '@/api/trainingImage/index';
 import {
   getUniqueId,
   uploadSizeFomatter,
@@ -238,20 +313,21 @@ import DropdownHeader from '@/components/DropdownHeader';
 import UploadProgress from '@/components/UploadProgress';
 import { imageConfig } from '@/config';
 
-import { IMAGE_RESOURCE_ENUM, IMAGE_PROJECT_TYPE } from '../trainingJob/utils';
+import { IMAGE_RESOURCE_ENUM, IMAGE_TYPE } from '../trainingJob/utils';
 
 const defaultForm = {
-  imageName: null,
   imagePath: null,
   imageTag: null,
   remark: null,
-  projectType: IMAGE_PROJECT_TYPE.TRAIN,
+  imageTypes: Number(IMAGE_TYPE),
   imageResource: Number(IMAGE_RESOURCE_ENUM.CUSTOM),
+  imageName: null,
 };
 
 const defaultQuery = {
   imageStatus: null,
   imageNameOrId: null,
+  imageTypes: null,
 };
 
 export default {
@@ -299,8 +375,16 @@ export default {
         1: '制作成功',
         2: '制作失败',
       },
+      imageTypesMap: {
+        0: 'Notebook镜像',
+        1: '训练镜像',
+        2: 'Serving镜像',
+        3: '终端镜像',
+        4: '点云镜像',
+        5: '数据标注镜像',
+      },
       rules: {
-        projectType: [{ required: true, message: '请选择镜像类型', trigger: 'change' }],
+        imageTypes: [{ required: true, message: '请选择镜像类型', trigger: 'change' }],
         imageResource: [{ required: true, message: '请选择镜像来源', trigger: 'change' }],
         imageName: [
           { required: true, message: '请选择项目名称', trigger: 'change' },
@@ -311,6 +395,10 @@ export default {
           { required: true, message: '请输入镜像版本号', trigger: 'blur' },
           { validator: validateImageTag, trigger: ['blur', 'change'] },
         ],
+      },
+      noteBookRules: {
+        defaultImage: [{ required: true, message: '请选择默认镜像', trigger: 'blur' }],
+        id: [{ required: true, message: '请选择默认镜像版本', trigger: 'blur' }],
       },
       harborProjectList: [],
       drawer: false,
@@ -331,8 +419,14 @@ export default {
       // 以下为配置参数及常量参数
       imageConfig,
       IMAGE_RESOURCE_ENUM,
-      IMAGE_PROJECT_TYPE,
+      IMAGE_TYPE,
       uploadFilters: [invalidFileNameChar],
+      // 设置notebook默认镜像相关参数
+      noteBookImages: [],
+      noteBookTags: [],
+      noteBookForm: { defaultImage: '', defaultTag: '', id: '' },
+      formVisible: false,
+      formSubmitting: false,
     };
   },
   computed: {
@@ -369,6 +463,13 @@ export default {
       }
       return arr;
     },
+    imageTypesList() {
+      const arr = [{ label: '全部', value: null }];
+      for (const key in this.imageTypesMap) {
+        arr.push({ label: this.imageTypesMap[key], value: +key });
+      }
+      return arr;
+    },
     status() {
       return this.progress === 100 ? 'success' : null;
     },
@@ -380,6 +481,28 @@ export default {
   },
   methods: {
     hasPermission,
+    getImageTypes(imageTypes) {
+      const usageStr = [];
+      imageTypes.forEach((item) => {
+        usageStr.push(this.imageTypesMap[item]);
+      });
+      return usageStr.join(',');
+    },
+    getNoteBookTags() {
+      this.noteBookForm.defaultTag = null;
+      this.noteBookForm.id = null;
+      if (!this.noteBookForm.defaultImage) {
+        this.noteBookImages = [];
+        return Promise.reject();
+      }
+      return getImageTagList({
+        imageName: this.noteBookForm.defaultImage,
+        imageTypes: IMAGE_TYPE.NOTEBOOK,
+        imageResource: Number(IMAGE_RESOURCE_ENUM.PRESET),
+      }).then((res) => {
+        this.noteBookTags = res;
+      });
+    },
     // handle
     handleClick() {
       this.localQuery = { ...defaultQuery };
@@ -429,7 +552,7 @@ export default {
       if (this.isPreset) {
         this.form.imageResource = Number(IMAGE_RESOURCE_ENUM.PRESET);
       } else if (this.isNotebook) {
-        this.form.projectType = IMAGE_PROJECT_TYPE.NOTEBOOK;
+        this.form.imageTypes = IMAGE_TYPE.NOTEBOOK;
       }
     },
     [CRUD.HOOK.beforeRefresh]() {
@@ -437,14 +560,8 @@ export default {
       switch (this.active) {
         case IMAGE_RESOURCE_ENUM.CUSTOM:
         case IMAGE_RESOURCE_ENUM.PRESET:
-          this.crud.query.projectType = IMAGE_PROJECT_TYPE.TRAIN;
+          this.crud.query.imageTypes = this.localQuery.imageTypes;
           this.crud.query.imageResource = Number(this.active);
-          break;
-        case IMAGE_RESOURCE_ENUM.NOTEBOOK:
-          this.crud.query.projectType = IMAGE_PROJECT_TYPE.NOTEBOOK;
-          break;
-        case IMAGE_RESOURCE_ENUM.TERMINAL:
-          this.crud.query.projectType = IMAGE_PROJECT_TYPE.TERMINAL;
           break;
         // no default
       }
@@ -452,8 +569,28 @@ export default {
     [CRUD.HOOK.beforeToEdit]() {
       this.isEdit = false;
     },
+    async querySearchAsync(queryString, cb) {
+      let { harborProjectList } = this;
+      harborProjectList = harborProjectList.map((item) => {
+        return { value: item };
+      });
+      const results = queryString
+        ? harborProjectList.filter(this.createFilter(queryString))
+        : harborProjectList;
+      cb(results);
+    },
+    createFilter(queryString) {
+      return (harborProject) => {
+        return harborProject.value.toLowerCase().indexOf(queryString.toLowerCase()) === 0;
+      };
+    },
     async getImageNameList() {
-      this.harborProjectList = await getImageNameList({ projectTypes: [this.form.projectType] });
+      this.harborProjectList = await getImageNameList({
+        imageResource: this.form.imageResource,
+      });
+    },
+    imageResourceChange() {
+      this.getImageNameList();
     },
     onImageTypeChange() {
       this.form.imageName = null;
@@ -476,6 +613,10 @@ export default {
     },
     filterStatus(status) {
       this.localQuery.imageStatus = status;
+      this.crud.toQuery();
+    },
+    filterImageTypes(imageTypes) {
+      this.localQuery.imageTypes = imageTypes;
       this.crud.toQuery();
     },
     resetQuery() {
@@ -516,10 +657,63 @@ export default {
         : { icon: 'el-icon-circle-close', color: '#F56C6C', butText: '设为默认' };
     },
     uploadSizeFomatter,
+
+    async doSetDefaultImage() {
+      // 获取默认镜像
+      const defaultImage = await getDefaultImage();
+      this.noteBookForm.defaultImage = defaultImage.length ? defaultImage[0].imageName : '';
+      this.noteBookForm.defaultTag = defaultImage.length ? defaultImage[0].imageTag : '';
+      this.noteBookForm.id = defaultImage.length ? defaultImage[0].id : '';
+      // 获取镜像列表
+      this.noteBookImages = await getImageNameList({
+        imageTypes: IMAGE_TYPE.NOTEBOOK,
+        imageResource: Number(IMAGE_RESOURCE_ENUM.PRESET),
+      });
+      if (this.noteBookForm.defaultImage) {
+        this.noteBookTags = await getImageTagList({
+          imageName: this.noteBookForm.defaultImage,
+          imageTypes: IMAGE_TYPE.NOTEBOOK,
+          imageResource: Number(IMAGE_RESOURCE_ENUM.PRESET),
+        });
+      } else {
+        this.noteBookTags = [];
+      }
+
+      this.formVisible = true;
+      this.$nextTick(() => {
+        this.clearValidate();
+      });
+    },
+    clearValidate(...args) {
+      this.$refs.noteBookFormRef.clearValidate.apply(this, args);
+    },
+    validateField(field) {
+      this.$refs.noteBookFormRef.validateField(field);
+    },
+    onSubmitForm() {
+      this.$refs.noteBookFormRef.validate((valid) => {
+        if (valid) {
+          this.formSubmitting = true;
+          setDefaultImage({ id: this.noteBookForm.id })
+            .then(() => {
+              this.formVisible = false;
+              this.crud.toQuery();
+            })
+            .finally(() => {
+              this.formSubmitting = false;
+            });
+        }
+      });
+    },
   },
 };
 </script>
 <style lang="scss" scoped>
+.list-head {
+  display: flex;
+  justify-content: space-between;
+}
+
 .el-radio.is-bordered {
   width: 130px;
   height: 35px;

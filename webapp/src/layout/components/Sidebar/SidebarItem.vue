@@ -19,10 +19,15 @@
     <template
       v-if="hasOneShowingChild(item) && (!onlyOneChild.children || onlyOneChild.noShowingChildren)"
     >
-      <app-link v-if="onlyOneChild.meta" :to="resolvePath(onlyOneChild.path)">
+      <app-link v-if="onlyOneChild.meta" :to="resolvePath(onlyOneChild.path)" :route="onlyOneChild">
         <el-menu-item :index="resolvePath(onlyOneChild.path)">
           <item
-            :icon="onlyOneChild.meta.icon || (item.meta && item.meta.icon)"
+            :icon="
+              getIconName(
+                onlyOneChild.path,
+                onlyOneChild.meta.icon || (item.meta && item.meta.icon)
+              )
+            "
             :title="onlyOneChild.meta.title"
           />
         </el-menu-item>
@@ -38,6 +43,7 @@
         :key="child.path"
         :item="child"
         :base-path="resolvePath(child.path)"
+        :active-menu="activeMenu"
       />
     </el-submenu>
   </div>
@@ -63,12 +69,22 @@ export default {
       type: String,
       default: '',
     },
+    activeMenu: {
+      type: String,
+      default: '',
+    },
   },
   data() {
     this.onlyOneChild = null;
     return {};
   },
   methods: {
+    isActive(path) {
+      return this.activeMenu === this.resolvePath(path);
+    },
+    getIconName(path, iconName) {
+      return this.isActive(path) ? `${iconName}-active` : iconName;
+    },
     hasOneShowingChild(parent) {
       const { children = [] } = parent;
       const showingChildren = children.filter((item) => !item.hidden);
@@ -84,6 +100,7 @@ export default {
 
       return false;
     },
+
     resolvePath(routePath) {
       if (isExternal(routePath)) {
         return routePath;

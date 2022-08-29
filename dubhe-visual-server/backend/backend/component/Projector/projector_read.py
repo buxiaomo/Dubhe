@@ -37,12 +37,26 @@ class projector_read:
     def get_data(self):
         # 请求指定step的原始数据
         if self.index is None:
-            for _data in self.data:
-                if _data['step'] == self.step:
-                    return [_data['value'].tolist(), _data['label'].tolist()]
+            # 二分查找step
+            lo, hi = 0, len(self.data)
+            idx = -1
+            while lo < hi:
+                mid = (lo + hi) >> 1
+                if self.data[mid]["step"] == self.step:
+                    idx = mid
+                    break
+                elif self.data[mid]["step"] < self.step:
+                    lo = mid + 1
+                else:
+                    hi = mid
+            if idx != -1:
+                res = [self.data[idx]['value'].tolist(), self.data[idx]['label'].tolist()]
+                return res
+            else:
+                raise ValueError(f'cannot find data in step = {self.step}')
         # 请求样本索引，返回样本图像
         else:
-            _data = self.data[0]
+            _data = self.data[0]['value']
             # 获取指定step
             return {
                 'val': _data['X'][self.index].squeeze(),

@@ -18,6 +18,8 @@ package org.dubhe.dcm.machine.enums;
 
 import org.dubhe.dcm.machine.constant.DcmDataStateCodeConstant;
 
+import java.util.Arrays;
+
 /**
  * @description 数据集状态类
  * @date 2020-08-28
@@ -119,6 +121,15 @@ public enum DcmDataStateEnum {
             }
         }
         return null;
+    }
+
+    /**
+     * 检查当前状态是否可以自动标注
+     *
+     * @return
+     */
+    public static boolean checkCurrentStatusWhetherToAutoLabel(Integer status) {
+        return !Arrays.asList(AUTOMATIC_LABELING_STATE.getCode()).contains(status);
     }
 
 }

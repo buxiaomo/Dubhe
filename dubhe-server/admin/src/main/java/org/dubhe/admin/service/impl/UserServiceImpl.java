@@ -47,6 +47,7 @@ import org.dubhe.admin.service.convert.UserConvert;
 import org.dubhe.biz.base.constant.AuthConst;
 import org.dubhe.biz.base.constant.ResponseCode;
 import org.dubhe.biz.base.constant.UserConstant;
+import org.dubhe.biz.base.context.EncryptVisUser;
 import org.dubhe.biz.base.context.UserContext;
 import org.dubhe.biz.base.dto.*;
 import org.dubhe.biz.base.enums.BaseErrorCodeEnum;
@@ -55,6 +56,7 @@ import org.dubhe.biz.base.exception.BusinessException;
 import org.dubhe.biz.base.exception.CaptchaException;
 import org.dubhe.biz.base.utils.DateUtil;
 import org.dubhe.biz.base.utils.Md5Util;
+import org.dubhe.biz.base.utils.RSAUtil;
 import org.dubhe.biz.base.utils.RandomUtil;
 import org.dubhe.biz.base.utils.RsaEncrypt;
 import org.dubhe.biz.base.vo.DataResponseBody;
@@ -73,6 +75,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cglib.beans.BeanMap;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,6 +84,8 @@ import org.springframework.util.CollectionUtils;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -108,6 +113,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Value("${user.config.gpu-limit}")
     private Integer gpuLimit;
+
+    @Value("${vis.public_key}")
+    private String visPublicKey;
 
     @Autowired
     private UserMapper userMapper;
@@ -781,6 +789,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // 封装用户配置 VO
         UserConfigCreateVO userConfigCreateVO = new UserConfigCreateVO().setId(userConfig.getId());
         return userConfigCreateVO;
+    }
+
+    @Override
+    public String encryptUserForVis(Authentication authentication) {
+        String encodeStr = "";
+        try {
+            JwtUserDTO jwtUser = (JwtUserDTO) authentication.getPrincipal();
+            EncryptVisUser visUser = new EncryptVisUser();
+            BeanUtils.copyProperties(jwtUser.getUser(), visUser);
+            encodeStr = RSAUtil.publicEncrypt(JSONObject.toJSONString(visUser), RSAUtil.getPublicKey(visPublicKey));
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        } catch (InvalidKeySpecException e) {
+            e.printStackTrace();
+        }
+        return encodeStr;
     }
 
 

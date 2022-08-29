@@ -167,7 +167,7 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex';
-import ScalarsPanel from '../scalars/ScalarsPanel';
+import ScalarsPanel from '@/views/visual/Visual/scalars/ScalarsPanel.vue';
 
 const { mapMutations: mapCustomMutations, mapGetters: mapCustomGetters } = createNamespacedHelpers(
   'Visual/custom'

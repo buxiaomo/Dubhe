@@ -360,34 +360,50 @@ export default {
     // 获取远程数据并渲染应用
     const applyState = async (app) => {
       const { caseInfo } = state;
+      // 绘制纯自动标注结果
+      const drawAutoRusult = async () => {
+        const autoResult = await queryAutoResult(caseInfo.id);
+        const {
+          drawings,
+          drawingsDetails,
+          drawingIds,
+          sliceDrawingMap,
+        } = genDrawingFromAnnotations(JSON.parse(autoResult.annotations) || [], state.precision);
+        Object.assign(state, {
+          sliceDrawingMap,
+          annotations: autoResult.annotations,
+          autoAnnotationIds: drawingIds,
+          rawAutoAnnotationIds: drawingIds, // 保留一份原始文件，用于后续比较文件是否被编辑
+        });
+        app.setDrawings(drawings, drawingsDetails);
+      };
+      // 绘制包含手动标注的结果
+      const drawManualRusult = async () => {
+        const manualResult = await queryManualResult(caseInfo.id);
+        const { drawings, drawingsDetails, sliceDrawingMap } = manualResult;
+        Object.assign(state, {
+          sliceDrawingMap,
+        });
+        app.setDrawings(drawings, drawingsDetails);
+      };
       switch (datasetStatusMap[caseInfo.status]?.status) {
         case 'AUTO_ANNOTATED': {
-          // 自动标注结果
-          const autoResult = await queryAutoResult(caseInfo.id);
-          const {
-            drawings,
-            drawingsDetails,
-            drawingIds,
-            sliceDrawingMap,
-          } = genDrawingFromAnnotations(JSON.parse(autoResult.annotations), state.precision);
-          Object.assign(state, {
-            sliceDrawingMap,
-            annotations: autoResult.annotations,
-            autoAnnotationIds: drawingIds,
-            rawAutoAnnotationIds: drawingIds, // 保留一份原始文件，用于后续比较文件是否被编辑
-          });
-          app.setDrawings(drawings, drawingsDetails);
+          drawAutoRusult();
           break;
         }
-        // 手动标注完成，标注中
-        case 'ANNOTATED':
+        // 标注中 注意区分数据集状态 是手动标注导致的，还是自动标注途中被停止的
         case 'ANNOTATING': {
-          const result = await queryManualResult(caseInfo.id);
-          const { drawings, drawingsDetails, sliceDrawingMap } = result;
-          Object.assign(state, {
-            sliceDrawingMap,
-          });
-          app.setDrawings(drawings, drawingsDetails);
+          // caseInfo.stop为true,表示自动标注被停止，结果从自动标注结果的接口取
+          if (caseInfo.stop) {
+            drawAutoRusult();
+          } else {
+            drawManualRusult();
+          }
+          break;
+        }
+        // 手动标注完成
+        case 'ANNOTATED': {
+          drawManualRusult();
           break;
         }
         // 未标注  什么都不做

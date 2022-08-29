@@ -48,6 +48,14 @@ export function list(params) {
     params,
   });
 }
+// 获取医学影像数据集名称
+export function getMedicalDatasets(params) {
+  return request({
+    url: `/${API_MODULE_NAME.DCM}/datasets/medical/list`,
+    method: 'get',
+    params,
+  });
+}
 
 // 数据集详情
 export function detail(id) {
@@ -113,12 +121,22 @@ export function addCustomDataset(data) {
   });
 }
 
-export function autoAnnotate(id) {
-  const data = { medicalId: id };
+export function autoAnnotate(row, data) {
   return request({
     url: `/${API_MODULE_NAME.DCM}/datasets/medical/annotation/auto`,
     method: 'post',
-    data,
+    data: {
+      medicalId: row.id,
+      modelServiceId: data.modelServiceId,
+      fileStatus: data.fileStatus,
+    },
+  });
+}
+
+export function stopRunning(id) {
+  return request({
+    url: `/${API_MODULE_NAME.DCM}/datasets/medical/task/${id}/stop`,
+    method: 'put',
   });
 }
 

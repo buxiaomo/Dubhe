@@ -30,7 +30,9 @@ import org.dubhe.biz.base.context.UserContext;
 import org.dubhe.biz.base.dto.UserDTO;
 import org.dubhe.biz.base.vo.DataResponseBody;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -121,7 +123,7 @@ public class UserController {
 
     @ApiOperation("根据用户昵称搜索用户列表")
     @GetMapping(value = "/findByNickName")
-    public DataResponseBody<List<UserDTO>> findByNickName(@RequestParam(value = "nickName",required = false) String nickName) {
+    public DataResponseBody<List<UserDTO>> findByNickName(@RequestParam(value = "nickName", required = false) String nickName) {
         return new DataResponseBody(userService.findByNickName(nickName));
     }
 
@@ -129,5 +131,11 @@ public class UserController {
     @GetMapping(value = "/findByIds")
     public DataResponseBody<List<UserDTO>> getUserList(@RequestParam(value = "ids") List<Long> ids) {
         return new DataResponseBody(userService.getUserList(ids));
+    }
+
+    @ApiOperation("见微平台专用")
+    @GetMapping("/decryptVisUser")
+    public DataResponseBody<String> encryptVisUser(Authentication authentication) {
+        return new DataResponseBody<>(userService.encryptUserForVis(authentication));
     }
 }

@@ -19,19 +19,17 @@ package org.dubhe.image.service.impl;
 
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.dubhe.biz.base.constant.HarborProperties;
-import org.dubhe.biz.base.constant.MagicNumConstant;
-import org.dubhe.biz.base.constant.ResponseCode;
-import org.dubhe.biz.base.constant.StringConstant;
+import org.apache.commons.compress.utils.Lists;
+import org.dubhe.biz.base.constant.*;
 import org.dubhe.biz.base.context.DataContext;
 import org.dubhe.biz.base.context.UserContext;
-import org.dubhe.biz.base.dto.CommonPermissionDataDTO;
 import org.dubhe.biz.base.enums.DatasetTypeEnum;
 import org.dubhe.biz.base.enums.ImageSourceEnum;
 import org.dubhe.biz.base.enums.ImageStateEnum;
@@ -40,6 +38,7 @@ import org.dubhe.biz.base.exception.BusinessException;
 import org.dubhe.biz.base.service.UserContextService;
 import org.dubhe.biz.base.utils.ReflectionUtils;
 import org.dubhe.biz.base.utils.StringUtils;
+import org.dubhe.biz.base.vo.PtImageVO;
 import org.dubhe.biz.db.utils.PageUtil;
 import org.dubhe.biz.file.config.NfsConfig;
 import org.dubhe.biz.log.enums.LogEnum;
@@ -107,11 +106,11 @@ public class PtImageServiceImpl implements PtImageService {
     /**
      * 查询镜像
      *
-     * @param ptImageQueryDTO       查询镜像条件
+     * @param ptImageQueryDTO 查询镜像条件
      * @return Map<String, Object>  返回镜像分页数据
      **/
     @Override
-    @DataPermissionMethod(dataType = DatasetTypeEnum.PUBLIC)
+    //@DataPermissionMethod(dataType = DatasetTypeEnum.PUBLIC)
     public Map<String, Object> getImage(PtImageQueryDTO ptImageQueryDTO) {
 
         //从会话中获取用户信息
@@ -119,18 +118,17 @@ public class PtImageServiceImpl implements PtImageService {
         Page page = ptImageQueryDTO.toPage();
 
         QueryWrapper<PtImage> query = new QueryWrapper<>();
-
-        if (ptImageQueryDTO.getProjectType().equals(ImageTypeEnum.NOTEBOOK.getType())) {
-            ptImageQueryDTO.setSort("imageResource");
-            DataContext.set(CommonPermissionDataDTO.builder().type(true).build());
-        }
+        query.eq("deleted", NumberConstant.NUMBER_0);
         if (ptImageQueryDTO.getImageStatus() != null) {
             query.eq("image_status", ptImageQueryDTO.getImageStatus());
         }
         if (ptImageQueryDTO.getImageResource() != null) {
             query.eq("image_resource", ptImageQueryDTO.getImageResource());
         }
-        query.eq("project_name", resourcetoName(ptImageQueryDTO.getProjectType()));
+        if (!BaseService.isAdmin(user)) {
+
+            query.in("origin_user_id", user.getId(), 0L);
+        }
 
         if (StringUtils.isNotEmpty(ptImageQueryDTO.getImageNameOrId())) {
             query.and(x -> x.eq("id", ptImageQueryDTO.getImageNameOrId()).or().like("image_name", ptImageQueryDTO.getImageNameOrId()));
@@ -149,7 +147,11 @@ public class PtImageServiceImpl implements PtImageService {
             } else {
                 query.orderByDesc(StringConstant.ID);
             }
-            ptImages = ptImageMapper.selectPage(page, query);
+            if (CollectionUtil.isNotEmpty(ptImageQueryDTO.getImageTypes())) {
+                ptImages = ptImageMapper.getImagesPageByImageTypes(page, query, ptImageQueryDTO.getImageTypes());
+            } else {
+                ptImages = ptImageMapper.getImagesPage(page, query);
+            }
         } catch (Exception e) {
             LogUtil.error(LogEnum.IMAGE, "User {} query image list failed，exception {}", user.getId(), e);
             throw new BusinessException("查询镜像列表展示异常");
@@ -178,10 +180,6 @@ public class PtImageServiceImpl implements PtImageService {
                 !BaseService.isAdmin(user)) {
             throw new BusinessException(ResponseCode.UNAUTHORIZED, "普通用户不支持上传预置镜像!");
         }
-        //notebook镜像只能由管理员上传
-        if (ptImageUploadDTO.getProjectType().equals(ImageTypeEnum.NOTEBOOK.getCode()) && !BaseService.isAdmin(user)) {
-            throw new BusinessException(ResponseCode.UNAUTHORIZED, "该用户不支持上传noteBook镜像!");
-        }
 
         //校验用户自定义镜像不能和预置镜像重名
         List<PtImage> resList = checkUploadImage(ptImageUploadDTO, null, ImageSourceEnum.PRE.getCode());
@@ -195,14 +193,11 @@ public class PtImageServiceImpl implements PtImageService {
             throw new BusinessException(ResponseCode.BADREQUEST, "镜像信息已存在，不允许重复上传!");
         }
 
-        String projectName = ImageTypeEnum.getType(ptImageUploadDTO.getProjectType());
-
-        String harborImagePath = projectName + StrUtil.SLASH + ptImageUploadDTO.getImageName() + StrUtil.DASHED + user.getId() +
+        String harborImagePath = StringConstant.DEFAULT_IMAGE_PROJECT + StrUtil.SLASH + ptImageUploadDTO.getImageName() + StrUtil.DASHED + user.getId() +
                 StrUtil.COLON + ptImageUploadDTO.getImageTag();
         //存储镜像信息
         PtImage ptImage = new PtImage();
         ptImage.setImageName(ptImageUploadDTO.getImageName())
-                .setProjectName(projectName)
                 .setImageUrl(harborImagePath)
                 .setImageResource(ptImageUploadDTO.getImageResource())
                 .setImageStatus(ImageStateEnum.MAKING.getCode())
@@ -214,14 +209,14 @@ public class PtImageServiceImpl implements PtImageService {
         } else {
             ptImage.setOriginUserId(user.getId());
         }
-        //设置notebook镜像为预置镜像
-        if (ptImageUploadDTO.getProjectType().equals(ImageTypeEnum.NOTEBOOK.getCode()) && BaseService.isAdmin(user)) {
-            ptImage.setOriginUserId(0L);
-        }
+
         int count = ptImageMapper.insert(ptImage);
         if (count < 1) {
             imagePushAsync.updateImageStatus(ptImage, ImageStateEnum.FAIL.getCode());
             throw new BusinessException("内部错误!");
+        }
+        for (Integer imageType : ptImageUploadDTO.getImageTypes()) {
+            ptImageMapper.insertImageType(ptImage.getId(), imageType);
         }
         //shell脚本上传镜像
         try {
@@ -237,19 +232,26 @@ public class PtImageServiceImpl implements PtImageService {
     /**
      * 获取镜像信息
      *
-     * @param ptImageQueryImageDTO      查询条件
+     * @param ptImageQueryImageDTO 查询条件
      * @return List<String>  通过imageName查询所含镜像版本信息
      */
     @Override
     @DataPermissionMethod(dataType = DatasetTypeEnum.PUBLIC)
     public List<PtImage> searchImages(PtImageQueryImageDTO ptImageQueryImageDTO) {
         LambdaQueryWrapper<PtImage> queryWrapper = new LambdaQueryWrapper<>();
-        if (ptImageQueryImageDTO.getProjectType() != null) {
-            queryWrapper.eq(PtImage::getProjectName, resourcetoName(ptImageQueryImageDTO.getProjectType()));
-        }
         queryWrapper.eq(PtImage::getImageName, ptImageQueryImageDTO.getImageName())
-                .eq(PtImage::getImageStatus, ImageStateEnum.SUCCESS.getCode());
-        List<PtImage> ptImages = ptImageMapper.selectList(queryWrapper);
+                .eq(PtImage::getImageStatus, ImageStateEnum.SUCCESS.getCode())
+                .eq(PtImage::getDeleted, NumberConstant.NUMBER_0);
+        List<PtImage> ptImages = new ArrayList<>();
+        if (ptImageQueryImageDTO.getImageResource() != null) {
+            queryWrapper.eq(PtImage::getImageResource, ptImageQueryImageDTO.getImageResource());
+        }
+        if (CollectionUtil.isEmpty(ptImageQueryImageDTO.getImageTypes())) {
+            ptImages = ptImageMapper.selectList(queryWrapper);
+        } else {
+            ptImages = ptImageMapper.getImagesByTypes(queryWrapper, ptImageQueryImageDTO.getImageTypes());
+        }
+
         List<PtImage> list = new ArrayList<>();
         if (CollUtil.isEmpty(ptImages)) {
             throw new BusinessException(ResponseCode.BADREQUEST, "未查询到镜像信息!");
@@ -329,29 +331,52 @@ public class PtImageServiceImpl implements PtImageService {
             throw new BusinessException("内部错误");
         }
         for (PtImage image : imageList) {
-            //禁止修改预置镜像
-            if (ImageSourceEnum.PRE.getCode().equals(image.getImageResource())) {
-                throw new BusinessException("无法修改预置镜像信息");
+            //非管理员禁止修改预置镜像
+            if (ImageSourceEnum.PRE.getCode().equals(image.getImageResource()) && !BaseService.isAdmin(curUser)) {
+                throw new BusinessException("非管理员无权限修改预置镜像信息");
             }
             image.setRemark(imageUpdateDTO.getRemark());
             ptImageMapper.updateById(image);
+            List<Integer> imageTypes = ptImageMapper.selectImageType(image.getId());
+            for (Integer imageType : imageUpdateDTO.getImageTypes()) {
+                if (!CollectionUtil.contains(imageTypes, imageType)) {
+                    ptImageMapper.insertImageType(image.getId(), imageType);
+                }
+            }
+            for (Integer imageType : imageTypes) {
+                if (!CollectionUtil.contains(imageUpdateDTO.getImageTypes(), imageType)) {
+                    ptImageMapper.deleteImageType(image.getId(), imageType);
+                }
+            }
         }
     }
 
     /**
      * 获取镜像名称列表
+     *
      * @param ptImageQueryNameDTO 获取镜像名称列表查询条件
      * @return Set<String> 镜像列表
      */
     @Override
-    @DataPermissionMethod(dataType = DatasetTypeEnum.PUBLIC)
     public Set<String> getImageNameList(PtImageQueryNameDTO ptImageQueryNameDTO) {
-        List<String> projectTypes = new ArrayList<>();
-        ptImageQueryNameDTO.getProjectTypes().forEach(x ->
-                projectTypes.add(ImageTypeEnum.getType(x)));
-        List<PtImage> imageList = ptImageMapper.selectList(new LambdaQueryWrapper<PtImage>()
-                .in(PtImage::getProjectName, projectTypes)
-                .eq(PtImage::getImageStatus, ImageStateEnum.SUCCESS.getCode()));
+        //从会话中获取用户信息
+        UserContext user = userContextService.getCurUser();
+        QueryWrapper<PtImage> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("image_status", ImageStateEnum.SUCCESS.getCode());
+        queryWrapper.eq("deleted", NumberConstant.NUMBER_0);
+        if (!BaseService.isAdmin(user)) {
+
+            queryWrapper.in("origin_user_id", user.getId(), 0L);
+        }
+        if (ptImageQueryNameDTO.getImageResource() != null) {
+            queryWrapper.eq("image_resource", ptImageQueryNameDTO.getImageResource());
+        }
+        List<PtImage> imageList = new ArrayList<>();
+        if (CollectionUtil.isEmpty(ptImageQueryNameDTO.getImageTypes())) {
+            imageList = ptImageMapper.selectList(queryWrapper);
+        } else {
+            imageList = ptImageMapper.getImagesByTypes(queryWrapper, ptImageQueryNameDTO.getImageTypes());
+        }
         Set<String> imageNames = new HashSet<>();
         imageList.forEach(image -> {
             imageNames.add(image.getImageName());
@@ -360,23 +385,22 @@ public class PtImageServiceImpl implements PtImageService {
     }
 
     /**
-     * 修改镜像来源(notebook定制)
+     * 设置Notebook默认镜像
      *
      * @param id 镜像id
      */
     @Override
-    public void updImageResource(Long id) {
+    public void updImageDefault(Long id) {
         UserContext user = userContextService.getCurUser();
-        UpdateWrapper<PtImage> updateWrapper = new UpdateWrapper<>();
-        //notebook镜像只能由管理员上传
+        //notebook默认镜像只能由管理员设置
         if (!BaseService.isAdmin(user)) {
             throw new BusinessException(ResponseCode.UNAUTHORIZED, "该用户无权限修改镜像状态!");
         }
 
         //校验id是否存在
-        PtImage image = ptImageMapper.selectById(id);
-        if (image == null || !ImageTypeEnum.NOTEBOOK.getCode().equals(image.getProjectName())) {
-            throw new BusinessException(ResponseCode.BADREQUEST, "该镜像不存在或镜像类型不支持!");
+        PtImage image = ptImageMapper.getImageById(id);
+        if (image == null || !image.getImageTypes().contains(0)) {
+            throw new BusinessException(ResponseCode.BADREQUEST, "该镜像不存在或镜像用途不支持!");
         }
 
         //仅支持[制作成功]状态镜像设置为默认镜像
@@ -384,16 +408,27 @@ public class PtImageServiceImpl implements PtImageService {
             throw new BusinessException(ResponseCode.BADREQUEST, "仅支持[制作成功]状态镜像设置为默认镜像!");
         }
 
-        //修改该用户的notebook镜像为"我的镜像"
-        updateWrapper.eq("project_name", ImageTypeEnum.NOTEBOOK.getCode());
-        updateWrapper.eq("image_resource", ImageSourceEnum.PRE.getCode());
-        updateWrapper.set("image_resource", ImageSourceEnum.MINE.getCode());
+        if (image.getImageResource() != ImageSourceEnum.PRE.getCode()) {
+            throw new BusinessException(ResponseCode.BADREQUEST, "非预制镜像不能设置为默认镜像!");
+        }
+
+        List<PtImage> defaultImages = ptImageMapper.getImageByDefault(1);
+        List<Long> defaultImageIds = defaultImages.stream().map(defaultImage -> defaultImage.getId()).collect(Collectors.toList());
+        //修改该notebook镜像为"默认镜像"
+        UpdateWrapper<PtImage> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.in("id", defaultImageIds);
+        updateWrapper.set("is_default", NumberConstant.NUMBER_0);
         ptImageMapper.update(null, updateWrapper);
 
         PtImage ptImage = new PtImage();
         ptImage.setId(id);
-        ptImage.setImageResource(ImageSourceEnum.PRE.getCode());
+        ptImage.setIsDefault(NumberConstant.NUMBER_1);
         ptImageMapper.updateById(ptImage);
+    }
+
+    @Override
+    public List<PtImage> getImageDefault() {
+        return ptImageMapper.getImageByDefault(NumberConstant.NUMBER_1);
     }
 
     /**
@@ -406,9 +441,6 @@ public class PtImageServiceImpl implements PtImageService {
     @DataPermissionMethod(dataType = DatasetTypeEnum.PUBLIC)
     public String getImageUrl(PtImageQueryUrlDTO imageQueryUrlDTO) {
         LambdaQueryWrapper<PtImage> queryWrapper = new LambdaQueryWrapper<>();
-        if (imageQueryUrlDTO.getProjectType() != null && ImageTypeEnum.NOTEBOOK.getType().equals(imageQueryUrlDTO.getProjectType())) {
-            DataContext.set(CommonPermissionDataDTO.builder().type(true).build());
-        }
         if (imageQueryUrlDTO.getImageResource() != null) {
             queryWrapper.eq(PtImage::getImageResource, imageQueryUrlDTO.getImageResource());
         }
@@ -418,11 +450,17 @@ public class PtImageServiceImpl implements PtImageService {
         if (StrUtil.isNotEmpty(imageQueryUrlDTO.getImageTag())) {
             queryWrapper.eq(PtImage::getImageTag, imageQueryUrlDTO.getImageTag());
         }
-        if (imageQueryUrlDTO.getProjectType() != null) {
-            queryWrapper.eq(PtImage::getProjectName, resourcetoName(imageQueryUrlDTO.getProjectType()));
+        if (imageQueryUrlDTO.getIsDefault() != null) {
+            queryWrapper.eq(PtImage::getIsDefault, imageQueryUrlDTO.getIsDefault());
         }
         queryWrapper.eq(PtImage::getImageStatus, ImageStateEnum.SUCCESS.getCode());
-        List<PtImage> imageList = ptImageMapper.selectList(queryWrapper);
+        queryWrapper.eq(PtImage::getDeleted, NumberConstant.NUMBER_0);
+        List<PtImage> imageList = new ArrayList<>();
+        if (CollectionUtil.isNotEmpty(imageQueryUrlDTO.getImageTypes())) {
+            imageList = ptImageMapper.getImagesByTypes(queryWrapper, imageQueryUrlDTO.getImageTypes());
+        } else {
+            imageList = ptImageMapper.selectList(queryWrapper);
+        }
 
         if (CollUtil.isEmpty(imageList)) {
             throw new BusinessException("未查询到镜像信息");
@@ -448,13 +486,14 @@ public class PtImageServiceImpl implements PtImageService {
     public List<PtImage> getTerminalImageList() {
         UserContext user = userContextService.getCurUser();
         LambdaQueryWrapper<PtImage> queryTerminalWrapper = new LambdaQueryWrapper<>();
-        queryTerminalWrapper.eq(PtImage::getProjectName, ImageTypeEnum.TERMINAL.getCode())
-                .eq(PtImage::getImageStatus, ImageStateEnum.SUCCESS.getCode());
+        queryTerminalWrapper.eq(PtImage::getImageStatus, ImageStateEnum.SUCCESS.getCode()).eq(PtImage::getDeleted, NumberConstant.NUMBER_0);;
         if (user != null && !BaseService.isAdmin()) {
-            queryTerminalWrapper.and(wrapper -> wrapper.eq(PtImage::getCreateUserId, user.getId()).or().eq(PtImage::getImageResource, ImageSourceEnum.PRE.getCode()));
+            queryTerminalWrapper.and(wrapper -> wrapper.eq(PtImage::getCreateUserId, user.getId()).or().eq(PtImage::getImageResource, ImageSourceEnum.PRE.getCode()))
+                    .and(wrapper -> wrapper.eq(PtImage::getDeleted, NumberConstant.NUMBER_0));
         }
-
-        List<PtImage> terminalImages = ptImageMapper.selectList(queryTerminalWrapper);
+        List<Integer> terminalImageType = new ArrayList<>();
+        terminalImageType.add(ImageTypeEnum.TERMINAL.getType());
+        List<PtImage> terminalImages = ptImageMapper.getImagesByTypes(queryTerminalWrapper, terminalImageType);
 
         List<PtImage> list = new ArrayList<>();
         if (CollUtil.isEmpty(terminalImages)) {
@@ -470,8 +509,8 @@ public class PtImageServiceImpl implements PtImageService {
 
 
     /**
-     * @param ptImageUploadDTO  镜像上传逻辑校验
-     * @param user              用户
+     * @param ptImageUploadDTO 镜像上传逻辑校验
+     * @param user             用户
      * @return List<PtImage>    镜像列表
      **/
     @DataPermissionMethod(dataType = DatasetTypeEnum.PUBLIC)
@@ -490,17 +529,33 @@ public class PtImageServiceImpl implements PtImageService {
         return imageList;
     }
 
-    /**
-     * 项目类型转换为项目名称
-     *
-     * @param projectType 项目类型
-     * @return String 镜像项目名称
-     */
-    private static String resourcetoName(Integer projectType) {
-        String projectName = ImageTypeEnum.getType(projectType);
-        if (StrUtil.isEmpty(projectName)) {
-            throw new BusinessException("上传镜像项目类型不支持");
+    @Override
+    public PtImageVO getById(Long id) {
+        PtImage ptImage=ptImageMapper.getImageById(id);
+        if(Objects.isNull(ptImage)){
+            return null;
         }
-        return projectName;
+        PtImageVO ptImageVO =new PtImageVO();
+        ptImageVO.setName(ptImage.getImageName());
+        ptImageVO.setId(ptImage.getId());
+        ptImageVO.setImageUrl(ptImage.getImageUrl());
+        return ptImageVO;
+    }
+
+    @Override
+    public List<PtImageVO> listByIds(List<Long> ids) {
+        List<PtImageVO> ptImageVOS = Lists.newArrayList();
+        List<PtImage> ptImages = ptImageMapper.selectBatchIds(ids);
+
+        ptImages.stream().forEach(
+                ptImage -> {
+                    PtImageVO ptImageVO =new PtImageVO();
+                    ptImageVO.setId(ptImage.getId());
+                    ptImageVO.setName(ptImage.getImageName());
+                    ptImageVO.setTag(ptImage.getImageTag());
+                    ptImageVOS.add(ptImageVO);
+                }
+        );
+        return ptImageVOS;
     }
 }

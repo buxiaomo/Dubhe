@@ -50,7 +50,6 @@ import org.dubhe.tadl.service.ExperimentService;
 import org.dubhe.tadl.service.TadlRedisService;
 import org.dubhe.tadl.service.TadlTrialService;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,7 +80,6 @@ public class TrialJobAsyncTask {
     private ResourceCache resourceCache;
 
     @Resource
-    @Lazy
     private TadlRedisService tadlRedisService;
 
     @Resource
@@ -150,7 +148,7 @@ public class TrialJobAsyncTask {
      */
     @Transactional(rollbackFor = Exception.class)
     public void deleteTrialList(List<TrialDeleteDTO> trialDeleteDTOList) {
-        //三次重试均反馈失败则给予删除失败结果
+       //三次重试均反馈失败则给予删除失败结果
         int tryTime = 1;
         while (!trialDeleteDTOList.isEmpty()){
             //重试三次

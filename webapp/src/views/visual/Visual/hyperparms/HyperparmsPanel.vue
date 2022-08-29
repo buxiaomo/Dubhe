@@ -14,6 +14,72 @@
  * =============================================================
  */
 
+<style lang="less" scoped>
+.information {
+  margin-bottom: 6%;
+  font-size: 11px;
+  text-align: left;
+}
+
+.infoTitle {
+  padding: 2% 2% 2% 5%;
+  font-size: 12px;
+  color: white;
+  text-align: left;
+  background-color: rgb(96, 97, 173);
+  border-bottom: 1px solid #8f8ad7;
+}
+
+.infoContent {
+  padding: 2% 5% 5% 5%;
+}
+
+.el-select-dropdown__item.selected {
+  color: #8f8ad7;
+}
+
+.hypPanelSelect {
+  margin: 5% 0 8% 0;
+}
+
+.hypPanelSelect .el-select {
+  width: 60%;
+  margin-left: 10%;
+}
+
+.hypScale {
+  margin: 5% 0 0 12%;
+}
+
+.infoItem {
+  margin-top: 5%;
+}
+
+.display {
+  margin: 3.5% 1% 5% 1%;
+  overflow-y: auto;
+  background-color: white;
+  border-radius: 2px 2px 0 0;
+  box-shadow: rgba(0, 0, 0, 0.2) 0 0 5px;
+}
+
+.iconfont {
+  margin-right: 7px;
+  font-family: 'iconfont' !important;
+  font-size: 13px;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.el-select-dropdown__item.selected {
+  color: #625eb3;
+}
+
+.el-select-dropdown__item {
+  font-size: 11px;
+}
+</style>
 <template>
   <div class="temp">
     <div class="information">
@@ -39,30 +105,30 @@
               <span>坐标尺度:</span>
               <el-row>
                 <div v-for="(item, index) in getAxisParms" :key="index">
-                  <div class="hypScale">
-                    <el-col :span="8"
-                      ><div>{{ item }}:</div></el-col
-                    >
-                    <el-col :span="8"
-                      ><div>
+                  <div class="hypScale" style="align: left;">
+                    <el-col :span="8">
+                      <div>{{ item }}:</div>
+                    </el-col>
+                    <el-col :span="8">
+                      <div>
                         <el-radio
                           v-model="getAxisType[item]"
                           label="linear"
                           @change="changeData('linear', item)"
                           >Linear</el-radio
                         >
-                      </div></el-col
-                    >
-                    <el-col :span="8"
-                      ><div>
+                      </div>
+                    </el-col>
+                    <el-col :span="8">
+                      <div>
                         <el-radio
                           v-model="getAxisType[item]"
                           label="log"
                           @change="changeData('log', item)"
                           >Log</el-radio
                         >
-                      </div></el-col
-                    >
+                      </div>
+                    </el-col>
                   </div>
                   <br />
                 </div>
@@ -125,7 +191,6 @@ const {
 export default {
   data() {
     return {
-      // items: [],
       selected: '',
       focusData: [],
       keys: [],
@@ -193,14 +258,14 @@ export default {
       const calcItems = this.getMainParams;
       const format = d3.format('.2f');
       let res = [];
-      calcItems.forEach((d) => {
-        const maxData = d3.max(data, (i) => {
+      calcItems.forEach(function(d) {
+        const maxData = d3.max(data, function(i) {
           return +i[d];
         });
-        const minData = d3.min(data, (i) => {
+        const minData = d3.min(data, function(i) {
           return +i[d];
         });
-        const meanData = d3.mean(data, (i) => {
+        const meanData = d3.mean(data, function(i) {
           return +i[d];
         });
         const temp = {
@@ -218,68 +283,8 @@ export default {
   },
 };
 </script>
-<style lang="less" scoped>
-.information {
-  margin-bottom: 6%;
-  font-size: 11px;
-  text-align: left;
-}
-
-.infoTitle {
-  padding: 2% 2% 2% 5%;
-  font-size: 12px;
-  color: white;
-  text-align: left;
-  background-color: rgb(96, 97, 173);
-  border-bottom: 1px solid #8f8ad7;
-}
-
-.infoContent {
-  padding: 2% 5% 5% 5%;
-}
-
-.hypPanelSelect {
-  margin: 5% 0 8% 0;
-}
-
-.hypPanelSelect .el-select {
-  width: 60%;
-  margin-left: 10%;
-}
-
-.hypScale {
-  margin: 5% 0 0 12%;
-}
-
-.infoItem {
-  margin-top: 5%;
-}
-
-.display {
-  margin: 3.5% 1% 5% 1%;
-  overflow-y: auto;
-  background-color: white;
-  border-radius: 2px 2px 0 0;
-  box-shadow: rgba(0, 0, 0, 0.2) 0 0 5px;
-}
-
-.iconfont {
-  margin-right: 7px;
-  font-size: 13px;
-  font-style: normal;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-.el-select-dropdown__item.selected {
-  color: #625eb3;
-}
-
-.el-select-dropdown__item {
-  font-size: 11px;
-}
-
-/deep/ .information .el-input__inner {
+<style>
+.information .el-input__inner {
   height: 30px;
   font-size: 11px;
   line-height: 30px;
@@ -288,64 +293,64 @@ export default {
   border-radius: 50px;
 }
 
-/deep/ .information .el-input__inner:focus {
+.information .el-input.is-focus .el-input__inner {
   border-color: #8c89c7;
 }
 
-/deep/ .information .el-input.is-focus .el-input__inner {
+.information .el-input__inner:focus {
   border-color: #8c89c7;
 }
 
-/deep/ .information .el-input__icon {
+.information .el-input__icon {
   line-height: 30px;
 }
 
-/deep/ .information .el-select:hover .el-input__inner {
+.information .el-select:hover .el-input__inner {
   border-color: #625eb3;
 }
 
-/deep/ .hypScale .el-radio__inner:hover {
-  border-color: #8f8ad7;
-}
-
-/deep/ .hypScale .el-radio__input.is-checked .el-radio__inner {
+.hypScale .el-radio__input.is-checked .el-radio__inner {
   background: #8f8ad7;
   border-color: #8f8ad7;
 }
 
-/deep/ .hypScale .el-radio__input + .el-radio__label {
-  font-size: 11px;
+.hypScale .el-radio__inner:hover {
+  border-color: #8f8ad7;
 }
 
-/deep/ .hypScale .el-radio__input.is-checked + .el-radio__label {
+.hypScale .el-radio__input.is-checked + .el-radio__label {
   font-size: 11px;
   color: #8f8ad7;
 }
 
-/deep/ .hypTable .el-table {
+.hypTable .el-table {
   font-size: 11px;
 }
 
-/deep/ .hypTable .el-table .cell {
+.hypScale .el-radio__input + .el-radio__label {
+  font-size: 11px;
+}
+
+.hypTable .el-table .cell {
   line-height: 14px;
 }
 
-/deep/ .information .el-card__body {
+.information .el-card__body {
   padding: 0;
   border-radius: 0 0 3px 3px;
 }
 
-/deep/ .information .el-card {
+.information .el-card {
   margin: 3.5% 5% 4% 0%;
   border-top: 0;
 }
 
-/deep/ .information .el-input .el-select__caret {
+.information .el-input .el-select__caret {
   font-size: 20px;
   color: #9492cb;
 }
 
-/deep/ .information [class*=' el-icon-'],
+.information [class*=' el-icon-'],
 [class^='el-icon-'] {
   font-weight: 900;
 }

@@ -17,6 +17,7 @@
 <style lang="less" scoped>
 .medias {
   width: 100%;
+  // position: absolute;
   height: 100%;
   overflow-y: auto;
   background-color: white;
@@ -47,6 +48,7 @@
 <template>
   <div>
     <div class="medias">
+      <!-- v-if="totaltag != ''" -->
       <div :class="['display-panel']">
         <div v-for="(value, name, index) in totaltag" :key="index">
           <component
@@ -73,6 +75,7 @@ const {
   mapMutations: mapMediaMutations,
   mapActions: mapMediaActions,
 } = createNamespacedHelpers('Visual/media');
+const { mapGetters: mapLayoutGetters } = createNamespacedHelpers('Visual/layout');
 export default {
   components: {
     images,
@@ -95,7 +98,14 @@ export default {
     next();
   },
   computed: {
-    ...mapMediaGetters(['categoryInfo', 'getTotaltag', 'getFreshInfo', 'getErrorMessage']),
+    ...mapMediaGetters([
+      'categoryInfo',
+      'getTotaltag',
+      'getFreshInfo',
+      'getErrorMessage',
+      'getIntervalChange',
+    ]),
+    ...mapLayoutGetters(['getTimer']),
   },
   watch: {
     categoryInfo() {
@@ -106,6 +116,14 @@ export default {
         message: val.split('_')[0],
         type: 'error',
       });
+    },
+    // 实时监听layout的getTimer
+    getIntervalChange() {
+      if (!this.settotaltag) {
+        return;
+      }
+      this.settotaltag();
+      this.totaltag = this.getTotaltag;
     },
   },
   mounted() {
@@ -126,9 +144,9 @@ export default {
       this.data = [].concat(JSON.parse(JSON.stringify(this.categoryInfo)));
       this.totaltag = {};
       let param = {};
-      for (let i = 0; i < this.data[1].length; i += 1) {
+      for (let i = 0; i < this.data[1].length; i++) {
         param = JSON.parse(JSON.stringify(this.data[1][i]));
-        for (let j = 0; j < Object.keys(param).length; j += 1) {
+        for (let j = 0; j < Object.keys(param).length; j++) {
           if (this.totaltag[Object.keys(param)[j]] === undefined) {
             this.totaltag[Object.keys(param)[j]] = [];
           }

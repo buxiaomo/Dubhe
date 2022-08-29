@@ -70,7 +70,7 @@ public class DatasetCreateDTO implements Serializable {
     @EnumValue(enumClass = DatatypeEnum.class, enumMethod = "isValid", message = Constant.DATA_TYPE_RULE, groups = Create.class)
     private Integer dataType;
 
-    @ApiModelProperty(notes = "标注类型：2分类,1目标检测,5目标跟踪 6 文本分类")
+    @ApiModelProperty(notes = "标注类型：101分类,102目标检测,201目标跟踪 301文本分类")
     @NotNull(message = "数据用于标注的类型不能为空", groups = Create.class)
     @EnumValue(enumClass = AnnotateTypeEnum.class, enumMethod = "isValid", message = Constant.ANNOTATE_TYPE_RULE, groups = Create.class)
     private Integer annotateType;
@@ -85,6 +85,11 @@ public class DatasetCreateDTO implements Serializable {
     @TableField(value = "is_import")
     private boolean isImport;
 
+    @ApiModelProperty(value = "模板")
+    private Integer templateType;
+
+    @ApiModelProperty(value = "所属模块")
+    private Integer module;
 
     public @interface Create {
     }
@@ -98,6 +103,7 @@ public class DatasetCreateDTO implements Serializable {
     public static Dataset from(DatasetCreateDTO datasetCreateDTO) {
         Dataset dataset = new Dataset(datasetCreateDTO);
         dataset.setStatus(DataStateCodeConstant.NOT_ANNOTATION_STATE);
+        dataset.setModule(datasetCreateDTO.getModule());
         return dataset;
     }
 

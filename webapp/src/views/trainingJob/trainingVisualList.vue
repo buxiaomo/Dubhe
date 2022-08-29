@@ -45,7 +45,7 @@ export default {
       const { href } = root.$router.resolve({
         name: 'VISUAL',
         query: {
-          id: root.$store.getters.user.id,
+          id: row.createUserId,
           trainJobName: row.jobName,
         },
       });

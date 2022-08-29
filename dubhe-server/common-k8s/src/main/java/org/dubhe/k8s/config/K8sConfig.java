@@ -23,38 +23,8 @@ import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.dubhe.biz.log.enums.LogEnum;
 import org.dubhe.biz.log.utils.LogUtil;
-import org.dubhe.k8s.api.DistributeTrainApi;
-import org.dubhe.k8s.api.DubheDeploymentApi;
-import org.dubhe.k8s.api.JupyterResourceApi;
-import org.dubhe.k8s.api.LimitRangeApi;
-import org.dubhe.k8s.api.LogMonitoringApi;
-import org.dubhe.k8s.api.MetricsApi;
-import org.dubhe.k8s.api.ModelOptJobApi;
-import org.dubhe.k8s.api.ModelServingApi;
-import org.dubhe.k8s.api.NamespaceApi;
-import org.dubhe.k8s.api.NativeResourceApi;
-import org.dubhe.k8s.api.NodeApi;
-import org.dubhe.k8s.api.PersistentVolumeClaimApi;
-import org.dubhe.k8s.api.PodApi;
-import org.dubhe.k8s.api.ResourceQuotaApi;
-import org.dubhe.k8s.api.TerminalApi;
-import org.dubhe.k8s.api.TrainJobApi;
-import org.dubhe.k8s.api.impl.DistributeTrainApiImpl;
-import org.dubhe.k8s.api.impl.DubheDeploymentApiImpl;
-import org.dubhe.k8s.api.impl.JupyterResourceApiImpl;
-import org.dubhe.k8s.api.impl.LimitRangeApiImpl;
-import org.dubhe.k8s.api.impl.LogMonitoringApiImpl;
-import org.dubhe.k8s.api.impl.MetricsApiImpl;
-import org.dubhe.k8s.api.impl.ModelOptJobApiImpl;
-import org.dubhe.k8s.api.impl.ModelServingApiImpl;
-import org.dubhe.k8s.api.impl.NamespaceApiImpl;
-import org.dubhe.k8s.api.impl.NativeResourceApiImpl;
-import org.dubhe.k8s.api.impl.NodeApiImpl;
-import org.dubhe.k8s.api.impl.PersistentVolumeClaimApiImpl;
-import org.dubhe.k8s.api.impl.PodApiImpl;
-import org.dubhe.k8s.api.impl.ResourceQuotaApiImpl;
-import org.dubhe.k8s.api.impl.TerminalApiImpl;
-import org.dubhe.k8s.api.impl.TrainJobApiImpl;
+import org.dubhe.k8s.api.*;
+import org.dubhe.k8s.api.impl.*;
 import org.dubhe.k8s.cache.ResourceCache;
 import org.dubhe.k8s.properties.ClusterProperties;
 import org.dubhe.k8s.utils.K8sUtils;
@@ -92,6 +62,19 @@ public class K8sConfig {
     @Value("${k8s.elasticsearch.hostlist}")
     private String hostlist;
 
+    @Value("${clusters[0].cluster.certificate-authority-data}")
+    private String certificateAuthorityData;
+
+    @Value("${clusters[0].cluster.server}")
+    private String server;
+
+    @Value("${users[0].user.client-certificate-data}")
+    private String clientCertificateData;
+
+    @Value("${users[0].user.client-key-data}")
+    private String clientKeyData;
+
+
     @Bean
     public K8sUtils k8sUtils() throws IOException {
         LogUtil.debug(LogEnum.BIZ_K8S, "ClusterProperties======{}", JSONObject.toJSONString(clusterProperties));
@@ -105,7 +88,7 @@ public class K8sConfig {
         if (StrUtil.isEmpty(url) && StrUtil.isEmpty(kubeconfig)) {
             return null;
         }
-        return new K8sUtils(clusterProperties);
+        return new K8sUtils(clusterProperties,certificateAuthorityData,server,clientCertificateData,clientKeyData);
     }
 
     @Bean
@@ -217,4 +200,8 @@ public class K8sConfig {
         return new TerminalApiImpl(k8sUtils);
     }
 
+    @Bean
+    public ModelServiceApi modelServiceApi(K8sUtils k8sUtils){
+        return new ModelServiceApiImpl(k8sUtils);
+    }
 }

@@ -17,6 +17,7 @@ the License. * ============================================================= */
     <el-form
       v-show="active === 'page'"
       ref="formRef"
+      :key="steps"
       :model="form"
       :disabled="type === 'check'"
       :rules="rules"
@@ -136,14 +137,13 @@ the License. * ============================================================= */
             style="width: 200px;"
           />
         </el-form-item>
-        <el-form-item ref="maxExecDuration" label="现阶段最大运行时间" prop="maxExecDuration">
+        <el-form-item label="现阶段最大运行时间" prop="max_exec_duration">
           <el-input
             id="maxExecDuration"
             v-model="pageForm.max_exec_duration"
             placeholder="请输入时间"
             clearable
             style="width: 200px;"
-            @change="onMaxExecDurationChange"
           />
           <InfoSelect
             v-model="pageForm.max_exec_duration_unit"
@@ -174,7 +174,12 @@ the License. * ============================================================= */
       </template>
     </el-form>
     <div v-show="active === 'params'" style="position: relative; height: 500px;">
-      <YamlEditor ref="yamlRef" :value="yamlValue" :read-only="steps === 0 || type === 'check'" />
+      <YamlEditor
+        ref="yamlRef"
+        :value="yamlValue"
+        :read-only="steps === 0 || type === 'check'"
+        @changed="onYamlChange"
+      />
     </div>
   </div>
 </template>
@@ -189,8 +194,8 @@ import { parseYamlParams } from '@/api/tadl/strategy';
 import InfoSelect from '@/components/InfoSelect';
 import YamlEditor from '@/components/YamlEditor/index';
 import { propertyAssign } from '@/utils';
-import { timeFmts, getModelByCode } from '../../util';
-import { modifyTime, isNull } from '../util';
+import { timeFmts, getModelByCode, getPublicRules } from '../../util';
+import { modifyTime, isNull, humpShiftUnderline } from '../util';
 
 const defaultCreateForm = {
   default_metric: null, // 默认指标
@@ -257,6 +262,10 @@ export default {
       maxExecDuration: null,
     });
 
+    const publicRules = computed(() =>
+      humpShiftUnderline(getPublicRules(pageForm, 'max_exec_duration_unit'))
+    );
+
     const rules = {
       description: [{ required: true, message: '请输入算法描述', trigger: ['blur', 'change'] }],
       datasetId: [
@@ -274,60 +283,7 @@ export default {
           },
         },
       ],
-      maxExecDuration: [
-        {
-          required: true,
-          validator: (rule, value, callback) => {
-            if (!pageForm.max_exec_duration) {
-              callback(new Error('请输入时间'));
-            }
-            // eslint-disable-next-line no-restricted-globals
-            if (isNaN(Number(pageForm.max_exec_duration))) {
-              callback(new Error('时间为数值'));
-            }
-            if (Number(pageForm.max_exec_duration) <= 0) {
-              callback(new Error('时间需要大于 0'));
-            }
-            if (!pageForm.max_exec_duration_unit) {
-              callback(new Error('请选择时间单位'));
-            }
-            callback();
-          },
-          trigger: 'blur',
-        },
-      ],
-      max_trial_num: [
-        { required: true, message: '请输入最大Trial次数', trigger: ['blur', 'change'] },
-        { type: 'number', message: '所填必须为数字' },
-        {
-          validator: (rule, value, callback) => {
-            if (!value && value !== 0) {
-              callback();
-            }
-            if (value <= 0) {
-              callback(new Error('最大Trial次数需要大于 0'));
-            }
-            callback();
-          },
-          trigger: ['blur', 'change'],
-        },
-      ],
-      trial_concurrent_num: [
-        { required: true, message: '请输入Trial并发数量', trigger: ['blur', 'change'] },
-        { type: 'number', message: '所填必须为数字' },
-        {
-          validator: (rule, value, callback) => {
-            if (!value && value !== 0) {
-              callback();
-            }
-            if (value <= 0) {
-              callback(new Error('Trial并发数量需要大于 0'));
-            }
-            callback();
-          },
-          trigger: ['blur', 'change'],
-        },
-      ],
+      ...publicRules.value,
     };
 
     const form = computed(() => (props.steps === 0 ? createForm : pageForm));
@@ -382,20 +338,14 @@ export default {
       refs.datasetId.validate('manual');
     };
 
-    // 最大运行时间
-    const onMaxExecDurationChange = (value) => {
-      // 先移除非数字和小数点字符，然后调用系统浮点数解析
-      const float = parseFloat(value.replace(/[^\d.]/g, ''));
-      pageForm.max_exec_duration = Number.isNaN(float) ? 0 : float;
-    };
-
     // yaml语法转换
     const yamlLoad = () => {
       try {
+        const datasetName = pageForm.dataset_name; // 备份dataset_name
         // 将yaml字符转换成yaml对象格式
-        data.yamlParams = yaml.load(refs.yamlRef.getValue() || data.yamlValue);
+        data.yamlParams = yaml.load(data.yamlValue);
         propertyAssign(form.value, data.yamlParams, (val) => !isNull(val));
-
+        pageForm.dataset_name = datasetName;
         if ('command' in data.yamlParams)
           [pageForm.python_version, pageForm.execute_script] = data.yamlParams.command.split(' ');
         if ('max_exec_duration' in data.yamlParams)
@@ -406,6 +356,10 @@ export default {
         console.error(err);
         throw err;
       }
+    };
+
+    const onYamlChange = (yaml) => {
+      data.yamlValue = yaml;
     };
 
     // 初始解析yaml
@@ -486,7 +440,7 @@ export default {
 
     // 表单校验方法
     const validateForm = (resolve, reject) => {
-      shiftYamlParams(); // 单击下一步时需要转换
+      if (data.yamlValue) shiftYamlParams(); // 单击下一步时需要转换
       refs.formRef.validate((isValid) => {
         if (isValid) {
           if (typeof resolve === 'function') {
@@ -529,13 +483,14 @@ export default {
       handleClick,
       onDatasetChange,
       onDatasetVersionChange,
-      onMaxExecDurationChange,
       getYaml,
       initForm,
       getFormValue,
       validateForm,
       resetForm,
       timeFmts,
+      clearValidate,
+      onYamlChange,
     };
   },
 };

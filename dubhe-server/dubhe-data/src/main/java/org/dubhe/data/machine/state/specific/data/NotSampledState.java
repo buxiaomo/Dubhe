@@ -54,4 +54,5 @@ public class NotSampledState extends AbstractDataState {
         LogUtil.debug(LogEnum.STATE_MACHINE, " 【未采样】 执行事件后内存状态机的切换： {}", dataStateMachine.getMemoryDataState());
     }
 
+
 }

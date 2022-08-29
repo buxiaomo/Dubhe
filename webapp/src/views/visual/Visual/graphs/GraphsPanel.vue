@@ -15,8 +15,8 @@
  */
 
 <template>
-  <div class="temp">
-    <div class="graphPanel">
+  <div :class="['temp', getFoldTag ? '' : 'fold']">
+    <div v-show="getFoldTag" class="graphPanel">
       <div class="graphPanelHead">
         <div
           id="c-graph"
@@ -33,7 +33,7 @@
           结构图
         </div>
       </div>
-      <el-card>
+      <el-card v-show="cGraph">
         <div class="graphPanelContent">
           <div v-show="cGraph" class="cGraphPanel">
             <el-row style="margin-bottom: 7%; font-size: 15px;">条件过滤</el-row>
@@ -67,7 +67,7 @@
 
                   <div
                     :key="index1 + '-' + index2 + '-section'"
-                    style=" margin-right: 2%; margin-left: 4%;"
+                    style="margin-right: 2%; margin-left: 4%;"
                   >
                     <el-row :key="index1 + '-' + index2 + '-condition'" class="coloredRow">
                       <el-col :span="22">
@@ -129,7 +129,7 @@
                   </div>
                 </template>
                 <el-row>
-                  <div style=" margin-top: 2%; margin-bottom: 2%; margin-left: 47%;">
+                  <div style="margin-top: 2%; margin-bottom: 2%; margin-left: 47%;">
                     AND
                     <el-button
                       :icon="1 ? 'iconfont icon-huangse' : 'iconfont icon-huangse-'"
@@ -144,7 +144,7 @@
             </template>
 
             <el-row>
-              <div style=" margin-top: 3%; margin-bottom: 3%; margin-left: 47%;">
+              <div style="margin-top: 3%; margin-bottom: 3%; margin-left: 47%;">
                 OR
                 <el-button
                   :icon="1 ? 'iconfont icon-zise' : 'iconfont icon-zise-'"
@@ -172,40 +172,23 @@
       </el-card>
     </div>
 
-    <div class="buttons">
+    <div v-show="cGraph" class="buttons">
       <el-tooltip
         class="item"
         effect="dark"
         content="条件过滤后点击该按钮隐藏节点"
         placement="top-start"
       >
-        <el-button v-show="cGraph" class="buttonOption1" round size="mini" @click="hidde()"
-          >隐藏</el-button
-        >
+        <el-button class="buttonOption1" round size="mini" @click="hidde()">隐藏</el-button>
       </el-tooltip>
       <el-tooltip class="item" effect="dark" content="隐藏节点后点击该按钮" placement="top-start">
-        <el-button v-if="cGraph" class="buttonOption1" round size="mini" @click="Run()"
-          >布局</el-button
-        >
-        <el-button
-          v-else
-          class="buttonOption1"
-          style="margin-left: 40%;"
-          round
-          size="mini"
-          @click="Run()"
-          >布局</el-button
-        >
+        <el-button class="buttonOption1" round size="mini" @click="Run()">布局</el-button>
       </el-tooltip>
-      <el-button v-show="cGraph" class="buttonOption2" round size="mini" @click="Pre()"
-        >上一步</el-button
-      >
-      <el-button v-show="cGraph" class="buttonOption2" round size="mini" @click="Clear()"
-        >初始化</el-button
-      >
+      <el-button class="buttonOption2" round size="mini" @click="Pre()">上一步</el-button>
+      <el-button class="buttonOption2" round size="mini" @click="Clear()">初始化</el-button>
     </div>
 
-    <div class="info">
+    <div v-show="cGraph" class="info">
       <div class="infoTitle"><i class="el-icon-chat-line-round dot" />数据信息栏</div>
       <el-card>
         <div class="infoContent">
@@ -237,7 +220,12 @@
               </el-card>
             </div>
 
-            <div :id="index" :key="index + '-box'" class="flag" style='display: ";; clear: both;'>
+            <div
+              :id="index"
+              :key="index + '-box'"
+              class="flag"
+              style="display: 'inline'; clear: both;"
+            >
               <ul>
                 <template v-for="(name, value4) in item3">
                   <div :key="value4" style="padding: 1%; clear: both;">
@@ -246,7 +234,9 @@
                         <div style="float: left;"><span class="ddot" />{{ value4 }}</div>
                       </el-col>
 
-                      <div style="float: left;">{{ name }}</div>
+                      <div style="float: left; word-break: break-all;">
+                        {{ name }}
+                      </div>
                     </li>
                   </div>
                 </template>
@@ -256,6 +246,15 @@
         </div>
       </el-card>
     </div>
+    <FeatureMapBox
+      v-show="
+        !cGraph &&
+          (getFmType[userSelectRunFile]
+            ? Object.keys(getFmType[userSelectRunFile]).length > 0
+            : !getFmType[userSelectRunFile])
+      "
+      :class="getFoldTag ? 'featureOption_fold' : 'featureOption_unfold'"
+    ></FeatureMapBox>
   </div>
 </template>
 
@@ -265,6 +264,7 @@ import ElementUI from 'element-ui';
 import 'element-ui/lib/theme-chalk/index.css';
 import { createNamespacedHelpers } from 'vuex';
 import * as d3 from 'd3';
+import FeatureMapBox from './FeatureMapBox.vue';
 
 Vue.use(ElementUI);
 
@@ -274,6 +274,9 @@ const { mapGetters: mapGraphGetters, mapMutations: mapGraphMutations } = createN
 const { mapState: mapLayoutStates } = createNamespacedHelpers('Visual/layout');
 export default {
   name: 'GraphsPanel',
+  components: {
+    FeatureMapBox,
+  },
   data() {
     return {
       value1: '',
@@ -342,8 +345,20 @@ export default {
       'getIsDrawing',
       'getSList',
       'getInitOption',
+      'getFeatureMapShow',
+      'getFmType',
+      'getSelectFmType',
+      'getFoldTag',
     ]),
     ...mapLayoutStates(['userSelectRunFile']),
+    selectType: {
+      get() {
+        return this.getSelectFmType;
+      },
+      set(val) {
+        this.setSelectFmType(val);
+      },
+    },
   },
   watch: {
     getInitOption(val) {
@@ -364,6 +379,8 @@ export default {
       }
     },
     userSelectRunFile() {
+      this.clearGraphData();
+      this.setFoldTag('reset');
       if (this.getCurTag === 'c_graph') {
         this.cGraph = true;
       } else {
@@ -448,6 +465,9 @@ export default {
     getClick(val) {
       this.clickNode.push(val);
     },
+    selectType(val) {
+      this.setSelectFmType(val);
+    },
   },
   mounted() {
     if (this.getCurTag === 'c_graph') {
@@ -469,6 +489,10 @@ export default {
       'regClear',
       'setCurTag',
       'setData',
+      'setFeatureMapShow',
+      'setSelectFmType',
+      'clearGraphData',
+      'setFoldTag',
     ]),
     changeTag(param) {
       if (!this.getRunChangeTag && !this.getIsDrawing) {
@@ -560,12 +584,26 @@ export default {
         this.tag[id] = 0;
       }
     },
+    changeFeatureMap() {
+      this.setFeatureMapShow();
+    },
   },
 };
 </script>
 <style lang="less" scoped>
+#featureMap {
+  width: 200px;
+  height: 100px;
+  background-color: #625eb3;
+}
+
 .temp {
   height: 100px;
+}
+
+.fold {
+  width: 50% !important;
+  height: calc(100% - 47px) !important;
 }
 
 .mainSection {
@@ -578,6 +616,22 @@ export default {
 
 .buttonOption2 {
   padding: 7px 7px;
+}
+
+.featureOption_fold {
+  width: 94%;
+  height: calc(95% - 30px);
+  margin: 5% 3% 0 3%;
+  border-radius: 3px;
+  box-shadow: 0 0 10px #ccc;
+}
+
+.featureOption_unfold {
+  width: 98.5%;
+  height: 97.5%;
+  margin: 1% 1% 0 0.5%;
+  border-radius: 3px 3px 0 0;
+  box-shadow: rgba(0, 0, 0, 0.3) 0 0 10px;
 }
 
 .information .el-button {

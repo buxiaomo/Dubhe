@@ -21,8 +21,10 @@ import com.alibaba.fastjson.JSONObject;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.dubhe.train.domain.entity.PtAtlasTrainParam;
 
 import java.sql.Timestamp;
+import java.util.List;
 
 /**
  * @description 根据jobId查询训练任务详情返回结果
@@ -137,11 +139,11 @@ public class PtTrainJobDetailQueryVO extends PtTrainJobDetailVO {
     @ApiModelProperty("算法来源(1为我的算法，2为预置算法)")
     private Integer algorithmSource;
 
-    @ApiModelProperty("算法用途")
-    private String algorithmUsage;
+    @ApiModelProperty("数据集类型")
+    private String datasetType;
 
-    @ApiModelProperty("验证数据集算法用途")
-    private String valAlgorithmUsage;
+    @ApiModelProperty("验证数据集类型")
+    private String valDatasetType;
 
     @ApiModelProperty("算法精度")
     private String accuracy;
@@ -152,7 +154,7 @@ public class PtTrainJobDetailQueryVO extends PtTrainJobDetailVO {
     @ApiModelProperty(value = "算法文件路径")
     private String algorithmCodeDir;
 
-    @ApiModelProperty("训练类型 0：普通训练，1：分布式训练")
+    @ApiModelProperty("训练类型 0：普通训练，1：分布式训练，2：炼知重组任务")
     private Integer trainType;
 
     @ApiModelProperty("验证数据来源名称")
@@ -185,12 +187,12 @@ public class PtTrainJobDetailQueryVO extends PtTrainJobDetailVO {
     @ApiModelProperty(value = "我的模型版本对应的id")
     private Long modelBranchId;
 
-    @ApiModelProperty(value = "炼知教师模型ids,多个id之前用','隔开")
-    private String teacherModelIds;
+    @ApiModelProperty(value = "炼知学生模型结构")
+    private String studentModelStruct;
 
-    @ApiModelProperty(value = "炼知学生模型ids,多个id之前用','隔开")
-    private String studentModelIds;
+    private List<PtAtlasTrainParam> baseAtlasParams;
 
     @ApiModelProperty(value = "训练所在k8s namespace")
     private String k8sNamespace;
+    
 }

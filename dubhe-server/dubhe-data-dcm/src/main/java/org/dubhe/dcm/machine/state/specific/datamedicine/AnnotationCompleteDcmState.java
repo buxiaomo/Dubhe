@@ -70,4 +70,18 @@ public class AnnotationCompleteDcmState extends AbstractDataMedicineState {
         LogUtil.debug(LogEnum.STATE_MACHINE, " 【标注完成】 执行事件后内存状态机的切换： {}", dcmDataMedicineStateMachine.getMemoryDataMedicineState());
     }
 
+    /**
+     * 数据集 未标注-->自动标注-->自动标注中
+     *
+     * @param medical 医学数据集对象
+     */
+    @Override
+    public void autoAnnotationSaveEvent(DataMedicine medical) {
+        LogUtil.debug(LogEnum.STATE_MACHINE, " 【未标注】 执行事件前内存中状态机的状态 :{} ", dcmDataMedicineStateMachine.getMemoryDataMedicineState());
+        LogUtil.debug(LogEnum.STATE_MACHINE, " 接受参数： {} ", medical);
+        dataMedicineMapper.updateStatus(medical.getId(), DcmDataStateEnum.AUTOMATIC_LABELING_STATE.getCode());
+        dcmDataMedicineStateMachine.setMemoryDataMedicineState(dcmDataMedicineStateMachine.getAutomaticLabelingDcmState());
+        LogUtil.debug(LogEnum.STATE_MACHINE, " 【未标注】 执行事件后内存状态机的切换： {}", dcmDataMedicineStateMachine.getMemoryDataMedicineState());
+    }
+
 }

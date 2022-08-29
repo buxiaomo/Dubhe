@@ -20,6 +20,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
+import java.util.List;
+
 /**
  * @description 查询镜像路径
  * @date 2020-12-14
@@ -35,6 +37,8 @@ public class PtImageQueryUrlDTO {
 
     private String imageTag;
 
-    private Integer projectType;
+    private Boolean isDefault;
+
+    private List<Integer> imageTypes;
 
 }

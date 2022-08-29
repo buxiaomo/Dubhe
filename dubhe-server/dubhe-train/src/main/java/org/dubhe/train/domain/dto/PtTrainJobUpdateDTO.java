@@ -23,10 +23,12 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 import org.dubhe.biz.base.constant.MagicNumConstant;
+import org.dubhe.train.domain.entity.PtAtlasTrainParam;
 import org.dubhe.train.utils.TrainUtil;
 import org.hibernate.validator.constraints.Length;
 
 import javax.validation.constraints.*;
+import java.util.List;
 
 /**
  * @description 训练任务修改
@@ -46,13 +48,13 @@ public class PtTrainJobUpdateDTO extends PtTrainJobBaseDTO {
     @Length(max = MagicNumConstant.INTEGER_TWO_HUNDRED_AND_FIFTY_FIVE, message = "描述长度不能超过255个字符")
     private String description;
 
-    @ApiModelProperty("算法用途，输入长度不能超过128个字符")
-    @Length(max = MagicNumConstant.ONE_HUNDRED_TWENTY_EIGHT, message = "算法用途-输入长度不能超过128个字符")
-    private String algorithmUsage;
+    @ApiModelProperty("数据集类型，输入长度不能超过128个字符")
+    @Length(max = MagicNumConstant.ONE_HUNDRED_TWENTY_EIGHT, message = "数据集类型-输入长度不能超过128个字符")
+    private String datasetType;
 
-    @ApiModelProperty("验证数据集算法用途，输入长度不能超过128个字符")
-    @Length(max = MagicNumConstant.ONE_HUNDRED_TWENTY_EIGHT, message = "验证数据集算法用途-输入长度不能超过128个字符")
-    private String valAlgorithmUsage;
+    @ApiModelProperty("验证数据集类型，输入长度不能超过128个字符")
+    @Length(max = MagicNumConstant.ONE_HUNDRED_TWENTY_EIGHT, message = "验证数据集类型-输入长度不能超过128个字符")
+    private String valDatasetType;
 
     @ApiModelProperty(value = "数据集来源路径,输入长度不能超过127个字符")
     @Length(max = MagicNumConstant.ONE_HUNDRED_TWENTY_SEVEN, message = "数据集来源路径-输入长度不能超过127个字符")
@@ -64,6 +66,9 @@ public class PtTrainJobUpdateDTO extends PtTrainJobBaseDTO {
 
     @ApiModelProperty("运行参数(算法来源为我的算法时为调优参数，算法来源为预置算法时为运行参数)")
     private JSONObject runParams;
+
+    @ApiModelProperty("运行参数映射关系")
+    private JSONObject runParamsNameMap;
 
     @ApiModelProperty(value = "类型(0为CPU，1为GPU)", required = true)
     @Min(value = MagicNumConstant.ZERO, message = "类型错误")
@@ -95,10 +100,10 @@ public class PtTrainJobUpdateDTO extends PtTrainJobBaseDTO {
     @Min(value = MagicNumConstant.ZERO, message = "工作空间的存储配额不能小于0")
     private Integer workspaceRequest;
 
-    @ApiModelProperty(value = "训练类型 0：普通训练，1：分布式训练", required = true)
+    @ApiModelProperty(value = "训练类型 0：普通训练，1：分布式训练，2：炼知重组训练", required = true)
     @Min(value = MagicNumConstant.ZERO, message = "训练类型错误")
-    @Max(value = MagicNumConstant.ONE, message = "训练类型错误")
-    @NotNull(message = "训练类型(0为普通训练，1为分布式训练)不能为空")
+    @Max(value = MagicNumConstant.TWO, message = "训练类型错误")
+    @NotNull(message = "训练类型(0为普通训练，1为分布式训练，2：炼知重组训练)不能为空")
     private Integer trainType;
 
     @ApiModelProperty(value = "节点个数", required = true)
@@ -138,13 +143,14 @@ public class PtTrainJobUpdateDTO extends PtTrainJobBaseDTO {
     @Min(value = MagicNumConstant.ONE, message = "模型版本对应的id必须大于1")
     private Long modelBranchId;
 
-    @ApiModelProperty(value = "教师模型ids,多个id之前用','隔开")
-    @Length(max = MagicNumConstant.INTEGER_TWO_HUNDRED_AND_FIFTY_FIVE, message = "教师模型长度不能超过255个字符")
-    @Pattern(regexp = TrainUtil.REGEXP_IDS_STRING, message = "教师模型ids参数格式不正确")
-    private String teacherModelIds;
-
-    @ApiModelProperty(value = "学生模型ids,多个id之前用','隔开")
+    @ApiModelProperty(value = "学生模型结构")
     @Length(max = MagicNumConstant.INTEGER_TWO_HUNDRED_AND_FIFTY_FIVE, message = "学生模型长度不能超过255个字符")
-    @Pattern(regexp = TrainUtil.REGEXP_IDS_STRING, message = "学生模型ids参数格式不正确")
-    private String studentModelIds;
+    private String studentModelStruct;
+
+    private List<PtAtlasTrainParam> baseAtlasParams;
+
+    @ApiModelProperty(value = "炼知模型重组任务类型(1：单任务，2：多任务)")
+    @Min(value = MagicNumConstant.ONE, message = "任务类型错误")
+    @Max(value = MagicNumConstant.TWO, message = "任务类型错误")
+    private Integer jobType;
 }

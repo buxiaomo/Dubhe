@@ -384,6 +384,7 @@ public class MenuServiceImpl implements MenuService {
                                 menuVo1.setComponent(menuVo.getComponent());
                             } else {
                                 menuVo1.setPath(menuDTO.getPath());
+                                menuVo1.setName(menuDTO.getComponentName());
                             }
                             menuVo.setName(null);
                             menuVo.setMeta(null);

@@ -14,6 +14,12 @@
  * =============================================================
  */
 
+// 模型类别
+export const modelTypeSymbol = Symbol('modelType');
+
+// 数据集使用场景
+export const datasetOccasionSymbol = Symbol('datasetOccasion');
+
 export const Constant = {
   // map
   tableSortMap: {
@@ -40,6 +46,13 @@ export const ALGORITHM_RESOURCE_ENUM = {
   PRESET: 2, // 预置算法
 };
 
+// 数据集应用场景枚举值
+export const ALGORITHM_SCESE_ENUM = {
+  NORMAL: '1', // 视觉/语音/文本
+  MEDICAL: '2', // 医学影像
+  POINT_CLOUD: '3', // 点云
+};
+
 // 模型分类枚举值
 export const MODEL_RESOURCE_ENUM = {
   CUSTOM: 0, // 我的模型
@@ -59,6 +72,12 @@ export const ALTAS_MODEL_PACKAGE_ENUM = {
   UNPACKAGED: 0,
   PACKAGED: 1,
 };
+// 炼知算法名枚举
+export const ATLAS_ALGORITHM_NAME_ENUM = {
+  LAYERWISE_AMALGAMATION: 1,
+  COMMON_FEATURE_LEARNING: 2,
+  TASK_BRANCHING: 3,
+};
 
 // 资源类型枚举
 export const RESOURCES_POOL_TYPE_ENUM = {
@@ -72,6 +91,9 @@ export const RESOURCES_MODULE_ENUM = {
   TRAIN: 2,
   SERVING: 3,
   TADL: 4,
+  POINT_CLOUD: 5,
+  DATA_ANNOTATION: 6,
+  ATLAS: 7,
 };
 
 // 资源类型名称
@@ -87,6 +109,7 @@ export const WEB_SOCKET_TOPIC_ENUM = {
 
 // K8S pod 业务标签枚举值
 export const K8S_BUSINESS_LABEL_ENUM = {
+  DATASET_SERVICE: 'data',
   NOTEBOOK: 'notebook',
   TRAINING: 'algorithm',
   MODEL_OPTIMIZE: 'modelopt',
@@ -94,10 +117,12 @@ export const K8S_BUSINESS_LABEL_ENUM = {
   BATCH_SERVING: 'batchserving',
   TADL: 'tadl',
   TERMINAL: 'terminal',
+  POINT_CLOUD: 'pointcloud',
 };
 
 // K8S pod 业务标签与业务模块对应关系匹配
 export const K8S_BUSINESS_LABEL_MAP = {
+  [K8S_BUSINESS_LABEL_ENUM.DATASET_SERVICE]: '标注服务',
   [K8S_BUSINESS_LABEL_ENUM.NOTEBOOK]: '算法开发',
   [K8S_BUSINESS_LABEL_ENUM.TRAINING]: '训练管理',
   [K8S_BUSINESS_LABEL_ENUM.MODEL_OPTIMIZE]: '模型优化',
@@ -105,6 +130,7 @@ export const K8S_BUSINESS_LABEL_MAP = {
   [K8S_BUSINESS_LABEL_ENUM.BATCH_SERVING]: '云端 Serving 批量服务',
   [K8S_BUSINESS_LABEL_ENUM.TADL]: 'TADL',
   [K8S_BUSINESS_LABEL_ENUM.TERMINAL]: '天枢专业版',
+  [K8S_BUSINESS_LABEL_ENUM.POINT_CLOUD]: '点云数据集',
 };
 
 // 默认进度条颜色

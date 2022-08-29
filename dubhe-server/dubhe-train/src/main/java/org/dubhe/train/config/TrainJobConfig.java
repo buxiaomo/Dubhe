@@ -57,8 +57,17 @@ public class TrainJobConfig {
     private String dockerTrainOutPath;
 
     private String dockerDataset;
+    
+    private String dockerAtlasDatasetKey;
+    private String dockerAtlasValDatasetKey;
 
     private String dockerModelPath;
+
+    private String trainModelPathValue;
+
+    private String trainOutPathValue;
+
+    private String visualizedLogPathValue;
 
     private String dockerTeacherModelPath;
 
@@ -105,5 +114,9 @@ public class TrainJobConfig {
     public static final String CREATE_TIME = "createTime";
 
     public static final String ALGORITHM_NAME = "algorithmName";
+
+    public static final String SCENARIO = "scenario";
+
+    public static final String DISTRIBUTED = "distributed";
 
 }

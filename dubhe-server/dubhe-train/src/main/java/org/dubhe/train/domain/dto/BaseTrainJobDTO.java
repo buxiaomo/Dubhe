@@ -34,6 +34,7 @@ public class BaseTrainJobDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private JSONObject runParams;
+    private JSONObject runParamsNameMap;
     private String jobName;
     private String taskIdentify;
     private String dataSourcePath;
@@ -48,8 +49,8 @@ public class BaseTrainJobDTO implements Serializable {
     private Long modelId;
     private Long modelBranchId;
     private Integer modelResource;
-    private String teacherModelIds;
-    private String studentModelIds;
+    private List<String> atlasDatasetNames;
+    private List<String> atlasDatasetPaths;
 
     /**
      * 规格名称

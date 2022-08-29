@@ -22,6 +22,7 @@ import io.swagger.annotations.ApiOperation;
 import org.dubhe.biz.base.constant.Permissions;
 import org.dubhe.biz.base.dto.PtModelBranchConditionQueryDTO;
 import org.dubhe.biz.base.dto.PtModelBranchQueryByIdDTO;
+import org.dubhe.biz.base.dto.PtModelBranchQueryByIdsDTO;
 import org.dubhe.biz.base.vo.DataResponseBody;
 import org.dubhe.biz.base.vo.PtModelBranchQueryVO;
 import org.dubhe.model.domain.dto.*;
@@ -30,6 +31,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * @description 模型版本管理
@@ -91,5 +94,12 @@ public class PtModelBranchController {
     @PreAuthorize(Permissions.MODEL_BRANCH_CONVERT_ONNX)
     public DataResponseBody convertOnnx(@Validated @RequestBody PtModelConvertOnnxDTO ptModelConvertOnnxDTO) {
         return new DataResponseBody(ptModelBranchService.convertToOnnx(ptModelConvertOnnxDTO));
+    }
+
+    @GetMapping("/listByBranchIds")
+    @ApiOperation("根据模型版本ids批量查询列表")
+    @PreAuthorize(Permissions.MODEL_BRANCH)
+    public DataResponseBody<List<PtModelBranchQueryVO>> listByBranchIds(@Validated PtModelBranchQueryByIdsDTO ptModelBranchQueryByIdsDTO) {
+        return new DataResponseBody(ptModelBranchService.listByBranchIds(ptModelBranchQueryByIdsDTO.getIds()));
     }
 }

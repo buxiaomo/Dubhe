@@ -97,7 +97,7 @@
               <el-dropdown-item
                 :id="`goVisual_` + scope.$index"
                 :disabled="!scope.row.visualizedLogPath"
-                @click.native="goVisual(scope.row.jobName)"
+                @click.native="goVisual(scope.row)"
               >
                 <el-button :disabled="!scope.row.visualizedLogPath" type="text"
                   >可视化&nbsp;<IconFont type="externallink"
@@ -118,7 +118,14 @@
                 @click.native="goEdit(scope.row, 'saveParams')"
               >
                 <!--状态：2为运行完成，3为失败，4为停止，5为未知 -->
-                <el-button :disabled="statusFlagMap[scope.row.trainStatus] !== 'done'" type="text"
+                <el-button
+                  v-if="
+                    ![TRAINING_TYPE_ENUM.ATLAS, TRAINING_TYPE_ENUM.DDRL].includes(
+                      scope.row.trainType
+                    )
+                  "
+                  :disabled="statusFlagMap[scope.row.trainStatus] !== 'done'"
+                  type="text"
                   >保存任务模板</el-button
                 >
               </el-dropdown-item>
@@ -141,15 +148,22 @@
     <BaseModal
       :visible.sync="showDialog"
       :title="dialogTitle"
-      :okText="dialogType === 'edit' ? '开始训练' : '保存'"
+      :okText="['edit', 'learningEdit'].includes(dialogType) ? '开始训练' : '保存'"
       :loading="submitLoading"
       width="50%"
       @cancel="showDialog = false"
       @ok="doEdit"
     >
       <job-form
-        v-if="reFresh"
+        v-if="reFresh && !isAtlas"
         ref="jobFormEdit"
+        :width-percent="100"
+        :type="dialogType"
+        @getForm="getForm"
+      />
+      <job-form-atlas
+        v-if="reFresh && isAtlas"
+        ref="jobFormAtlasEdit"
         :width-percent="100"
         :type="dialogType"
         @getForm="getForm"
@@ -197,6 +211,7 @@ import crudJob, {
 import { add as addParams } from '@/api/trainingJob/params';
 import BaseModal from '@/components/BaseModal';
 import JobForm from '@/components/Training/jobForm';
+import JobFormAtlas from '@/components/Training/atlasJobForm';
 import MsgPopover from '@/components/MsgPopover';
 import SaveModelDialog from '@/components/Training/saveModelDialog';
 import DropdownHeader from '@/components/DropdownHeader';
@@ -204,13 +219,14 @@ import DropdownHeader from '@/components/DropdownHeader';
 import pathSelectDialog from './components/pathSelectDialog';
 import jobDrawer from './components/jobDrawer';
 import LogDialog from './components/logDialog';
-import { TRAINING_STATUS_ENUM, TRAINING_STATUS_MAP } from './utils';
+import { TRAINING_STATUS_ENUM, TRAINING_STATUS_MAP, TRAINING_TYPE_ENUM } from './utils';
 
 export default {
   name: 'JobDetail',
   components: {
     BaseModal,
     JobForm,
+    JobFormAtlas,
     jobDrawer,
     SaveModelDialog,
     pathSelectDialog,
@@ -252,6 +268,8 @@ export default {
       statusNameMap: generateMap(TRAINING_STATUS_MAP, 'name'),
       statusTagMap: generateMap(TRAINING_STATUS_MAP, 'tagMap'),
       statusFlagMap: generateMap(TRAINING_STATUS_MAP, 'statusMap'),
+      isAtlas: false,
+      TRAINING_TYPE_ENUM,
     };
   },
   beforeRouteEnter(to, from, next) {
@@ -328,7 +346,7 @@ export default {
     },
     async getForm(form) {
       this.submitLoading = true;
-      if (this.dialogType === 'edit') {
+      if (['edit', 'learningEdit'].includes(this.dialogType)) {
         await editJob(form).finally(() => {
           this.submitLoading = false;
         });
@@ -361,18 +379,38 @@ export default {
           item.paramName = item.jobName;
         }
         this.showDialog = true;
-        this.$nextTick(() => {
-          this.$refs.jobFormEdit.initForm(item);
-        });
-        this.dialogTitle = dialogType === 'edit' ? '修改任务' : '保存任务模板';
+
+        if (item.trainType === TRAINING_TYPE_ENUM.ATLAS) {
+          this.$nextTick(() => {
+            this.$refs.jobFormAtlasEdit.initForm(item);
+          });
+          this.isAtlas = true;
+        } else if (item.trainType === TRAINING_TYPE_ENUM.DDRL) {
+          // 仅当dialogType不为saveParams时，dialogType重新赋值learningEdit，进入强化学习任务修改表单，否则强化学习任务保存任务模板时会进入修改任务表单
+          if (dialogType !== 'saveParams') {
+            dialogType = 'learningEdit';
+          }
+
+          this.$nextTick(() => {
+            this.$refs.jobFormEdit.initForm(item);
+          });
+        } else {
+          this.$nextTick(() => {
+            this.$refs.jobFormEdit.initForm(item);
+          });
+          this.isAtlas = false;
+        }
+        this.dialogTitle = ['edit', 'learningEdit'].includes(dialogType)
+          ? '修改任务'
+          : '保存任务模板';
         this.dialogType = dialogType;
         this.reFresh = true;
       });
     },
-    goVisual(jobName) {
+    goVisual(job) {
       const params = {
-        id: this.user.id,
-        trainJobName: jobName,
+        id: job.createUserId,
+        trainJobName: job.jobName,
       };
       const { href } = this.$router.resolve({ name: 'VISUAL', params });
       const url = `${href}?id=${params.id}&trainJobName=${params.trainJobName}`;
@@ -398,7 +436,11 @@ export default {
     },
     // op
     doEdit() {
-      this.$refs.jobFormEdit.save();
+      if (!this.isAtlas) {
+        this.$refs.jobFormEdit.save();
+      } else {
+        this.$refs.jobFormAtlasEdit.save();
+      }
     },
     doStop(id) {
       this.$confirm('此操作将停止该任务版本, 是否继续?', '请确认').then(async () => {

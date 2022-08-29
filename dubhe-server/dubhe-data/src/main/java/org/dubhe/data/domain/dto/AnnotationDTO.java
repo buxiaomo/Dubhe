@@ -16,6 +16,7 @@
  */
 package org.dubhe.data.domain.dto;
 
+import com.alibaba.fastjson.annotation.JSONField;
 import lombok.Data;
 
 import java.io.Serializable;

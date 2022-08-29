@@ -1,3 +1,4 @@
+-- DML 脚本
 use `dubhe-cloud-prod`;
 
 ALTER TABLE `pt_train_param`
@@ -118,15 +119,22 @@ INSERT INTO `menu` (`pid`, `type`, `name`, `icon`, `path`
 VALUES (0, 0, '天枢专业版', 'terminal', 'terminal'
        , NULL, NULL, NULL, 'terminal', b'0'
        , b'0', 80, 3, 3, b'0'
-       , NULL, NULL),
-       (1084, 1, '终端概览', 'overview', 'overview'
+       , NULL, NULL);
+	   
+INSERT INTO `menu` (`pid`, `type`, `name`, `icon`, `path`
+                   , `component`, `component_name`, `layout`, `permission`, `hidden`
+                   , `cache`, `sort`, `create_user_id`, `update_user_id`, `deleted`
+                   , `back_to`, `ext_config`)
+VALUES (last_insert_id(), 1, '终端概览', 'overview', 'overview'
        , 'terminal/overview', 'TerminalOverview', 'BaseLayout', 'terminal:terminals', b'0'
        , b'0', 81, 3, 3, b'0'
        , NULL, '{}'),
-       (1084, 1, '远程连接', 'remote', 'remote'
+       (last_insert_id(), 1, '远程连接', 'remote', 'remote'
        , 'terminal/remote', 'TerminalRemote', 'BaseLayout', 'terminal:remote', b'0'
        , b'0', 82, 3, 3, b'0'
        , NULL, '{}');
+
+INSERT INTO `roles_menus` (`role_id`, `menu_id`) VALUES (1, last_insert_id());
 
 ALTER TABLE `pt_image`
     ADD COLUMN `ssh_pwd` varchar(64) COMMENT '镜像ssh密码',

@@ -383,6 +383,7 @@ export default {
 .log-content {
   height: 100%;
   overflow: auto;
+  background: #1d1f21; // prism-render在内容偏少时，只有内容那几行有背景色，因此在容器加以填充弥补
   border: #ccc solid 1px;
 }
 

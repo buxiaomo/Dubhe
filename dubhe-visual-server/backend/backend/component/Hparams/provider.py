@@ -17,14 +17,24 @@
 """
 from utils.cache_io import CacheIO
 from .hparams_read import hparams_read
-from utils.path_utils import get_file_path
+from utils.logfile_utils import get_file_path, path_parser
 from backend.api.utils import get_api_params
-
+from utils.redis_utils import RedisInstance
 
 def hparams_provider(uid, run):
     file_path1 = get_file_path(uid, run, 'hyperparm', 'hparams')
     _data = CacheIO(file_path1).get_cache()
-    return hparams_read(_data, None).get_data()
+
+    metrics = list(_data[0].session_start_info.metrics)
+
+    scalar_data = {}
+    for tag in metrics:
+            file_path1 = path_parser(RedisInstance.get(uid), run, 'scalar', tag)
+            if file_path1.exists():
+                scalar = CacheIO(file_path1).get_cache()[-1]
+                scalar_data[tag] = scalar['value']
+
+    return hparams_read(_data, scalar_data).get_data()
 
 
 def get_hparams_data(request):

@@ -38,6 +38,11 @@ export const medicalAnnotationMap = {
   2999: { name: '其它', urlPrefix: 'other', parentName: '病灶识别' },
 };
 
+export const annotationList = Object.keys(medicalAnnotationMap).map((d) => ({
+  label: medicalAnnotationMap[d].name,
+  value: Number(d),
+}));
+
 export const modalityMap = {
   CT: 'CT',
   MR: 'MR',

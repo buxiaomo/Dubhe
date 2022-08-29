@@ -91,5 +91,10 @@ public class EsTransportDTO {
     /**
      * 标签ID
      */
-    private Long labelId;
+    private Long[] labelId;
+
+    /**
+     * 标注信息
+     */
+    private String annotation;
 }

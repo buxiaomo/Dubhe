@@ -34,7 +34,7 @@ import * as d3 from 'd3';
 
 import { list as getMeasureNames, getGraphs } from '@/api/atlas';
 
-import { ERROR_MSG, MEASURE_STATUS_ENUM } from './util';
+import { ERROR_MSG, MEASURE_STATUS_ENUM } from './utils';
 
 export default {
   name: 'GraphVisual',

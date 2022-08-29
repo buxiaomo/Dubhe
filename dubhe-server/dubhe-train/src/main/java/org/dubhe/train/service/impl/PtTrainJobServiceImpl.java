@@ -18,7 +18,9 @@
 package org.dubhe.train.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -32,15 +34,34 @@ import org.dubhe.biz.base.constant.ResponseCode;
 import org.dubhe.biz.base.constant.StringConstant;
 import org.dubhe.biz.base.constant.SymbolConstant;
 import org.dubhe.biz.base.context.UserContext;
-import org.dubhe.biz.base.dto.*;
+import org.dubhe.biz.base.dto.DictDetailQueryByLabelNameDTO;
+import org.dubhe.biz.base.dto.PtModelBranchQueryByIdDTO;
+import org.dubhe.biz.base.dto.PtModelInfoConditionQueryDTO;
+import org.dubhe.biz.base.dto.PtModelInfoQueryByIdDTO;
+import org.dubhe.biz.base.dto.PtModelStatusQueryDTO;
+import org.dubhe.biz.base.dto.PtTrainDataSourceStatusQueryDTO;
+import org.dubhe.biz.base.dto.QueryResourceSpecsDTO;
+import org.dubhe.biz.base.dto.TrainAlgorithmSelectAllBatchIdDTO;
+import org.dubhe.biz.base.dto.TrainAlgorithmSelectAllByIdDTO;
+import org.dubhe.biz.base.dto.TrainAlgorithmSelectByIdDTO;
+import org.dubhe.biz.base.dto.UserDTO;
 import org.dubhe.biz.base.enums.AlgorithmStatusEnum;
 import org.dubhe.biz.base.enums.DatasetTypeEnum;
 import org.dubhe.biz.base.enums.ModelResourceEnum;
 import org.dubhe.biz.base.exception.BusinessException;
 import org.dubhe.biz.base.service.UserContextService;
+import org.dubhe.biz.base.utils.CommandUtil;
+import org.dubhe.biz.base.utils.MapUtil;
 import org.dubhe.biz.base.utils.ReflectionUtils;
 import org.dubhe.biz.base.utils.StringUtils;
-import org.dubhe.biz.base.vo.*;
+import org.dubhe.biz.base.vo.DataResponseBody;
+import org.dubhe.biz.base.vo.DatasetVO;
+import org.dubhe.biz.base.vo.DictDetailVO;
+import org.dubhe.biz.base.vo.NoteBookVO;
+import org.dubhe.biz.base.vo.PtModelBranchQueryVO;
+import org.dubhe.biz.base.vo.PtModelInfoQueryVO;
+import org.dubhe.biz.base.vo.QueryResourceSpecsVO;
+import org.dubhe.biz.base.vo.TrainAlgorithmQureyVO;
 import org.dubhe.biz.db.utils.PageUtil;
 import org.dubhe.biz.file.api.FileStoreApi;
 import org.dubhe.biz.log.enums.LogEnum;
@@ -48,6 +69,7 @@ import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.biz.permission.annotation.DataPermissionMethod;
 import org.dubhe.biz.permission.base.BaseService;
 import org.dubhe.biz.redis.utils.RedisUtils;
+import org.dubhe.cloud.authconfig.service.AdminClient;
 import org.dubhe.k8s.api.DistributeTrainApi;
 import org.dubhe.k8s.api.PersistentVolumeClaimApi;
 import org.dubhe.k8s.api.PodApi;
@@ -61,27 +83,65 @@ import org.dubhe.recycle.config.RecycleConfig;
 import org.dubhe.recycle.domain.dto.RecycleCreateDTO;
 import org.dubhe.recycle.domain.dto.RecycleDetailCreateDTO;
 import org.dubhe.recycle.enums.RecycleModuleEnum;
+import org.dubhe.recycle.enums.RecycleResourceEnum;
 import org.dubhe.recycle.enums.RecycleTypeEnum;
 import org.dubhe.recycle.service.RecycleService;
 import org.dubhe.recycle.utils.RecycleTool;
 import org.dubhe.train.async.StopTrainJobAsync;
 import org.dubhe.train.async.TransactionAsyncManager;
-import org.dubhe.train.client.*;
+import org.dubhe.train.client.AlgorithmClient;
+import org.dubhe.train.client.DatasetClient;
+import org.dubhe.train.client.DictDetailClient;
+import org.dubhe.train.client.ModelBranchClient;
+import org.dubhe.train.client.ModelInfoClient;
+import org.dubhe.train.client.NoteBookClient;
+import org.dubhe.train.client.ResourceSpecsClient;
 import org.dubhe.train.config.TrainHarborConfig;
 import org.dubhe.train.config.TrainJobConfig;
+import org.dubhe.train.constant.ATlasTrainConstant;
 import org.dubhe.train.constant.TrainConstant;
+import org.dubhe.train.dao.PtAtlasTrainParamMapper;
 import org.dubhe.train.dao.PtJobParamMapper;
 import org.dubhe.train.dao.PtTrainJobMapper;
 import org.dubhe.train.dao.PtTrainMapper;
 import org.dubhe.train.dao.PtTrainParamMapper;
-import org.dubhe.train.domain.dto.*;
+import org.dubhe.train.domain.dto.BaseTrainJobDTO;
+import org.dubhe.train.domain.dto.PtTrainJobBaseDTO;
+import org.dubhe.train.domain.dto.PtTrainJobCreateDTO;
+import org.dubhe.train.domain.dto.PtTrainJobDeleteDTO;
+import org.dubhe.train.domain.dto.PtTrainJobDetailQueryDTO;
+import org.dubhe.train.domain.dto.PtTrainJobResumeDTO;
+import org.dubhe.train.domain.dto.PtTrainJobStopDTO;
+import org.dubhe.train.domain.dto.PtTrainJobUpdateDTO;
+import org.dubhe.train.domain.dto.PtTrainJobVersionQueryDTO;
+import org.dubhe.train.domain.dto.PtTrainModelDTO;
+import org.dubhe.train.domain.dto.PtTrainQueryDTO;
+import org.dubhe.train.domain.dto.VisualTrainQueryDTO;
+import org.dubhe.train.domain.entity.PtAtlasTrainParam;
 import org.dubhe.train.domain.entity.PtJobParam;
 import org.dubhe.train.domain.entity.PtTrain;
 import org.dubhe.train.domain.entity.PtTrainJob;
 import org.dubhe.train.domain.entity.PtTrainParam;
-import org.dubhe.train.domain.vo.*;
+import org.dubhe.train.domain.vo.DefaultAtlasTrainParamsVo;
+import org.dubhe.train.domain.vo.ModelVO;
+import org.dubhe.train.domain.vo.PtImageAndAlgorithmVO;
+import org.dubhe.train.domain.vo.PtJobMetricsGrafanaVO;
+import org.dubhe.train.domain.vo.PtTrainDataSourceStatusQueryVO;
+import org.dubhe.train.domain.vo.PtTrainJobDeleteVO;
+import org.dubhe.train.domain.vo.PtTrainJobDetailQueryVO;
+import org.dubhe.train.domain.vo.PtTrainJobDetailVO;
+import org.dubhe.train.domain.vo.PtTrainJobModelVO;
+import org.dubhe.train.domain.vo.PtTrainJobStatisticsMineVO;
+import org.dubhe.train.domain.vo.PtTrainJobStopVO;
+import org.dubhe.train.domain.vo.PtTrainVO;
+import org.dubhe.train.domain.vo.VisualTrainQueryVO;
+import org.dubhe.train.enums.AtlasAlgorithmTypeEnum;
+import org.dubhe.train.enums.AtlasJobTypeEnum;
+import org.dubhe.train.enums.ResourcesPoolTypeEnum;
 import org.dubhe.train.enums.TrainJobStatusEnum;
+import org.dubhe.train.enums.TrainSystemRunParamEnum;
 import org.dubhe.train.enums.TrainTypeEnum;
+import org.dubhe.train.inner.RunCommandInnerService;
 import org.dubhe.train.service.PtTrainJobService;
 import org.dubhe.train.utils.ImageUtil;
 import org.dubhe.train.utils.KeyUtil;
@@ -96,7 +156,16 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.io.File;
 import java.sql.Timestamp;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -180,6 +249,12 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
     @Autowired
     private UserContextService userContextService;
 
+    @Resource
+    private RunCommandInnerService runCommandInnerService;
+
+    @Resource
+    private AdminClient adminClient;
+
     @Autowired
     private RedisUtils redisUtils;
 
@@ -188,6 +263,12 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
 
     @Autowired
     private NoteBookClient noteBookClient;
+
+    @Autowired
+    private DatasetClient datasetClient;
+
+    @Autowired
+    private PtAtlasTrainParamMapper atlasTrainParamMapper;
 
     @Value("Task:Train:" + "${spring.profiles.active}_train_job_id_")
     private String trainIdPrefix;
@@ -218,8 +299,10 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
         if (BaseService.isAdmin(userContextService.getCurUser())) {
             userId = null;
         }
-        Page<PtTrainVO> pageTrainResult = ptTrainJobMapper.getPageTrain(page, userId, ptTrainQueryDTO.getTrainStatus(), ptTrainQueryDTO.getTrainName(), sort, order);
+        Page<PtTrainVO> pageTrainResult = ptTrainJobMapper.getPageTrain(page, userId, ptTrainQueryDTO.getTrainType(), ptTrainQueryDTO.getTrainStatus(), ptTrainQueryDTO.getTrainName(), sort, order);
         List<PtTrainVO> trainResult = pageTrainResult.getRecords();
+        //获取训练任务的创建人用户名
+        convertWithCreateUsers(trainResult);
         return PageUtil.toPage(page, trainResult);
     }
 
@@ -321,17 +404,23 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
             if (null != ptTrainJobDetailVO) {
 
                 ptTrainJobDetailVO.setAlgorithmId(x.getAlgorithmId())
-                        .setAlgorithmUsage(x.getAlgorithmUsage())
-                        .setValAlgorithmUsage(x.getValAlgorithmUsage())
-                        .setRunCommand(x.getRunCommand())
+                        .setRunCommand(CommandUtil.buildPythonCommand(x.getRunCommand(), x.getRunParams()))
                         .setImageName(x.getImageName())
-                        .setRunParams(x.getRunParams())
+                        .setRunParams(null)
+                        .setRunParamsNameMap(x.getRunParamsNameMap())
                         .setParamF1(x.getParamF1())
                         .setParamCallback(x.getParamCallback())
                         .setNotebookId(x.getNotebookId())
                         .setNotebookName(x.getNotebookName())
                         .setParamPrecise(x.getParamPrecise())
                         .setParamAccuracy(x.getParamAccuracy());
+                if (x.getDatasetType() != null) {
+                    ptTrainJobDetailVO.setDatasetType(Integer.toString(x.getDatasetType()));
+                }
+
+                if (x.getValDatasetType() != null) {
+                    ptTrainJobDetailVO.setValDatasetType(Integer.toString(x.getValDatasetType()));
+                }
                 long nowTime = System.currentTimeMillis();
                 //获取训练延时启动倒计时（分钟）
                 if (x.getDelayCreateTime() != null
@@ -351,6 +440,13 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
 
         for (PtTrainJobDetailVO ptTrainJobDetailVO : list) {
             ptTrainJobDetailVO.setTrainName(ptTrain.getTrainName());
+
+            BaseTrainJobDTO baseTrainJobDTO = new BaseTrainJobDTO();
+            BeanUtils.copyProperties(ptTrainJobDetailVO, baseTrainJobDTO);
+            if (ResourcesPoolTypeEnum.isGpuCode(ptTrainJobDetailVO.getResourcesPoolType())) {
+                baseTrainJobDTO.setGpuNum(ptTrainJobDetailVO.getResourcesPoolNode());
+            }
+
             TrainAlgorithmQureyVO ptTrainAlgorithm = algorithmMap.get(ptTrainJobDetailVO.getAlgorithmId());
             if (null != ptTrainAlgorithm) {
                 ptTrainJobDetailVO.setAlgorithmName(ptTrainAlgorithm.getAlgorithmName())
@@ -361,7 +457,19 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
                 if (ptTrainAlgorithm.getAlgorithmSource() == MagicNumConstant.ONE) {
                     ptTrainJobDetailVO.setAlgorithmCodeDir(ptTrainAlgorithm.getCodeDir());
                 }
+                ptTrainJobDetailVO.setDisplayRunCommand(runCommandInnerService.buildDisplayRunCommand(baseTrainJobDTO,ptTrainJobDetailVO.getCreateUserId(),
+                        ptTrainAlgorithm.getIsTrainModelOut(), ptTrainAlgorithm.getIsTrainOut(), ptTrainAlgorithm.getIsVisualizedLog(), ptTrainJobDetailVO.getRunCommand()));
+            } else {
+                //notebook训练模板
+                ptTrainJobDetailVO.setDisplayRunCommand(runCommandInnerService.buildDisplayRunCommand(baseTrainJobDTO, ptTrainJobDetailVO.getCreateUserId(),
+                        true, true, false, ptTrainJobDetailVO.getRunCommand()));
             }
+
+            //炼知模型重组训练教师模型/数据集信息
+            List<PtAtlasTrainParam> ptAtlasTrainParams = atlasTrainParamMapper.selectList(new LambdaQueryWrapper<PtAtlasTrainParam>()
+                    .in(PtAtlasTrainParam::getTrainJobId, ptTrainJobDetailVO.getId()));
+            ptTrainJobDetailVO.setBaseAtlasParams(ptAtlasTrainParams);
+
         }
 
         return list;
@@ -432,16 +540,6 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
 
         validatePtTrainJobCreateDTO(ptTrainJobCreateDTO);
 
-        // 判断当前trainName是否已经存在
-        checkTrainName(ptTrainJobCreateDTO.getTrainName(), userContextService.getCurUserId());
-
-        // 校验trainParamName是否存在
-        if (ptTrainJobCreateDTO.getSaveParams() != null && ptTrainJobCreateDTO.getSaveParams()) {
-            checkTrainParamName(ptTrainJobCreateDTO, userContextService.getCurUserId());
-            // 保存任务参数到数据库
-            saveParamToDb(ptTrainJobCreateDTO, userContextService.getCurUser());
-        }
-
         //jobKey
         String trainKey = KeyUtil.generateTrainKey(userContextService.getCurUserId());
 
@@ -452,7 +550,6 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
 
         // 获取镜像和算法目录
         PtImageAndAlgorithmVO ptImageAndAlgorithmVO = buildPtImageAndAlgorithmVO(ptTrainJobCreateDTO);
-
         //生成任务识别标识
         String taskIdentify = StringUtils.getUUID();
         BaseTrainJobDTO baseTrainJobDTO = new BaseTrainJobDTO();
@@ -529,27 +626,50 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
      * @param ptTrainJobCreateDTO
      */
     private void validatePtTrainJobCreateDTO(PtTrainJobCreateDTO ptTrainJobCreateDTO) {
+        //算法ID和notebook ID不能同时为空
         if (ptTrainJobCreateDTO.getAlgorithmId() == null && ptTrainJobCreateDTO.getNotebookId() == null) {
             LogUtil.error(LogEnum.BIZ_TRAIN, "Neither algorithm's id  nor notebook's id can be null  at the same time");
             throw new BusinessException("算法ID或者notebookId不能同时为空！");
         }
-        //带算法创建(非notebook发起训练)时校验参数
-        if (ptTrainJobCreateDTO.getNotebookId() == null) {
-            validateCreateTrainJobWithAlgorithm(ptTrainJobCreateDTO);
+
+        //校验系统参数映射关系的key合法
+        if (ptTrainJobCreateDTO.getRunParamsNameMap() != null) {
+            Map<String, String> runParamsNameMap = MapUtil.convertJsonObject(ptTrainJobCreateDTO.getRunParamsNameMap());
+            runParamsNameMap.keySet().forEach(key -> {
+                if (TrainSystemRunParamEnum.to(key) == null) {
+                    throw new BusinessException("运行参数映射的key不合法！");
+                }
+            });
+        }
+
+        Long userId = userContextService.getCurUserId();
+        QueryWrapper<PtTrain> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("train_name", ptTrainJobCreateDTO.getTrainName())
+                .eq("create_user_id", userId);
+        Integer ptTrainCountResult = ptTrainMapper.selectCount(queryWrapper);
+        if (ptTrainCountResult > 0) {
+            throw new BusinessException("当前训练名称已经存在");
+        }
+
+        // 校验trainParamName是否存在
+        if (ptTrainJobCreateDTO.getSaveParams() != null && ptTrainJobCreateDTO.getSaveParams()) {
+            checkTrainParamName(ptTrainJobCreateDTO, userContextService.getCurUserId());
+            // 保存任务参数到数据库
+            saveParamToDb(ptTrainJobCreateDTO, userContextService.getCurUser());
+        }
+        Integer modelResource = ptTrainJobCreateDTO.getModelResource();
+        if (modelResource == null) {
+            return;
+        }
+
+        if (ModelResourceEnum.MINE.equals(ModelResourceEnum.getType(modelResource))
+                || ModelResourceEnum.PRESET.equals(ModelResourceEnum.getType(modelResource))) {
+            if (ptTrainJobCreateDTO.getModelId() == null || ptTrainJobCreateDTO.getModelBranchId() == null) {
+                ptTrainJobCreateDTO.setModelResource(null);
+            }
         }
     }
 
-    /**
-     * 参数校验
-     *
-     * @param ptTrainJobCreateDTO
-     */
-    private void validateCreateTrainJobWithAlgorithm(PtTrainJobCreateDTO ptTrainJobCreateDTO) {
-        if (ptTrainJobCreateDTO.getAlgorithmId() == null) {
-            LogUtil.error(LogEnum.BIZ_TRAIN, "Algorithm id is null");
-            throw new BusinessException("算法ID不能为空~");
-        }
-    }
 
     /**
      * 保存训练任务数据
@@ -583,6 +703,7 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
         // 添加train_job表
         PtTrainJob ptTrainJob = new PtTrainJob();
         BeanUtil.copyProperties(ptTrainJobCreateDTO, ptTrainJob);
+
         if (ptTrainJobCreateDTO.getNotebookId() != null) {
             NoteBookVO noteBook = getNoteBook(ptTrainJobCreateDTO.getNotebookId());
             ptJobParam.setNotebookName(noteBook.getNoteBookName());
@@ -598,20 +719,30 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
             throw new BusinessException("内部错误");
         }
 
+        TrainTypeEnum typeEnum = TrainTypeEnum.getTrainTypeByCode(ptTrainJobCreateDTO.getTrainType());
+        switch (typeEnum) {
+            case ATLAS_TRAIN:
+                buildAtlasTrainParams(ptTrainJobCreateDTO.getStudentModelStruct(), ptTrainJobCreateDTO.getBaseAtlasParams(), baseTrainJobDTO, ptTrainJob.getId());
+                break;
+            default:
+                break;
+        }
+
 
         ptJobParam.setTrainJobId(ptTrainJob.getId())
                 .setAlgorithmId(ptTrainJobCreateDTO.getAlgorithmId())
                 .setRunCommand(ptTrainJobCreateDTO.getRunCommand())
                 .setImageName(imageName)
                 .setRunParams(ptTrainJobCreateDTO.getRunParams())
+                .setRunParamsNameMap(ptTrainJobCreateDTO.getRunParamsNameMap())
                 .setCreateUserId(currentUser.getId());
-        //保存算法用途
-        if (ptTrainJobCreateDTO.getAlgorithmUsage() != null) {
-            ptJobParam.setAlgorithmUsage(ptTrainJobCreateDTO.getAlgorithmUsage());
+        //保存数据集类型
+        if (ptTrainJobCreateDTO.getDatasetType() != null) {
+            ptJobParam.setDatasetType(Integer.valueOf(ptTrainJobCreateDTO.getDatasetType()));
         }
-        //保存验证数据集算法用途
-        if (ptTrainJobCreateDTO.getValAlgorithmUsage() != null) {
-            ptJobParam.setValAlgorithmUsage(ptTrainJobCreateDTO.getValAlgorithmUsage());
+        //保存验证数据集类型
+        if (ptTrainJobCreateDTO.getValDatasetType() != null) {
+            ptJobParam.setValDatasetType(Integer.valueOf(ptTrainJobCreateDTO.getValDatasetType()));
         }
         //保存训练延时启动时间
         if (ptTrainJobCreateDTO.getDelayCreateTime() != null && ptTrainJobCreateDTO.getDelayCreateTime() > 0) {
@@ -633,6 +764,32 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
         return ptTrainJob;
     }
 
+    private void buildAtlasTrainParams(String studentModelStruct, List<PtAtlasTrainParam> baseAtlasParams, BaseTrainJobDTO baseTrainJobDTO, Long trainJobId) {
+        List<String> teacherModelPaths = new ArrayList<>();
+        List<String> atlasDatasetNames = new ArrayList<>();
+        List<String> atlasDatasetPaths = new ArrayList<>();
+        PtAtlasTrainParam ptAtlasTrainParam = new PtAtlasTrainParam();
+
+        baseAtlasParams.forEach(baseAtlasParam -> {
+            teacherModelPaths.add(baseAtlasParam.getTeacherModelPath());
+            atlasDatasetNames.add(baseAtlasParam.getDataSourceName());
+            atlasDatasetPaths.add(baseAtlasParam.getDataSourcePath());
+            BeanUtils.copyProperties(baseAtlasParam, ptAtlasTrainParam);
+            ptAtlasTrainParam.setTrainJobId(trainJobId);
+            ptAtlasTrainParam.setTeacherModelName(baseAtlasParam.getDataSourceName() + StrUtil.UNDERLINE + baseAtlasParam.getTeacherModelStruct());
+            atlasTrainParamMapper.insert(ptAtlasTrainParam);
+        });
+        //学生模型数据集默认选用第一个教师模型数据集
+        DataResponseBody<PtModelInfoQueryVO> ptModelInfoQueryVO = modelInfoClient.getAtlasModels(baseAtlasParams.get(0).getDataSourceName() + StrUtil.UNDERLINE + studentModelStruct);
+        if (ptModelInfoQueryVO.getData() != null) {
+            baseTrainJobDTO.setStudentModelPathList(Arrays.asList(ptModelInfoQueryVO.getData().getModelAddress()));
+        }
+        baseTrainJobDTO.setTeacherModelPathList(teacherModelPaths);
+        baseTrainJobDTO.setAtlasDatasetNames(atlasDatasetNames);
+        baseTrainJobDTO.setAtlasDatasetPaths(atlasDatasetPaths);
+    }
+
+
     /**
      * 检查模型是否合法,合法则保存其路径地址
      *
@@ -643,22 +800,14 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
 
         Integer modelResource = baseTrainJobDTO.getModelResource();
         if (null == modelResource) {
-            if (null == baseTrainJobDTO.getModelId() &&
-                    StringUtils.isBlank(baseTrainJobDTO.getStudentModelIds()) &&
-                    StringUtils.isBlank(baseTrainJobDTO.getStudentModelIds())) {
-                return;
-            } else {
-                logErrorInfoOnModel(currentUser.getUsername());
-            }
+            return;
         }
         PtModelBranchQueryByIdDTO ptModelBranchQueryByIdDTO = new PtModelBranchQueryByIdDTO();
         PtModelInfoQueryByIdDTO ptModelInfoQueryByIdDTO = new PtModelInfoQueryByIdDTO();
         PtModelInfoConditionQueryDTO ptModelInfoConditionQueryDTO = new PtModelInfoConditionQueryDTO();
         switch (ModelResourceEnum.getType(modelResource)) {
             case MINE:
-                if (null == baseTrainJobDTO.getModelBranchId() || null == baseTrainJobDTO.getModelId() ||
-                        StringUtils.isNotBlank(baseTrainJobDTO.getTeacherModelIds()) ||
-                        StringUtils.isNotBlank(baseTrainJobDTO.getStudentModelIds())) {
+                if (null == baseTrainJobDTO.getModelBranchId() || null == baseTrainJobDTO.getModelId()) {
                     logErrorInfoOnModel(currentUser.getUsername());
                 }
                 ptModelBranchQueryByIdDTO.setId(baseTrainJobDTO.getModelBranchId());
@@ -684,8 +833,7 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
                 baseTrainJobDTO.setModelPath(adjustmentUrl(ptModelBranchQueryVO.getModelAddress()));
                 break;
             case PRESET:
-                if (null == baseTrainJobDTO.getModelId() || StringUtils.isNotBlank(baseTrainJobDTO.getTeacherModelIds()) ||
-                        StringUtils.isNotBlank(baseTrainJobDTO.getStudentModelIds())) {
+                if (null == baseTrainJobDTO.getModelId()) {
                     logErrorInfoOnModel(currentUser.getUsername());
                 }
                 ptModelInfoQueryByIdDTO.setId(baseTrainJobDTO.getModelId());
@@ -699,51 +847,6 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
                     logErrorInfoOnModel(currentUser.getUsername());
                 }
                 baseTrainJobDTO.setModelPath(adjustmentUrl(ptModelInfoPresetQueryVO.getModelAddress()));
-                break;
-            case ATLAS:
-                if (StringUtils.isBlank(baseTrainJobDTO.getTeacherModelIds()) || null != baseTrainJobDTO.getModelId()) {
-                    logErrorInfoOnModel(currentUser.getUsername());
-                }
-                Set<Long> ids = new HashSet<>();
-                Set<Long> teacherModelList = new HashSet<>();
-                Arrays.stream(baseTrainJobDTO.getTeacherModelIds().trim().split(SymbolConstant.COMMA))
-                        .forEach(id -> teacherModelList.add(Long.parseLong(id)));
-                ids.addAll(teacherModelList);
-
-                Set<Long> studentModelList = new HashSet<>();
-                if (StringUtils.isNotBlank(baseTrainJobDTO.getStudentModelIds())) {
-                    Arrays.stream(baseTrainJobDTO.getStudentModelIds().trim().split(SymbolConstant.COMMA))
-                            .forEach(id -> studentModelList.add(Long.parseLong(id)));
-                    ids.addAll(studentModelList);
-                }
-                if (ids.isEmpty()) {
-                    logErrorInfoOnModel(currentUser.getUsername());
-                }
-
-                ptModelInfoConditionQueryDTO.setIds(ids);
-                ptModelInfoConditionQueryDTO.setModelResource(baseTrainJobDTO.getModelResource());
-                DataResponseBody<List<PtModelInfoQueryVO>> conditionQueryDataResponseBody = modelInfoClient.getConditionQuery(ptModelInfoConditionQueryDTO);
-                List<PtModelInfoQueryVO> modelInfoList = null;
-                if (conditionQueryDataResponseBody.succeed()) {
-                    modelInfoList = conditionQueryDataResponseBody.getData();
-                }
-                if (null == modelInfoList || modelInfoList.size() < ids.size()) {
-                    logErrorInfoOnModel(currentUser.getUsername());
-                }
-
-                //保存炼知教师模型路径地址
-                baseTrainJobDTO.setTeacherModelPathList(new ArrayList<>());
-                modelInfoList.stream()
-                        .filter(modelInfo -> teacherModelList.contains(modelInfo.getId()))
-                        .forEach(modelInfo -> baseTrainJobDTO.getTeacherModelPathList().add(adjustmentUrl(modelInfo.getModelAddress())));
-
-                //保存炼知学生模型路径地址
-                if (!studentModelList.isEmpty()) {
-                    baseTrainJobDTO.setStudentModelPathList(new ArrayList<>());
-                    modelInfoList.stream()
-                            .filter(modelInfo -> studentModelList.contains(modelInfo.getId()))
-                            .forEach(modelInfo -> baseTrainJobDTO.getStudentModelPathList().add(adjustmentUrl(modelInfo.getModelAddress())));
-                }
                 break;
         }
     }
@@ -769,7 +872,7 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
      */
     private void logErrorInfoOnModel(String username) {
         LogUtil.error(LogEnum.BIZ_TRAIN, "User {} operating training job, error on model......", username);
-        throw new BusinessException("模型参数参数不合法");
+        throw new BusinessException("模型参数不合法");
     }
 
     /**
@@ -825,21 +928,6 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
         return ptImageAndAlgorithmVO;
     }
 
-    /**
-     * 校验trainName
-     *
-     * @param trainName 校验trainName
-     * @param userId    返回用户ID
-     */
-    private void checkTrainName(String trainName, Long userId) {
-        QueryWrapper<PtTrain> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("train_name", trainName)
-                .eq("create_user_id", userId);
-        Integer ptTrainCountResult = ptTrainMapper.selectCount(queryWrapper);
-        if (ptTrainCountResult > 0) {
-            throw new BusinessException("当前训练名称已经存在");
-        }
-    }
 
     /**
      * 校验trainParamName
@@ -889,8 +977,19 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
             LogUtil.error(LogEnum.BIZ_TRAIN, "It is illegal for a user {} to modify a training job, jobId, to {}", userContextService.getCurUser().getUsername(), ptTrainJobUpdateDTO.getId());
             throw new BusinessException("您输入的id不存在或已被删除");
         }
-
-
+        Integer modelResource = ptTrainJobUpdateDTO.getModelResource();
+        if (modelResource != null) {
+            if (ModelResourceEnum.MINE.equals(ModelResourceEnum.getType(modelResource))
+                    || ModelResourceEnum.PRESET.equals(ModelResourceEnum.getType(modelResource))) {
+                if (ptTrainJobUpdateDTO.getModelId() == null || ptTrainJobUpdateDTO.getModelBranchId() == null) {
+                    ptTrainJobUpdateDTO.setModelResource(null);
+                }
+            } else if (ModelResourceEnum.ATLAS.equals(ModelResourceEnum.getType(modelResource))) {
+                if (StringUtils.isEmpty(ptTrainJobUpdateDTO.getStudentModelStruct())) {
+                    ptTrainJobUpdateDTO.setModelResource(null);
+                }
+            }
+        }
         PtTrain ptTrain = ptTrainMapper.selectById(existPtTrainJob.getTrainId());
 
         String jobName = buildVersion(ptTrain);
@@ -936,6 +1035,7 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
 
         //检查模型是否合法,合法则保存其路径地址
         checkModelAndSavePath(currentUser, baseTrainJobDTO);
+
         //保存job参数
         PtJobParam ptJobParam = new PtJobParam();
         //添加train_job表
@@ -954,10 +1054,16 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
                 .setParentTrainVersion(existPtTrainJob.getTrainVersion())
                 .setOriginUserId(ptTrain.getCreateUserId())
                 .setCreateUserId(ptTrain.getCreateUserId());
+
         int jobResult = ptTrainJobMapper.insert(ptTrainJob);
         if (jobResult < 1) {
             LogUtil.error(LogEnum.BIZ_TRAIN, "User {} created training Job, failed to insert data in train_job table", currentUser.getUsername());
             throw new BusinessException("内部错误");
+        }
+
+        if (ptTrainJobUpdateDTO.getModelResource() != null && ptTrainJobUpdateDTO.getModelResource().equals(ModelResourceEnum.ATLAS.getType())) {
+            //组装炼知模型重组训练下发参数
+            buildAtlasTrainParams(ptTrainJobUpdateDTO.getStudentModelStruct(), ptTrainJobUpdateDTO.getBaseAtlasParams(), baseTrainJobDTO, ptTrainJob.getId());
         }
 
 
@@ -966,14 +1072,15 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
                 .setRunCommand(ptTrainJobUpdateDTO.getRunCommand())
                 .setImageName(imageName)
                 .setRunParams(ptTrainJobUpdateDTO.getRunParams())
+                .setRunParamsNameMap(ptTrainJobUpdateDTO.getRunParamsNameMap())
                 .setCreateUserId(ptTrain.getCreateUserId());
-        //保存算法用途
-        if (ptTrainJobUpdateDTO.getAlgorithmUsage() != null) {
-            ptJobParam.setAlgorithmUsage(ptTrainJobUpdateDTO.getAlgorithmUsage());
+        //保存数据集类型
+        if (ptTrainJobUpdateDTO.getDatasetType() != null) {
+            ptJobParam.setDatasetType(Integer.valueOf(ptTrainJobUpdateDTO.getDatasetType()));
         }
-        //保存验证数据集算法用途
-        if (ptTrainJobUpdateDTO.getValAlgorithmUsage() != null) {
-            ptJobParam.setValAlgorithmUsage(ptTrainJobUpdateDTO.getValAlgorithmUsage());
+        //保存验证数据集类型
+        if (ptTrainJobUpdateDTO.getValDatasetType() != null) {
+            ptJobParam.setValDatasetType(Integer.valueOf(ptTrainJobUpdateDTO.getValDatasetType()));
         }
         //保存训练延时启动时间
         if (ptTrainJobUpdateDTO.getDelayCreateTime() != null && ptTrainJobUpdateDTO.getDelayCreateTime() > 0) {
@@ -1057,7 +1164,7 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
             //回收已删除训练任务无效文件
             String recyclePath = fileStoreApi.formatPath(fileStoreApi.getRootDir() + fileStoreApi.getBucket() + trainJobConfig.getManage() +
                     File.separator + ptTrainJob.getCreateUserId() + File.separator + ptTrainJob.getJobName());
-            recycleTaskWithTrain(recyclePath, ptTrainJobDeleteDTO.getId());
+            recycleTaskWithTrain(recyclePath, ptTrainJob.getJobName(), ptTrainJobDeleteDTO.getId());
 
         } else {
             deleteTrainAndJob(ptTrainJobDeleteDTO, userContextService.getCurUser(), jobList, ptTrain, jobIdList);
@@ -1074,6 +1181,10 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
             LogUtil.error(LogEnum.BIZ_TRAIN, "User {} deleted training job, pT_job_param table failed to delete data", userContextService.getCurUser().getUsername());
             throw new BusinessException("内部错误");
         }
+
+        //删除炼制模型重组训练教师模型相关
+        atlasTrainParamMapper.delete(new LambdaQueryWrapper<PtAtlasTrainParam>()
+                .in(PtAtlasTrainParam::getTrainJobId, jobIdList));
 
         PtTrainJobDeleteVO ptTrainJobDeleteVO = new PtTrainJobDeleteVO();
         BeanUtil.copyProperties(ptTrainJobDeleteDTO, ptTrainJobDeleteVO);
@@ -1133,7 +1244,7 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
         for (PtTrainJob trainJob : ptTrainJobs) {
             String recyclePath = fileStoreApi.formatPath(fileStoreApi.getRootDir() + fileStoreApi.getBucket() + trainJobConfig.getManage() +
                     StrUtil.SLASH + trainJob.getCreateUserId() + StrUtil.SLASH + trainJob.getJobName());
-            recycleTaskWithTrain(recyclePath, trainJob.getId());
+            recycleTaskWithTrain(recyclePath, trainJob.getJobName(), trainJob.getId());
         }
     }
 
@@ -1374,6 +1485,7 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
             LogUtil.error(LogEnum.BIZ_TRAIN, "The jobId for the user {} query does not exist", userContextService.getCurUser().getUsername());
             throw new BusinessException("您查询的id不存在或已被删除");
         }
+
         //获取训练参数
         PtTrain ptTrain = ptTrainMapper.selectById(ptTrainJob.getTrainId());
         //获取训练任务参数
@@ -1399,12 +1511,22 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
         PtTrainJobDetailQueryVO ptTrainJobDetailQueryVO = new PtTrainJobDetailQueryVO();
         ptTrainJobDetailQueryVO.setK8sNamespace(k8sNameTool.generateNamespace(ptTrainJob.getCreateUserId()));
         BeanUtils.copyProperties(ptTrainJob, ptTrainJobDetailQueryVO);
+        ptTrainJobDetailQueryVO.setTrainName(ptTrain.getTrainName()).setAlgorithmId(ptJobParam.getAlgorithmId())
+                .setRunCommand(CommandUtil.buildPythonCommand(ptJobParam.getRunCommand(), ptJobParam.getRunParams()))
+                .setRunParams(null).setParamF1(ptJobParam.getParamF1()).setParamCallback(ptJobParam.getParamCallback());
+
         ptTrainJobDetailQueryVO.setTrainName(ptTrain.getTrainName()).setAlgorithmId(ptJobParam.getAlgorithmId()).setRunCommand(ptJobParam.getRunCommand())
                 .setRunParams(ptJobParam.getRunParams()).setParamF1(ptJobParam.getParamF1()).setParamCallback(ptJobParam.getParamCallback())
                 .setParamPrecise(ptJobParam.getParamPrecise()).setParamAccuracy(ptJobParam.getParamAccuracy())
                 .setNotebookId(ptJobParam.getNotebookId())
-                .setNotebookName(ptJobParam.getNotebookName())
-                .setAlgorithmUsage(ptJobParam.getAlgorithmUsage()).setValAlgorithmUsage(ptJobParam.getValAlgorithmUsage());
+                .setNotebookName(ptJobParam.getNotebookName());
+        if (ptJobParam.getDatasetType() != null) {
+            ptTrainJobDetailQueryVO.setDatasetType(Integer.toString(ptJobParam.getDatasetType()));
+        }
+
+        if (ptJobParam.getValDatasetType() != null) {
+            ptTrainJobDetailQueryVO.setValDatasetType(Integer.toString(ptJobParam.getValDatasetType()));
+        }
         long nowTime = System.currentTimeMillis();
         //获取训练延时启动倒计时（分钟）
         if (ptJobParam.getDelayCreateTime() != null && nowTime < ptJobParam.getDelayCreateTime().getTime() && TrainJobStatusEnum.checkRunStatus(ptTrainJob.getTrainStatus())) {
@@ -1440,6 +1562,13 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
             if (ptTrainAlgorithm.getAlgorithmSource() == MagicNumConstant.ONE) {
                 ptTrainJobDetailQueryVO.setAlgorithmCodeDir(ptTrainAlgorithm.getCodeDir());
             }
+        }
+
+        //获取炼知模型重组教师模型、数据集信息
+        List<PtAtlasTrainParam> ptAtlasTrainParams = atlasTrainParamMapper.selectList(new LambdaQueryWrapper<PtAtlasTrainParam>()
+                .eq(PtAtlasTrainParam::getTrainJobId, ptTrainJobDetailQueryDTO.getId()));
+        if (CollUtil.isNotEmpty(ptAtlasTrainParams)) {
+            ptTrainJobDetailQueryVO.setBaseAtlasParams(ptAtlasTrainParams);
         }
 
         return ptTrainJobDetailQueryVO;
@@ -1721,19 +1850,22 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
     /**
      * 回收训练任务
      * @param recyclePath 文件路径
+     * @param trainJobName 训练任务名称 trainJobName
      * @param id          训练id
      */
-    public void recycleTaskWithTrain(String recyclePath, long id) {
+    public void recycleTaskWithTrain(String recyclePath, String trainJobName, long id) {
         //创建已删除训练任务的无效文件回收任务
         RecycleCreateDTO recycleCreateDTO = RecycleCreateDTO.builder()
                 .recycleModule(RecycleModuleEnum.BIZ_TRAIN.getValue())
                 .recycleDelayDate(recycleConfig.getTrainValid())
-                .recycleNote(RecycleTool.generateRecycleNote("回收已删除训练任务文件", id))
+                .recycleNote(RecycleTool.generateRecycleNote("回收已删除训练任务文件", trainJobName, id))
+                .remark(String.valueOf(id))
+                .restoreCustom(RecycleResourceEnum.TRAIN_JOB_RECYCLE_FILE.getClassName())
                 .build();
         recycleCreateDTO.addRecycleDetailCreateDTO(RecycleDetailCreateDTO.builder()
                 .recycleType(RecycleTypeEnum.FILE.getCode())
                 .recycleCondition(recyclePath)
-                .recycleNote(RecycleTool.generateRecycleNote("回收已删除训练任务文件", id))
+                .recycleNote(RecycleTool.generateRecycleNote("回收已删除训练任务文件", trainJobName, id))
                 .build()
         );
         recycleService.createRecycleTask(recycleCreateDTO);
@@ -1815,5 +1947,134 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
         }
         //停止job
         stopTrainJobAsync.stopJobs(userContextService.getCurUser(), ptTrainJobs);
+    }
+
+    @Override
+    public DefaultAtlasTrainParamsVo getDefaultAtlasParam(Integer atlasAlgorithmType) {
+
+        DefaultAtlasTrainParamsVo defaultAtlasTrainParamsVo = new DefaultAtlasTrainParamsVo();
+        // 炼知模型重组训练任务类型，默认为单任务
+        defaultAtlasTrainParamsVo.setJobType(AtlasJobTypeEnum.SINGLE_JOB.getType());
+
+        //获取算法名
+        String algorithmName = AtlasAlgorithmTypeEnum.getAlgorithmName(atlasAlgorithmType);
+        if (StrUtil.isEmpty(algorithmName)) {
+            throw new BusinessException("不支持的算法");
+        }
+
+        DataResponseBody<TrainAlgorithmQureyVO> atlasAlgorithmQureyVO = algorithmClient.findAlgorithmByName(algorithmName);
+        TrainAlgorithmQureyVO atlasAlgorithm = null;
+        if (atlasAlgorithmQureyVO.succeed()) {
+            atlasAlgorithm = atlasAlgorithmQureyVO.getData();
+        }
+
+        //组装重组算法参数
+        if (atlasAlgorithm != null) {
+            defaultAtlasTrainParamsVo.setAlgorithmId(atlasAlgorithm.getId())
+                    .setAlgorithmName(atlasAlgorithm.getAlgorithmName())
+                    .setImageName(atlasAlgorithm.getImageName())
+                    .setImageTag(atlasAlgorithm.getImageTag())
+                    .setRunCommand(atlasAlgorithm.getRunCommand());
+        }
+
+        //组装重组模型和数据集参数
+        List<PtAtlasTrainParam> atlasTrainParams = new ArrayList<>();
+        PtAtlasTrainParam ptAtlasTrainParam1 = new PtAtlasTrainParam();
+        PtAtlasTrainParam ptAtlasTrainParam2 = new PtAtlasTrainParam();
+
+        //同构算法重组任务（逐层融合算法：layerwise-amalgamation）
+        if (AtlasAlgorithmTypeEnum.LAYERWISE.getType().equals(atlasAlgorithmType)) {
+            getPresetDatasetInfo(ATlasTrainConstant.DATASET_1, ptAtlasTrainParam1);
+            buildAtlasTeacherModel(ptAtlasTrainParam1, ATlasTrainConstant.LAYERWISE_MODEL_STRUCT, ATlasTrainConstant.DATASET_1);
+            atlasTrainParams.add(ptAtlasTrainParam1);
+
+            getPresetDatasetInfo(ATlasTrainConstant.DATASET_2, ptAtlasTrainParam2);
+            buildAtlasTeacherModel(ptAtlasTrainParam2, ATlasTrainConstant.LAYERWISE_MODEL_STRUCT, ATlasTrainConstant.DATASET_2);
+            atlasTrainParams.add(ptAtlasTrainParam2);
+
+            defaultAtlasTrainParamsVo.setStudentModelStruct(ATlasTrainConstant.LAYERWISE_MODEL_STRUCT);
+            //重组任务名称
+            defaultAtlasTrainParamsVo.setTrainName("layerwise-" + RandomUtil.randomString(4));
+            //异构算法重组任务(共同特征聚合算法：common-feature-learning)
+        } else if (AtlasAlgorithmTypeEnum.CFL.getType().equals(atlasAlgorithmType)) {
+            getPresetDatasetInfo(ATlasTrainConstant.DATASET_1, ptAtlasTrainParam1);
+            buildAtlasTeacherModel(ptAtlasTrainParam1, ATlasTrainConstant.CFL_MODEL_STRUCT_1, ATlasTrainConstant.DATASET_1);
+            atlasTrainParams.add(ptAtlasTrainParam1);
+
+            getPresetDatasetInfo(ATlasTrainConstant.DATASET_2, ptAtlasTrainParam2);
+            buildAtlasTeacherModel(ptAtlasTrainParam2, ATlasTrainConstant.CFL_MODEL_STRUCT_2, ATlasTrainConstant.DATASET_2);
+            atlasTrainParams.add(ptAtlasTrainParam2);
+
+            defaultAtlasTrainParamsVo.setStudentModelStruct(ATlasTrainConstant.CFL_MODEL_STRUCT_1);
+            //重组任务名称
+            defaultAtlasTrainParamsVo.setTrainName("cfl-" + RandomUtil.randomString(4));
+            //多任务重组训练（任务自适应分杈重组算法：Task Branching）
+        } else if (AtlasAlgorithmTypeEnum.TASK_BRANCHING.getType().equals(atlasAlgorithmType)) {
+            getPresetDatasetInfo(ATlasTrainConstant.TASK_DATASET, ptAtlasTrainParam1);
+            buildAtlasTeacherModel(ptAtlasTrainParam1, ATlasTrainConstant.TASK_MODEL_STRUCT_1, ATlasTrainConstant.TASK_DATASET);
+            atlasTrainParams.add(ptAtlasTrainParam1);
+
+            getPresetDatasetInfo(ATlasTrainConstant.TASK_DATASET, ptAtlasTrainParam2);
+            buildAtlasTeacherModel(ptAtlasTrainParam2, ATlasTrainConstant.TASK_MODEL_STRUCT_2, ATlasTrainConstant.TASK_DATASET);
+            atlasTrainParams.add(ptAtlasTrainParam2);
+
+            defaultAtlasTrainParamsVo.setStudentModelStruct(ATlasTrainConstant.TASK_MODEL_STRUCT_1);
+            //重组任务名称
+            defaultAtlasTrainParamsVo.setTrainName("task-" + RandomUtil.randomString(4));
+            // 重组多任务标识
+            defaultAtlasTrainParamsVo.setJobType(AtlasJobTypeEnum.MULTI_JOB.getType());
+        }
+
+        defaultAtlasTrainParamsVo.setBaseAtlasParams(atlasTrainParams);
+        defaultAtlasTrainParamsVo.setModelResource(ModelResourceEnum.ATLAS.getType().toString());
+        return defaultAtlasTrainParamsVo;
+    }
+
+    @Override
+    public void recycleRollback(RecycleCreateDTO dto) {
+        String trainJobId = dto.getRemark();
+        ptTrainJobMapper.updateDeletedById(Long.valueOf(trainJobId), false);
+    }
+
+
+    private void buildAtlasTeacherModel(PtAtlasTrainParam ptAtlasTrainParam, String modeStruct, String datasetName) {
+        DataResponseBody<PtModelInfoQueryVO> ptModelInfoQueryVO = modelInfoClient.getAtlasModels(datasetName + StrUtil.UNDERLINE + modeStruct);
+        if (ptModelInfoQueryVO.getData() != null) {
+            ptAtlasTrainParam.setTeacherModelPath(ptModelInfoQueryVO.getData().getModelAddress());
+            ptAtlasTrainParam.setTeacherModelStruct(modeStruct);
+        }
+    }
+
+    private void getPresetDatasetInfo(String datasetName, PtAtlasTrainParam ptAtlasTrainParam) {
+        DataResponseBody<DatasetVO> dataResponseBody = datasetClient.getPresetDatasetByName(datasetName);
+        if (dataResponseBody.succeed() && dataResponseBody.getData() != null) {
+            DatasetVO datasetVo = dataResponseBody.getData();
+            ptAtlasTrainParam.setDatasetId(datasetVo.getId())
+                    .setDatasetType(datasetVo.getType().toString())
+                    .setDataSourceName(datasetName)
+                    .setDatasetVersion(datasetVo.getCurrentVersionName())
+                    .setDataSourcePath(datasetVo.getUri() + "/versionFile/" + datasetVo.getCurrentVersionName());
+            return;
+        }
+        throw new BusinessException("数据集不存在");
+    }
+
+    /**
+     * 获取训练任务的创建人用户名
+     *
+     * @param trainResult
+     */
+    private void convertWithCreateUsers(List<PtTrainVO> trainResult) {
+        List<Long> userIds = trainResult.stream().map(PtTrainVO::getCreateUserId).filter(Objects::nonNull).distinct().collect(Collectors.toList());
+        if (CollectionUtils.isEmpty(userIds)) {
+            return;
+        }
+        Map<Long, String> idUserNameMap = new HashMap<>();
+        DataResponseBody<List<UserDTO>> result = adminClient.getUserList(userIds);
+        if (result.getData() != null) {
+            idUserNameMap = result.getData().stream().collect(Collectors.toMap(UserDTO::getId, UserDTO::getUsername, (o, n) -> n));
+        }
+        Map<Long, String> finalIdUserNameMap = idUserNameMap;
+        trainResult.forEach(x -> x.setCreateUserName(finalIdUserNameMap.get(x.getCreateUserId())));
     }
 }

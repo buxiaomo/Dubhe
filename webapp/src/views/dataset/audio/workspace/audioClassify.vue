@@ -18,8 +18,8 @@
   <div v-hotkey.stop="keymap">
     <div class="flex flex-between">
       <el-tabs :value="activeTab" class="eltabs-inlineblock" @tab-click="handlePanelClick">
-        <el-tab-pane :label="countInfoAuido.unfinished" name="unfinished" />
-        <el-tab-pane :label="countInfoAuido.finished" name="finished" />
+        <el-tab-pane :label="countInfoAuido.noAnnotation" name="noAnnotation" />
+        <el-tab-pane :label="countInfoAuido.haveAnnotation" name="haveAnnotation" />
       </el-tabs>
       <div class="flex flex-end f1">
         <div class="ml-40 mr-10 my-auto">标注进度:</div>
@@ -123,25 +123,26 @@ export default {
   },
   setup(props, ctx) {
     const state = reactive({
-      activeTab: props.activeTab || 'unfinished',
+      activeTab: props.activeTab || 'noAnnotation',
       url: props.url || '',
     });
 
     const countInfoAuido = computed(() => ({
-      unfinished: `无标注信息（${props.countInfo.unfinished}）`,
-      finished: `有标注信息（${props.countInfo.finished}）`,
+      noAnnotation: `无标注信息（${props.countInfo.noAnnotation}）`,
+      haveAnnotation: `有标注信息（${props.countInfo.haveAnnotation}）`,
     }));
 
     // 确认是否可操作
     const comfirmDisabled = computed(() => state.loading || props.saving || !props.fileId);
 
     const percentage = computed(() => {
-      const total = props.countInfo.unfinished + props.countInfo.finished;
-      return total === 0 ? 0 : (props.countInfo.finished / total) * 100;
+      const total = props.countInfo.noAnnotation + props.countInfo.haveAnnotation;
+      return total === 0 ? 0 : (props.countInfo.haveAnnotation / total) * 100;
     });
 
     const progress = computed(() => {
-      return `${props.countInfo.finished}/${props.countInfo.finished + props.countInfo.unfinished}`;
+      return `${props.countInfo.haveAnnotation}/${props.countInfo.haveAnnotation +
+        props.countInfo.noAnnotation}`;
     });
 
     const sliceTag = (tagName) => (tagName.length < 12 ? tagName : `${tagName.slice(0, 12)}...`);

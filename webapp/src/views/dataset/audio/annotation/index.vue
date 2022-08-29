@@ -77,7 +77,7 @@ import {
 } from '@/api/preparation/dataset';
 import { deleteFile as deleteFileApi, save as saveApi } from '@/api/preparation/textData';
 import { getAudioDetail } from '@/api/preparation/datafile';
-import { fileCodeMap, dataTypeMap, annotationBy, annotationCodeMap } from '../../util';
+import { fileCodeMap, dataTypeMap, annotationBy, annotationMap } from '../../util';
 import WorkSpace from '../workspace';
 import SideBar from '../../nlp/annotation/sidebar';
 
@@ -100,8 +100,8 @@ export default {
         size: 1,
       },
       countInfo: {
-        finished: 0,
-        unfinished: 0,
+        haveAnnotation: 0,
+        noAnnotation: 0,
       },
       loading: false, // 加载内容
       saving: false, // 保存状态
@@ -112,7 +112,7 @@ export default {
       fileId: null,
       labelSelected: null,
       cacheLabel: null, // 缓存未标注标签
-      activeTab: 'unfinished',
+      activeTab: 'noAnnotation',
       pageLoading: false, // 初始化页面加载
       component: null, // 对应的标注详情组件
     });
@@ -177,7 +177,7 @@ export default {
         labelSelected: label,
       };
       // 当前处于「无标注」，则记录标签，供后续使用
-      if (state.activeTab === 'unfinished') {
+      if (state.activeTab === 'noAnnotation') {
         Object.assign(next, {
           cacheLabel: label,
         });
@@ -196,12 +196,13 @@ export default {
     // 根据当前文件状态获取 status 映射值
     const getStatusMap = (tab) => {
       const fileStatusKey = {
-        finished: 'FINISHED',
-        unfinished: 'UNFINISHED',
+        haveAnnotation: 'HAVE_ANNOTATION',
+        noAnnotation: 'NO_ANNOTATION',
       };
 
-      // 默认为 unfinished
-      const fileStatus = fileStatusKey[tab === 'finished' ? 'finished' : 'unfinished'];
+      // 默认为 noAnnotation
+      const fileStatus =
+        fileStatusKey[tab === 'haveAnnotation' ? 'haveAnnotation' : 'noAnnotation'];
 
       return fileCodeMap[fileStatus];
     };
@@ -245,7 +246,7 @@ export default {
       const filesInfo = await queryFileUtil(cfg);
 
       const detail = filesInfo.result[0] || {};
-      const sLabel = state.labels.find((d) => d.id === detail?.labelId) || null;
+      const sLabel = state.labels.find((d) => d.id === detail?.labelId?.[0]) || null;
       Object.assign(state, {
         pageInfo: {
           ...state.pageInfo,
@@ -387,7 +388,7 @@ export default {
 
     // 只有音频分类展示标签
     const showLabel = computed(
-      () => state.datasetInfo.annotateType === annotationCodeMap.AUDIOCLASSIFY
+      () => state.datasetInfo.annotateType === annotationMap.AudioClassify.code
     );
     const datasetUrl = `/data/datasets/audio/list/${params.datasetId}`;
 
@@ -437,8 +438,8 @@ export default {
         datasetInfo,
       };
 
-      if (query.tab === 'finished') {
-        newState.activeTab = 'finished';
+      if (query.tab === 'haveAnnotation') {
+        newState.activeTab = 'haveAnnotation';
       }
 
       // 获取数据集标签，分页结果

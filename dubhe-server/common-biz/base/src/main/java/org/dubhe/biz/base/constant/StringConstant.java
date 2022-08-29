@@ -127,6 +127,13 @@ public final class StringConstant {
     public static final String CACHE_TASK_NAME ="task_name";
 
 
+    public static final String DEFAULT_IMAGE_PROJECT ="dubhe";
+
+    /**
+     * python命令行参数格式
+     */
+    public static final String PYTHON_COMMAND_PATTERN = " --%s=%s";
+
     private StringConstant() {
     }
 }

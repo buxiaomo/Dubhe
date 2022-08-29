@@ -1,12 +1,12 @@
 /**
  * Copyright 2020 Tianshu AI Platform. All Rights Reserved.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.apache.commons.compress.utils.Lists;
 import org.dubhe.biz.base.constant.SymbolConstant;
 import org.dubhe.biz.base.context.UserContext;
 import org.dubhe.biz.base.dto.PtModelBranchConditionQueryDTO;
@@ -76,6 +77,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 
@@ -196,7 +198,7 @@ public class PtModelBranchServiceImpl implements PtModelBranchService {
                 throw new BusinessException("模型版本创建失败");
             }
         } else if (ptModelBranchCreateDTO.getModelSource() == PtModelUtil.TRAINING_IMPORT || ptModelBranchCreateDTO.getModelSource() == PtModelUtil.MODEL_OPTIMIZATION
-        ||ptModelBranchCreateDTO.getModelSource() == PtModelUtil.AUTOMATIC_MACHINE_LEARNING) {
+                || ptModelBranchCreateDTO.getModelSource() == PtModelUtil.AUTOMATIC_MACHINE_LEARNING) {
             //文件拷贝中
             ptModelBranch.setStatus(ModelCopyStatusEnum.COPING.getCode());
             //判断模型版本是否已存在
@@ -389,6 +391,9 @@ public class PtModelBranchServiceImpl implements PtModelBranchService {
     @DataPermissionMethod(dataType = DatasetTypeEnum.PUBLIC)
     public PtModelBranchQueryVO queryByBranchId(PtModelBranchQueryByIdDTO ptModelBranchQueryByIdDTO) {
         PtModelBranch ptModelBranch = ptModelBranchMapper.selectById(ptModelBranchQueryByIdDTO.getId());
+        if(Objects.isNull(ptModelBranch)){
+            return null;
+        }
         PtModelBranchQueryVO ptModelBranchQueryByIdVO = new PtModelBranchQueryVO();
         BeanUtils.copyProperties(ptModelBranch, ptModelBranchQueryByIdVO);
         return ptModelBranchQueryByIdVO;
@@ -450,7 +455,8 @@ public class PtModelBranchServiceImpl implements PtModelBranchService {
         String targetPath = fileService.convertPreset(ptModelBranch.getModelAddress(), user);
         PtModelInfo preModelInfo = new PtModelInfo();
         preModelInfo.setName(modelConvertPresetDTO.getName()).setFrameType(ptModelInfo.getFrameType()).setModelType(ptModelInfo.getModelType())
-                .setModelAddress(targetPath).setModelClassName(ptModelInfo.getModelClassName())
+                .setModelClassName(ptModelInfo.getModelClassName())
+                .setModelAddress(targetPath)
                 .setModelResource(1).setOriginUserId(0L).setPackaged(ptModelInfo.getPackaged())
                 .setTotalNum(1).setVersion("V0001");
         if (ptModelInfo.getTags() != null) {
@@ -576,7 +582,7 @@ public class PtModelBranchServiceImpl implements PtModelBranchService {
         // 新增 ONNX 模型到pt_model_info表
         PtModelInfo onnxModelInfo = new PtModelInfo();
         onnxModelInfo.setName(modelName).setFrameType(ptModelInfo.getFrameType()).setModelType(5).setModelDescription(modelDescription)
-                .setModelAddress(onnxModelPath).setModelClassName(ptModelInfo.getModelClassName()).setModelResource(0).setTotalNum(1).setVersion("V0001");
+                .setModelAddress(onnxModelPath).setModelResource(0).setTotalNum(1).setVersion("V0001");
         if (ptModelInfo.getTeamId() != null) {
             onnxModelInfo.setTeamId(ptModelInfo.getTeamId());
         }
@@ -634,5 +640,32 @@ public class PtModelBranchServiceImpl implements PtModelBranchService {
         return SymbolConstant.BLANK;
     }
 
+    @Override
+    public List<PtModelBranchQueryVO> listByBranchIds(List<Long> ids) {
+        List<PtModelBranchQueryVO> ptModelBranchQueryVOS = Lists.newArrayList();
 
+        // 获取我的模型版本详情
+        QueryWrapper<PtModelBranch> modelBranchWrapper = new QueryWrapper<>();
+        modelBranchWrapper.lambda().in(PtModelBranch::getId, ids);
+        List<PtModelBranch> ptModelBranches= ptModelBranchMapper.selectList(modelBranchWrapper);
+        if(CollectionUtils.isEmpty(ptModelBranches)){
+            return ptModelBranchQueryVOS;
+        }
+
+        List<Long> modelIds = ptModelBranches.stream()
+                .map(PtModelBranch::getParentId)
+                .collect(Collectors.toList());
+        List<PtModelInfo> ptModelInfos=ptModelInfoMapper.selectBatchIds(modelIds);
+        Map<Long, String> modelNameMap=ptModelInfos.stream()
+                .collect(Collectors.toMap(PtModelInfo::getId,PtModelInfo::getName));
+
+        ptModelBranches.stream().forEach(ptModelBranch -> {
+            PtModelBranchQueryVO ptModelBranchQueryVO = new PtModelBranchQueryVO();
+            BeanUtils.copyProperties(ptModelBranch, ptModelBranchQueryVO);
+            ptModelBranchQueryVO.setName(modelNameMap.get(ptModelBranchQueryVO.getParentId()));
+            ptModelBranchQueryVOS.add(ptModelBranchQueryVO);
+        });
+
+        return ptModelBranchQueryVOS;
+    }
 }

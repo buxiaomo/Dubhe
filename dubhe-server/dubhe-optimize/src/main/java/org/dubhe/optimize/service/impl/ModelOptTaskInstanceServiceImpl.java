@@ -17,7 +17,6 @@
 
 package org.dubhe.optimize.service.impl;
 
-import org.apache.commons.collections4.CollectionUtils;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -25,6 +24,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.dubhe.biz.base.constant.MagicNumConstant;
 import org.dubhe.biz.base.constant.NumberConstant;
@@ -57,8 +57,6 @@ import org.dubhe.k8s.service.PodService;
 import org.dubhe.k8s.utils.K8sNameTool;
 import org.dubhe.optimize.client.DictClient;
 import org.dubhe.optimize.constant.ModelOptConstant;
-import org.dubhe.optimize.enums.ModelOptErrorEnum;
-import org.dubhe.optimize.enums.ModelOptInstanceStatusEnum;
 import org.dubhe.optimize.dao.ModelOptTaskInstanceMapper;
 import org.dubhe.optimize.domain.dto.ModelOptTaskInstanceCancelDTO;
 import org.dubhe.optimize.domain.dto.ModelOptTaskInstanceDeleteDTO;
@@ -70,6 +68,8 @@ import org.dubhe.optimize.domain.entity.ModelOptTaskInstance;
 import org.dubhe.optimize.domain.vo.ModelOptResultQueryVO;
 import org.dubhe.optimize.domain.vo.ModelOptTaskInstanceQueryVO;
 import org.dubhe.optimize.enums.DistillCommandEnum;
+import org.dubhe.optimize.enums.ModelOptErrorEnum;
+import org.dubhe.optimize.enums.ModelOptInstanceStatusEnum;
 import org.dubhe.optimize.enums.OptimizeTypeEnum;
 import org.dubhe.optimize.service.ModelOptTaskInstanceService;
 import org.springframework.beans.BeanUtils;
@@ -82,7 +82,6 @@ import javax.annotation.Resource;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -128,7 +127,7 @@ public class ModelOptTaskInstanceServiceImpl extends ServiceImpl<ModelOptTaskIns
     @Autowired
     private ResourceCache resourceCache;
 
-    @Value("Task:ModelOpt:"+"${spring.profiles.active}_model_opt_id_")
+    @Value("Task:ModelOpt:" + "${spring.profiles.active}_model_opt_id_")
     private String modelOptIdPrefix;
 
     /**
@@ -164,11 +163,12 @@ public class ModelOptTaskInstanceServiceImpl extends ServiceImpl<ModelOptTaskIns
         modelOptTaskInstance.setStatusDetail(SymbolConstant.BRACKETS);
         if (StringUtils.isBlank(modelOptTaskInstance.getAlgorithmPath()) || StringUtils.isBlank(modelOptTaskInstance.getAlgorithmPath())) {
             LogUtil.error(LogEnum.MODEL_OPT, "模型优化实例id={}的算法路径为空，算法：{}", modelOptTaskInstance.getId(), modelOptTaskInstance.getAlgorithmPath());
-            throw new BusinessException(ModelOptErrorEnum.INTERNAL_SERVER_ERROR);
+            throw new BusinessException(ModelOptErrorEnum.ALGORITHM_PATH_ERROR);
         }
         modelOptTaskInstanceMapper.insert(modelOptTaskInstance);
         if (!runTask(modelOptTaskInstance)) {
-            throw new BusinessException(ModelOptErrorEnum.INTERNAL_SERVER_ERROR);
+            LogUtil.error(LogEnum.MODEL_OPT, "模型优化任务实例创建失败，实例id={}", modelOptTaskInstance.getStatus(), modelOptTaskInstance.getId());
+            throw new BusinessException(ModelOptErrorEnum.CREATE_MODEL_INSTANCE_ERROR);
         }
     }
 
@@ -508,7 +508,7 @@ public class ModelOptTaskInstanceServiceImpl extends ServiceImpl<ModelOptTaskIns
         LambdaQueryWrapper<ModelOptTaskInstance> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ModelOptTaskInstance::getTaskId, taskId);
         String taskIdentify = (String) redisUtils.get(modelOptIdPrefix + String.valueOf(taskId));
-        if (org.dubhe.biz.base.utils.StringUtils.isNotEmpty(taskIdentify)){
+        if (org.dubhe.biz.base.utils.StringUtils.isNotEmpty(taskIdentify)) {
             redisUtils.del(taskIdentify, modelOptIdPrefix + String.valueOf(taskId));
         }
         return modelOptTaskInstanceMapper.delete(wrapper);

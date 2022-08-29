@@ -53,6 +53,14 @@ public class RedisUtils {
     // =============================common============================
 
     /**
+     * 模糊删除 key
+     */
+    public void del(String pattern){
+        Set<Object> keys = redisTemplate.keys(pattern);
+        redisTemplate.delete(keys);
+    }
+
+    /**
      * 指定缓存失效时间
      *
      * @param key  键

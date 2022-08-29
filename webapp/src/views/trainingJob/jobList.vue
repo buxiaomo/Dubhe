@@ -32,6 +32,19 @@
           }}</el-link>
         </template>
       </el-table-column>
+      <el-table-column prop="trainType" label="任务类型" width="160">
+        <template #header>
+          <dropdown-header
+            title="任务类型"
+            :list="trainTypeList"
+            :filtered="Boolean(crud.query.trainType)"
+            @command="filterByTrainType"
+          />
+        </template>
+        <template slot-scope="scope">
+          <div>{{ TRAINING_TYPE_MAP[scope.row.trainType] }}</div>
+        </template>
+      </el-table-column>
       <el-table-column prop="versionNum" label="现有版本数目" min-width="160" />
       <el-table-column prop="runtime" label="训练时长" sortable="custom" min-width="160" />
       <el-table-column v-if="isAllTrain" prop="trainStatus" label="状态" width="160">
@@ -49,6 +62,7 @@
           }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column v-if="isAdmin" prop="createUserName" label="创建者" min-width="100" />
       <el-table-column prop="createTime" label="创建时间" sortable="custom" width="160">
         <template slot-scope="scope">
           <span>{{ parseTime(scope.row.createTime) }}</span>
@@ -81,12 +95,13 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex';
 import CRUD, { presenter, header, crud } from '@crud/crud';
 import pagination from '@crud/Pagination';
 import crudJob, { stop as stopJob, del as deleteJob } from '@/api/trainingJob/job';
 import DropdownHeader from '@/components/DropdownHeader';
 import { generateMap } from '@/utils';
-import { TRAINING_STATUS_MAP } from './utils';
+import { TRAINING_STATUS_MAP, TRAINING_TYPE_MAP, TRAINING_TYPE_ENUM } from './utils';
 
 export default {
   name: 'Job',
@@ -124,9 +139,16 @@ export default {
       statusNameMap: generateMap(TRAINING_STATUS_MAP, 'name'),
       statusTagMap: generateMap(TRAINING_STATUS_MAP, 'tagMap'),
       statusFlagMap: generateMap(TRAINING_STATUS_MAP, 'statusMap'),
+      trainTypeList: [
+        { label: '全部', value: null },
+        { label: '训练任务', value: TRAINING_TYPE_ENUM.TRAINING },
+        { label: '模型重组', value: TRAINING_TYPE_ENUM.ATLAS },
+      ], // 任务类型下拉列表不再展示分布式训练、强化学习类型
+      TRAINING_TYPE_MAP,
     };
   },
   computed: {
+    ...mapGetters(['isAdmin']),
     jobStatusList() {
       const list = [{ label: '全部', value: null }];
       Object.keys(this.statusNameMap).forEach((status) => {
@@ -180,7 +202,11 @@ export default {
     },
     filterByStatus(status) {
       this.crud.query.trainStatus = status;
-      this.crud.refresh();
+      this.crud.toQuery();
+    },
+    filterByTrainType(type) {
+      this.crud.query.trainType = type;
+      this.crud.toQuery();
     },
   },
 };

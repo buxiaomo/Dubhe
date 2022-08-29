@@ -68,7 +68,7 @@ the License. * ============================================================= */
           type="LineChart"
           :chartConfig="state.contrastChartConfig"
           :chartData="state.contrastChartData"
-          style="height: 400px"
+          style="height: 400px;"
         />
       </div>
       <div v-else>获取绘图数据失败</div>
@@ -76,7 +76,6 @@ the License. * ============================================================= */
     <!-- 查看日志弹窗 -->
     <BaseModal
       :key="`log${state.logKey}`"
-      class="trialLogModal"
       :visible="state.actionModal.show && state.actionModal.type === 'log'"
       :loading="state.actionModal.showOkLoading"
       title="trial日志"
@@ -85,7 +84,7 @@ the License. * ============================================================= */
       @change="handleCancel"
       @ok="handleCancel"
     >
-      <PodLogContainer ref="podLogContainer" :pod="logOptions" />
+      <PodLogContainer ref="podLogContainer" :pod="logOptions" class="log" />
     </BaseModal>
     <!-- 查看参数弹窗 -->
     <BaseModal
@@ -375,9 +374,9 @@ export default {
 };
 </script>
 <style lang="scss">
-.trialLogModal {
-  .prism-content {
-    max-height: 350px;
-  }
+.log {
+  width: 100%;
+  height: calc(100vh - 316px);
+  margin: 20px 0;
 }
 </style>

@@ -65,7 +65,7 @@ public class GenerateMeasureFileAsync {
         //打包模型的路径集合
         params.put(MeasureConstants.ZOO_SET, StrUtil.split(ptMeasure.getModelUrls(), StrUtil.COMMA));
         //探针数据
-        params.put(MeasureConstants.PROBE_SET_ROOT, ptMeasure.getDatasetUrl() + StrUtil.SLASH + "origin");
+        params.put(MeasureConstants.PROBE_SET_ROOT, StrUtil.SLASH + ptMeasure.getDatasetUrl() + StrUtil.SLASH + "origin");
         params.put(MeasureConstants.EXPORT_PATH, measurePath);
         RestTemplate restTemplate = restTemplateHolder.getRestTemplate();
         try {

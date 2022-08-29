@@ -23,6 +23,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.dubhe.biz.base.constant.NumberConstant;
 import org.dubhe.biz.base.constant.SymbolConstant;
 import org.dubhe.biz.base.exception.BusinessException;
+import org.dubhe.biz.log.enums.LogEnum;
+import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.servinggateway.constant.GatewayConstant;
 import org.dubhe.servinggateway.enums.ServingRouteEventEnum;
 import org.springframework.beans.factory.annotation.Value;
@@ -77,15 +79,12 @@ public class RedisStreamListener implements StreamListener<String, MapRecord<Str
     @Value("${serving.gateway.corePoolSize:10}")
     private Integer corePoolSize;
 
-    @Value("${serving.group}")
-    private String servingGroup;
-
     private StreamMessageListenerContainer<String, MapRecord<String, String, String>> streamMessageListenerContainer;
 
     @Override
     public void run(ApplicationArguments args) {
         // 创建stream
-        StringRecord stringRecord = StreamRecords.string(Collections.singletonMap(servingGroup, SymbolConstant.BLANK)).withStreamKey(GatewayConstant.SERVING_STREAM);
+        StringRecord stringRecord = StreamRecords.string(Collections.singletonMap(GatewayConstant.REDIS_GROUP, SymbolConstant.BLANK)).withStreamKey(GatewayConstant.SERVING_STREAM);
         RecordId recordId = stringRedisTemplate.opsForStream().add(stringRecord);
         if(recordId == null){
             throw  new BusinessException("recordId 不能为空");
@@ -93,8 +92,8 @@ public class RedisStreamListener implements StreamListener<String, MapRecord<Str
         stringRedisTemplate.opsForStream().delete(GatewayConstant.SERVING_STREAM, recordId.toString());
         // 创建group
         StreamOperations<String, Object, Object> streamOperations = stringRedisTemplate.opsForStream();
-        streamOperations.destroyGroup(GatewayConstant.SERVING_STREAM, servingGroup);
-        streamOperations.createGroup(GatewayConstant.SERVING_STREAM, servingGroup);
+        streamOperations.destroyGroup(GatewayConstant.SERVING_STREAM, GatewayConstant.REDIS_GROUP);
+        streamOperations.createGroup(GatewayConstant.SERVING_STREAM, GatewayConstant.REDIS_GROUP);
         threadPoolTaskExecutor.setThreadNamePrefix("Stream-Message-Listener-");
         threadPoolTaskExecutor.setAllowCoreThreadTimeOut(true);
         threadPoolTaskExecutor.setCorePoolSize(corePoolSize);
@@ -110,7 +109,7 @@ public class RedisStreamListener implements StreamListener<String, MapRecord<Str
                 .build();
         StreamMessageListenerContainer<String, MapRecord<String, String, String>> streamMessageListenerContainer = StreamMessageListenerContainer
                 .create(redisConnectionFactory, streamMessageListenerContainerOptions);
-        streamMessageListenerContainer.receive(Consumer.from(servingGroup, "consumer"),
+        streamMessageListenerContainer.receive(Consumer.from(GatewayConstant.REDIS_GROUP, "consumer"),
                 StreamOffset.create(GatewayConstant.SERVING_STREAM, ReadOffset.lastConsumed()), this);
         this.streamMessageListenerContainer = streamMessageListenerContainer;
         // 启动监听
@@ -125,12 +124,12 @@ public class RedisStreamListener implements StreamListener<String, MapRecord<Str
     @Override
     public void onMessage(MapRecord<String, String, String> message) {
         Map<String, String> body = message.getValue();
-        log.info("stream message, messageId={}, stream={}, body={}", message.getId(), message.getStream(), body);
-        receiveMessage(body.get(servingGroup));
+        receiveMessage(body.get(GatewayConstant.REDIS_GROUP));
+        LogUtil.info(LogEnum.SERVING_GATEWAY,"stream message, messageId={}, stream={}, body={}", message.getId(), message.getStream(), body);
         // 通过StringRedisTemplate手动确认消息
-        Long acknowledge = stringRedisTemplate.opsForStream().acknowledge(GatewayConstant.SERVING_STREAM, servingGroup, message.getId());
+        Long acknowledge = stringRedisTemplate.opsForStream().acknowledge(GatewayConstant.SERVING_STREAM, GatewayConstant.REDIS_GROUP, message.getId());
         if (Objects.nonNull(acknowledge) && acknowledge > NumberConstant.NUMBER_0) {
-            log.info("ack is ok , then delete record by id={}", message.getId());
+            LogUtil.info(LogEnum.SERVING_GATEWAY,"ack is ok , then delete record by id={}", message.getId());
             // 确认消息被消费后，从stream队列中移除该记录
             stringRedisTemplate.opsForStream().delete(GatewayConstant.SERVING_STREAM, message.getId());
         }
@@ -147,6 +146,7 @@ public class RedisStreamListener implements StreamListener<String, MapRecord<Str
     public void receiveMessage(String message) {
         // 去除引号
         String content = message.replace(SymbolConstant.MARK, SymbolConstant.BLANK);
+        LogUtil.info(LogEnum.SERVING_GATEWAY,"receiveMessage:" + content);
         if (StringUtils.isBlank(content)) {
             return;
         }
@@ -165,7 +165,7 @@ public class RedisStreamListener implements StreamListener<String, MapRecord<Str
                 this.handleEvent(routeIdList, eventType);
             }
         } catch (NumberFormatException e) {
-            log.error("错误的消息:{}", message);
+            LogUtil.error(LogEnum.SERVING_GATEWAY,"错误的消息:{}", message);
         }
     }
 

@@ -29,6 +29,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.apache.commons.compress.utils.Lists;
 import org.apache.logging.log4j.util.Strings;
 import org.dubhe.biz.permission.annotation.DataPermissionMethod;
 import org.dubhe.biz.base.constant.MagicNumConstant;
@@ -40,7 +41,6 @@ import org.dubhe.biz.base.dto.UserSmallDTO;
 import org.dubhe.biz.base.enums.DatasetTypeEnum;
 import org.dubhe.biz.base.enums.OperationTypeEnum;
 import org.dubhe.biz.base.exception.BusinessException;
-import org.dubhe.biz.base.service.UserContextService;
 import org.dubhe.biz.base.utils.StringUtils;
 import org.dubhe.biz.base.vo.DataResponseBody;
 import org.dubhe.biz.db.utils.PageUtil;
@@ -52,6 +52,7 @@ import org.dubhe.cloud.authconfig.service.AdminClient;
 import org.dubhe.data.client.TrainServerClient;
 import org.dubhe.data.constant.*;
 import org.dubhe.data.dao.DatasetVersionMapper;
+import org.dubhe.data.domain.bo.FileAnnotationBO;
 import org.dubhe.data.domain.dto.*;
 import org.dubhe.data.domain.entity.*;
 import org.dubhe.data.domain.vo.DatasetVersionCriteriaVO;
@@ -68,7 +69,6 @@ import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -76,21 +76,16 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.search.sort.FieldSortBuilder;
-import org.elasticsearch.search.sort.SortOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionCallbackWithoutResult;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.CollectionUtils;
-import springfox.documentation.spring.web.json.Json;
 
 import javax.annotation.Resource;
 import java.io.File;
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -165,7 +160,7 @@ public class DatasetVersionServiceImpl extends ServiceImpl<DatasetVersionMapper,
     /**
      * 用户服务
      */
-    @Autowired
+    @Resource
     private AdminClient adminClient;
 
     /**
@@ -182,13 +177,7 @@ public class DatasetVersionServiceImpl extends ServiceImpl<DatasetVersionMapper,
     private ConversionUtil conversionUtil;
 
     @Autowired
-    private TransactionTemplate transactionTemplate;
-
-    @Autowired
     private TaskService taskService;
-
-    @Autowired
-    private UserContextService userContextService;
 
     @Autowired
     private DataFileAnnotationServiceImpl dataFileAnnotationServiceImpl;
@@ -238,12 +227,18 @@ public class DatasetVersionServiceImpl extends ServiceImpl<DatasetVersionMapper,
         }
         //判断数据集是否在发布中
         if (!StringUtils.isBlank(dataset.getCurrentVersionName())) {
-            if (getDatasetVersionSourceVersion(dataset).getDataConversion().equals(NumberConstant.NUMBER_4)) {
+            if (getDatasetVersionSourceVersion(dataset).getDataConversion().equals(ConversionStatusEnum.PUBLISHING.getValue())) {
                 throw new BusinessException(ErrorEnum.DATASET_PUBLISH_ERROR);
             }
         }
-        if("V0001".equals(dataset.getCurrentVersionName())&&dataset.getDataType().equals(MagicNumConstant.TWO)){
+        if("V0001".equals(dataset.getCurrentVersionName())&&dataset.getDataType().equals(DatatypeEnum.TEXT.getValue())){
             throw new BusinessException(ErrorEnum.DATASET_PUBLISH_REJECT);
+        }
+        if(datasetVersionCreateDTO.getFormat()!=null){
+            //coco yolo格式支持图片和视频类型数据集
+            if(!checkSupportFormat(dataset.getDataType(),datasetVersionCreateDTO.getFormat())){
+                throw new BusinessException(ErrorEnum.DATASET_PUBLISH_FORMAT_REJECT);
+            }
         }
         datasetService.checkPublic(dataset, OperationTypeEnum.UPDATE);
         // 数据集标注完成才能发布
@@ -263,6 +258,17 @@ public class DatasetVersionServiceImpl extends ServiceImpl<DatasetVersionMapper,
         return datasetVersionCreateDTO.getVersionName();
     }
 
+    private boolean checkSupportFormat(Integer dataType,String format){
+       if(format.equals("COCO") ||format.equals("YOLO")){
+           if(dataType.equals(DatatypeEnum.IMAGE.getValue())||dataType.equals(DatatypeEnum.VIDEO.getValue())){
+               return true;
+           }else {
+               return false;
+           }
+       }
+       return true;
+    }
+
     /**
      * 发布部分数据库操作
      *
@@ -278,6 +284,8 @@ public class DatasetVersionServiceImpl extends ServiceImpl<DatasetVersionMapper,
         datasetVersion.setOriginUserId(dataset.getCreateUserId());
         datasetVersion.setDataConversion(ConversionStatusEnum.PUBLISHING.getValue());
         datasetVersion.setOfRecord(datasetVersionCreateDTO.getOfRecord());
+        datasetVersion.setFormat(datasetVersionCreateDTO.getFormat());
+
         //新增数据集版本信息
         datasetVersionMapper.insert(datasetVersion);
         // 更新数据集当前版本
@@ -293,39 +301,77 @@ public class DatasetVersionServiceImpl extends ServiceImpl<DatasetVersionMapper,
     public void publishCopyFile(Dataset dataset, DatasetVersion datasetVersion) {
         //标记开始复制操作
         copyFlag.put(datasetVersion.getId(), false);
-        // targetDir = dataset/25/versionFile/V0001（未复制版本版本号（新版本））/origin
-        String targetDir = dataset.getUri() + File.separator + VERSION_FILE + File.separator
-                + datasetVersion.getVersionName() + File.separator + "origin";
-        //获取新发布版本的数据集版本中间表的数据
-        List<DatasetVersionFile> datasetVersionFiles =
-                datasetVersionFileService.findByDatasetIdAndVersionName(dataset.getId(), datasetVersion.getVersionName());
-        //当前发布版本所有图片的文件名
-        List<String> picNames = new ArrayList<>();
-        //获取当前版本（新版本）的文件URL
-        List<String> picUrls = fileService.selectUrls(dataset.getId(), datasetVersion.getVersionName());
-        picUrls.forEach(picUrl -> picNames.add(StringUtils.substringAfter(picUrl, "/")));
+
         try {
-            minioUtil.copyDir(bucketName, picNames, targetDir);
-            datasetVersion.setDataConversion(ConversionStatusEnum.NOT_CONVERSION.getValue());
-            getBaseMapper().updateById(datasetVersion);
-            if (AnnotateTypeEnum.OBJECT_DETECTION.getValue().equals(dataset.getAnnotateType())) {
-                LogUtil.info(LogEnum.BIZ_DATASET, "yolo conversion start");
-                conversionUtil.txtConversion(targetDir, dataset.getId());
-                LogUtil.info(LogEnum.BIZ_DATASET, "yolo conversion end");
-            }
+            copyFile(dataset,datasetVersion);
             copyFlag.remove(datasetVersion.getId());
-            if (dataset.getAnnotateType().equals(MagicNumConstant.TWO) && datasetVersion.getOfRecord().equals(MagicNumConstant.ONE)) {
+            if (dataset.getAnnotateType().equals(AnnotateTypeEnum.CLASSIFICATION.getValue()) && datasetVersion.getOfRecord().equals(MagicNumConstant.ONE)) {
+                //获取新发布版本的数据集版本中间表的数据
+                List<DatasetVersionFile> datasetVersionFiles =
+                        datasetVersionFileService.findByDatasetIdAndVersionName(dataset.getId(), datasetVersion.getVersionName());
                 Task task = Task.builder().total(datasetVersionFiles.size())
                         .datasetId(dataset.getId())
                         .type(DataTaskTypeEnum.OFRECORD.getValue())
                         .labels("")
+                        .ofRecordVersion(datasetVersion.getVersionName())
                         .datasetVersionId(datasetVersion.getId()).build();
                 taskService.createTask(task);
+                datasetVersion.setDataConversion(MagicNumConstant.FIVE);
+                baseMapper.updateById(datasetVersion);
             }
         } catch (Exception e) {
             copyFlag.put(datasetVersion.getId(), true);
             LogUtil.error(LogEnum.BIZ_DATASET, "fail to copy or conversion:{}", e);
             throw new BusinessException(ErrorEnum.DATASET_VERSION_ANNOTATION_COPY_EXCEPTION);
+        }
+    }
+
+    /**
+     * 发布数据集时复制文件
+     *
+     * @param dataset        数据集
+     * @param datasetVersion 数据集版本
+     */
+    private void copyFile(Dataset dataset,DatasetVersion datasetVersion){
+        // targetDir = dataset/25/versionFile/V0001（未复制版本版本号（新版本））
+        String targetDir = dataset.getUri() + File.separator + VERSION_FILE + File.separator
+                + datasetVersion.getVersionName() + File.separator ;
+
+        //获取当前版本（新版本）的文件URL 转换为文件名
+        List<String> picNames = new ArrayList<>();
+        List<String> picUrls = fileService.selectUrls(dataset.getId(), datasetVersion.getVersionName());
+        picUrls.forEach(picUrl -> picNames.add(StringUtils.substringAfter(picUrl, "/")));
+
+        //由于页面标注信息读取只支持TS格式，生成TS之外的其他格式数据集版本时，要同时生成TS格式数据集版本
+        if(datasetVersion.getFormat().equals("TS")){
+            copyTSFile(dataset,datasetVersion,targetDir,picNames);
+        }else if(datasetVersion.getFormat().equals("COCO")){
+            copyTSFile(dataset,datasetVersion,targetDir,picNames);
+            copyCOCOFile(datasetVersion,targetDir+"COCO/",picNames);
+        }else if(datasetVersion.getFormat().equals("YOLO")){
+            copyTSFile(dataset,datasetVersion,targetDir,picNames);
+            copyYOLOFile(datasetVersion,targetDir+"YOLO/",picNames);
+        }
+
+        datasetVersion.setDataConversion(ConversionStatusEnum.NOT_CONVERSION.getValue());
+        getBaseMapper().updateById(datasetVersion);
+    }
+
+    private void copyCOCOFile(DatasetVersion datasetVersion,String targetDir,List<String> picNames){
+        minioUtil.copyDir(bucketName, picNames, targetDir+ "images");
+    }
+
+    private void copyYOLOFile(DatasetVersion datasetVersion,String targetDir,List<String> picNames){
+        minioUtil.copyDir(bucketName, picNames, targetDir+ "obj_train_data");
+    }
+
+    private void copyTSFile(Dataset dataset,DatasetVersion datasetVersion,String targetDir,List<String> picNames){
+        targetDir=targetDir+"origin";
+        minioUtil.copyDir(bucketName, picNames, targetDir);
+        if (AnnotateTypeEnum.OBJECT_DETECTION.getValue().equals(dataset.getAnnotateType())) {
+            LogUtil.info(LogEnum.BIZ_DATASET, "yolo conversion start");
+            conversionUtil.txtConversion(targetDir, dataset.getId());
+            LogUtil.info(LogEnum.BIZ_DATASET, "yolo conversion end");
         }
     }
 
@@ -739,57 +785,281 @@ public class DatasetVersionServiceImpl extends ServiceImpl<DatasetVersionMapper,
                     ||dataset.getAnnotateType().equals(AnnotateTypeEnum.NAMED_ENTITY_RECOGNITION.getValue())){
                 insertEsData("V0000", version.getVersionName(), dataset.getId(),dataset.getId(), null);
             }
-            //获取数据集标签信息
-            List<Label> datasetLabels = datasetLabelService.listLabelByDatasetId(dataset.getId());
-            Map<Long, String> labelMaps = datasetLabels.stream().collect(Collectors.toMap(Label::getId, Label::getName));
-            // 写入版本文件关系数据(新版本) - 正常情况
+          // 写入版本文件关系数据(新版本) - 正常情况
             saveDatasetVersionFiles(version);
             // 更改新增关系版本信息
             datasetVersionFileService.newShipVersionNameChange(dataset.getId(),
                     version.getVersionSource(), version.getVersionName());
-            String prefixPath = dataset.getUri() + "/";
-            String annVersionTargetDir = prefixPath + VERSION_FILE + "/"
-                    + version.getVersionName() + "/" + ANNOTATION;
-            if (version.getVersionSource() == null) {
-                String annotationSourceDir = prefixPath + ANNOTATION;
-                List<String> annotationNames = new ArrayList<>();
-                List<String> picUrls = fileService.selectUrls(dataset.getId(), version.getVersionName());
-                picUrls.forEach(picUrl -> {
-                    String fileName = StringUtils.substringBeforeLast(StringUtils.substringAfterLast(picUrl, "/"), ".");
-                    String annotationUrl = annotationSourceDir + "/" + fileName;
-                    annotationNames.add(annotationUrl);
-                });
-                minioFileReplaceAndCopy(labelMaps, annotationNames, annVersionTargetDir, datasetLabels);
-            } else {
-                List<String> unChangedNames = fileService.selectNames(dataset.getId(), MagicNumConstant.ZERO, version.getVersionName());
-                String unChangedAnnotationSourceDir = prefixPath + VERSION_FILE;
-                List<String> unChangedAnnotationUrls = new ArrayList<>();
-                unChangedNames.forEach(unChangedName -> {
-                    String annotationUrl = unChangedAnnotationSourceDir + "/" + version.getVersionSource()
-                            + "/" + ANNOTATION + "/" + unChangedName;
-                    unChangedAnnotationUrls.add(annotationUrl);
-                });
-                minioFileReplaceAndCopy(labelMaps, unChangedAnnotationUrls, annVersionTargetDir, datasetLabels);
-                List<String> changedNames = fileService.selectNames(dataset.getId(), MagicNumConstant.ONE, version.getVersionName());
-                String changedAnnotationSourceDir = prefixPath + ANNOTATION;
-                List<String> changedAnnotationUrls = new ArrayList<>();
-                changedNames.forEach(changedName -> {
-                    String annotationUrl = changedAnnotationSourceDir + "/" + changedName;
-                    changedAnnotationUrls.add(annotationUrl);
-                });
-                minioFileReplaceAndCopy(labelMaps, changedAnnotationUrls, annVersionTargetDir, datasetLabels);
-            }
+
+            //写入标注文件
+            wirteAnnotationFile(version,dataset);
+
             version.setDataConversion(ConversionStatusEnum.NOT_COPY.getValue());
             getBaseMapper().updateById(version);
-            //版本回退
-            dataset.setCurrentVersionName(version.getVersionSource());
-            dataFileAnnotationService.rollbackAnnotation(dataset.getId(), version.getVersionSource()
-                    , MagicNumConstant.TWO, MagicNumConstant.ONE);
-            dataFileAnnotationService.rollbackAnnotation(dataset.getId(), version.getVersionSource()
-                    , MagicNumConstant.ONE, MagicNumConstant.ZERO);
-            datasetVersionFileService.rollbackDataset(dataset);
+            rollbackVersion(version,dataset);
         });
     }
+
+    private void rollbackVersion(DatasetVersion version,Dataset dataset){
+        //版本回退
+        dataset.setCurrentVersionName(version.getVersionSource());
+        dataFileAnnotationService.rollbackAnnotation(dataset.getId(), version.getVersionSource()
+                , MagicNumConstant.TWO, MagicNumConstant.ONE);
+        dataFileAnnotationService.rollbackAnnotation(dataset.getId(), version.getVersionSource()
+                , MagicNumConstant.ONE, MagicNumConstant.ZERO);
+        datasetVersionFileService.rollbackDataset(dataset);
+    }
+
+    private void wirteAnnotationFile(DatasetVersion version,Dataset dataset){
+
+        String prefixPath = dataset.getUri() + "/";
+        String annVersionTargetDir = prefixPath + VERSION_FILE + "/"
+                + version.getVersionName() + "/" ;
+        List<FileAnnotationBO> files = fileService.listByDatasetIdAndVersionName(dataset.getId(), version.getVersionName());
+
+        if (version.getVersionSource() == null) {
+            String annotationSourceDir = prefixPath + ANNOTATION;
+            List<FileAnnotationBO> annotationFiles = new ArrayList<>();
+            files.forEach(file -> {
+                String annotationUrl = annotationSourceDir + "/" + file.getFileName();
+                file.setAnnotationUrl(annotationUrl);
+                annotationFiles.add(file);
+            });
+            wirteMinoAnnotationFile(version,dataset,annotationFiles, annVersionTargetDir);
+        } else {
+            List<FileAnnotationBO> unChangedFiles = fileService.selectFileAnnotations(dataset.getId(), MagicNumConstant.ZERO, version.getVersionName());
+            String unChangedAnnotationSourceDir = prefixPath + ANNOTATION;
+            List<FileAnnotationBO> unChangedAnnotationFiles = new ArrayList<>();
+            unChangedFiles.forEach(unChangedFile -> {
+                String annotationUrl = unChangedAnnotationSourceDir + "/" + unChangedFile.getFileName();
+                unChangedFile.setAnnotationUrl(annotationUrl);
+                unChangedAnnotationFiles.add(unChangedFile);
+            });
+            wirteMinoAnnotationFile(version,dataset, unChangedAnnotationFiles, annVersionTargetDir);
+            List<FileAnnotationBO> changedFiles = fileService.selectFileAnnotations(dataset.getId(), MagicNumConstant.ONE, version.getVersionName());
+            String changedAnnotationSourceDir = prefixPath + ANNOTATION;
+            List<FileAnnotationBO> changedAnnotationFiles = new ArrayList<>();
+            changedFiles.forEach(changedFile -> {
+                String annotationUrl = changedAnnotationSourceDir + "/" + changedFile.getFileName();
+                changedFile.setAnnotationUrl(annotationUrl);
+                changedAnnotationFiles.add(changedFile);
+            });
+            wirteMinoAnnotationFile(version,dataset, changedAnnotationFiles, annVersionTargetDir);
+        }
+
+    }
+
+    private void wirteMinoAnnotationFile(DatasetVersion version, Dataset dataset, List<FileAnnotationBO> sourceFiles, String targetDir){
+        if(CollectionUtils.isEmpty(sourceFiles)){
+            return;
+        }
+        //获取数据集标签信息
+        List<Label> datasetLabels = datasetLabelService.listLabelByDatasetId(dataset.getId());
+        Map<Long, String> labelMaps = datasetLabels.stream().collect(Collectors.toMap(Label::getId, Label::getName));
+        List<String> sourceFileUrls = sourceFiles.stream()
+                .map(FileAnnotationBO::getAnnotationUrl)
+                .collect(Collectors.toList());
+
+        //由于页面标注信息读取只支持TS格式，生成TS之外的其他格式数据集版本时，要同时生成TS格式数据集版本
+        if(version.getFormat().equals("TS")){
+            writeTSAnnotationMinoFile(labelMaps, sourceFileUrls, targetDir, datasetLabels);
+        }else if(version.getFormat().equals("COCO")){
+            writeTSAnnotationMinoFile(labelMaps, sourceFileUrls, targetDir, datasetLabels);
+            writeCOCOAnnotationMinoFile(labelMaps,sourceFiles,targetDir+"COCO/");
+        }else if(version.getFormat().equals("YOLO")){
+            writeTSAnnotationMinoFile(labelMaps, sourceFileUrls, targetDir, datasetLabels);
+            writeYOLOAnnotationMinoFile(datasetLabels,sourceFiles,targetDir+"YOLO/");
+        }
+
+    }
+
+    /**
+     * 发布版本时，生成coco格式标注文件
+     *
+     * @param labels   标签信息
+     * @param sourceFiles 需要复制的源文件
+     * @param targetDir   复制后文件保存地址
+     */
+    public void writeYOLOAnnotationMinoFile(List<Label> labels, List<FileAnnotationBO> sourceFiles, String targetDir) {
+        List<Long> categoryIds = Lists.newArrayList();
+        conversionUtil.writeYOLOCommon(targetDir,labels,categoryIds);
+
+        StringBuilder train = new StringBuilder();
+        //组装图片和标注数据
+        sourceFiles.stream().forEach(sourceFile->{
+            //组装 train.txt
+            String fileName = StringUtils.substringAfterLast(sourceFile.getFileUrl(), "/");
+            train.append("data/obj_train_data/").append(fileName).append("\n");;
+            try {
+                String jsonStr = minioUtil.readString(bucketName, sourceFile.getAnnotationUrl());
+
+                StringBuilder annotations = new StringBuilder();
+                JSONArray jsonArray = JSON.parseArray(jsonStr);
+                for(int i = 0; i < jsonArray.size(); i++) {
+                    JSONObject jsonObject = jsonArray.getJSONObject(i);
+                    Integer categoryIndex=null;
+                    String categoryIdStr = jsonObject.getString("category_id");
+                    if (NumberUtil.isNumber(categoryIdStr)) {
+                        Long categoryId = Long.parseLong(categoryIdStr);
+                        if (categoryIds.contains(categoryId)) {
+                            categoryIndex=categoryIds.indexOf(categoryId);
+                        }
+                    }
+                    if(categoryIndex==null){
+                        continue;
+                    }
+                    JSONArray bboxArray = (JSONArray) jsonObject.get("bbox");
+                    String annotation=ConversionUtil.buildYoloAnnotation(categoryIndex,bboxArray,sourceFile.getFileWidth(),sourceFile.getFileHeight());
+                    annotations.append(annotation);
+                }
+                minioUtil.writeString(bucketName, targetDir + "obj_train_data/"+sourceFile.getFileName()+".txt", annotations.toString());
+            } catch (Exception e) {
+                LogUtil.error(LogEnum.BIZ_DATASET, "MinIO file yolo annotation exception, {}", e);
+            }
+        });
+
+
+        try {
+            minioUtil.writeString(bucketName, targetDir + "train.txt", train.toString());
+        } catch (Exception e) {
+            LogUtil.error(LogEnum.BIZ_DATASET, "MinIO file write  yolo train.txt exception, {}", e);
+        }
+    }
+
+    /**
+     * 发布版本时，生成coco格式标注文件
+     *
+     * @param labelMaps   标签信息
+     * @param sourceFiles 需要复制的源文件
+     * @param targetDir   复制后文件保存地址
+     */
+    public void writeCOCOAnnotationMinoFile(Map<Long, String> labelMaps, List<FileAnnotationBO> sourceFiles, String targetDir) {
+        JSONObject cocoObject =ConversionUtil.buildCOCOCommon();
+        JSONArray imageArray = new JSONArray();
+        JSONArray annotationArray = new JSONArray();
+
+        Set<Long> categoryIdSet = new HashSet<>();
+        int annotationIndex=0;
+        //组装图片和标注数据
+        for(FileAnnotationBO sourceFile :sourceFiles){
+            //组装 image
+            JSONObject image = buildImageObject(sourceFile);
+            imageArray.add(image);
+            try {
+                String jsonStr = minioUtil.readString(bucketName, sourceFile.getAnnotationUrl());
+                JSONArray jsonArray = JSON.parseArray(jsonStr);
+                for(int i = 0; i < jsonArray.size(); i++) {
+                    JSONObject sourceAnnotationObject = jsonArray.getJSONObject(i);
+                    JSONObject annotationObject = buildAnnotationObject(sourceFile.getFileId(),sourceAnnotationObject);
+                    annotationObject.put("id",annotationIndex);
+                    categoryIdSet.add(Long.valueOf(annotationObject.get("category_id").toString()));
+                    annotationArray.add(annotationObject);
+                    annotationIndex++;
+                }
+            } catch (Exception e) {
+                LogUtil.error(LogEnum.BIZ_DATASET, "MinIO file read exception, {}", e);
+            }
+        }
+
+        cocoObject.put("images",imageArray);
+        cocoObject.put("annotations",annotationArray);
+
+        //组装标签
+        JSONArray categoryArray = buildCategoryArray(labelMaps,categoryIdSet);
+        cocoObject.put("categories",categoryArray);
+
+        try {
+            minioUtil.writeString(bucketName, targetDir + "annotations/instances_default.json", JSON.toJSONString(cocoObject));
+        } catch (Exception e) {
+            LogUtil.error(LogEnum.BIZ_DATASET, "MinIO file write exception, {}", e);
+        }
+    }
+
+    private JSONObject buildAnnotationObject(Long fileId, JSONObject sourceAnnotationObject ){
+        JSONObject annotation = new JSONObject();
+        annotation.put("image_id",fileId);
+        annotation.put("category_id",sourceAnnotationObject.get("category_id"));
+        annotation.put("segmentation",new JSONArray());
+        annotation.put("area","");
+        annotation.put("bbox",sourceAnnotationObject.get("bbox"));
+        annotation.put("iscrowd",0);
+
+        return annotation;
+    }
+
+
+    private JSONArray buildCategoryArray(Map<Long, String> labelMaps, Set<Long> categoryIdSet){
+        JSONArray categoryArray = new JSONArray();
+        for(Long categoryId : categoryIdSet){
+            JSONObject category = new JSONObject();
+            category.put("id",categoryId);
+            category.put("name",labelMaps.get(categoryId));
+            category.put("supercategory","");
+            categoryArray.add(category);
+        }
+        return categoryArray;
+    }
+
+    private JSONObject buildImageObject(FileAnnotationBO fileAnnotationBO){
+        JSONObject image = new JSONObject();
+        image.put("id",fileAnnotationBO.getFileId());
+        image.put("license",0);
+        String fileName=StringUtils.substringAfterLast(fileAnnotationBO.getFileUrl(), "/");
+        image.put("file_name",fileName);
+        image.put("coco_url","");
+        image.put("height",fileAnnotationBO.getFileHeight());
+        image.put("width",fileAnnotationBO.getFileWidth());
+        image.put("date_captured","");
+        image.put("flickr_url","");
+        return image;
+    }
+
+
+    /**
+     * 发布版本时，生成TS格式标注文件
+     *
+     * @param labelMaps   标签信息
+     * @param sourceFiles 需要复制的源文件
+     * @param targetDir   复制后文件保存地址
+     */
+    public void writeTSAnnotationMinoFile(Map<Long, String> labelMaps, List<String> sourceFiles, String targetDir, List<Label> datasetLabels) {
+
+        /**
+         * 1.读取源文件
+         * 2.替换其中category_id为标签名称
+         * 3.把新文件内容写入到新文件中
+         */
+        sourceFiles.stream().forEach(annotationUrl->{
+            try {
+                String jsonStr = minioUtil.readString(bucketName, annotationUrl);
+                JSONArray jsonArray = JSON.parseArray(jsonStr);
+                for(int i = 0; i < jsonArray.size(); i++) {
+                    JSONObject jsonObject = jsonArray.getJSONObject(i);
+                    String categoryIdStr = jsonObject.getString("category_id");
+                    if (NumberUtil.isNumber(categoryIdStr)) {
+                        if (labelMaps.containsKey(Long.parseLong(categoryIdStr))) {
+                            jsonObject.put("category_id", labelMaps.get(Long.parseLong(categoryIdStr)));
+                        }
+                    }
+                }
+                minioUtil.writeString(bucketName, targetDir + ANNOTATION+"/" + annotationUrl.substring(annotationUrl.lastIndexOf("/")+1, annotationUrl.length()), JSON.toJSONString(jsonArray));
+            } catch (Exception e) {
+                LogUtil.error(LogEnum.BIZ_DATASET, "MinIO file write exception, {}", e);
+            }
+        });
+        //保存标签信息到标注文件夹中
+        List<String> labelStr = new ArrayList<>();
+        for (Label label : datasetLabels){
+            labelStr.add(label.getName());
+        }
+        try {
+            minioUtil.writeString(bucketName, targetDir +ANNOTATION+ "/labels.text", Strings.join(labelStr, ','));
+            minioUtil.writeString(bucketName, targetDir +ANNOTATION+ "/labelsIds.text", JSONObject.toJSONString(labelMaps));
+        } catch (Exception e) {
+            LogUtil.error(LogEnum.BIZ_DATASET, "MinIO file write exception, {}", e);
+        }
+    }
+
 
     /**
      * 插入es数据
@@ -814,7 +1084,7 @@ public class DatasetVersionServiceImpl extends ServiceImpl<DatasetVersionMapper,
             for (int i = 0; i < hits.length; i++) {
                 EsDataFileDTO esDataFileDTO = JSON.parseObject(hits[i].getSourceAsString(), EsDataFileDTO.class);
                 esDataFileDTO.setVersionName(versionTarget);
-                Map<String, String> jsonMap = new HashMap<>();
+                Map<String, Object> jsonMap = new HashMap<>();
                 jsonMap.put("content", esDataFileDTO.getContent());
                 jsonMap.put("name", esDataFileDTO.getName());
                 jsonMap.put("status",esDataFileDTO.getStatus().toString());
@@ -827,7 +1097,7 @@ public class DatasetVersionServiceImpl extends ServiceImpl<DatasetVersionMapper,
                 jsonMap.put("enhanceType",esDataFileDTO.getEnhanceType()==null?null:esDataFileDTO.getEnhanceType().toString());
                 jsonMap.put("originUserId",esDataFileDTO.getOriginUserId().toString());
                 jsonMap.put("prediction",esDataFileDTO.getPrediction()==null?null:esDataFileDTO.getPrediction().toString());
-                jsonMap.put("labelId",esDataFileDTO.getLabelId()==null?null:esDataFileDTO.getLabelId().toString());
+                jsonMap.put("labelId",esDataFileDTO.getLabelId()==null?null:esDataFileDTO.getLabelId());
                 jsonMap.put("annotation", esDataFileDTO.getAnnotation()==null?null:esDataFileDTO.getAnnotation());
                 jsonMap.put("versionName", versionTarget);
                 IndexRequest request = new IndexRequest(esIndex);
@@ -842,50 +1112,6 @@ public class DatasetVersionServiceImpl extends ServiceImpl<DatasetVersionMapper,
             bulkProcessor.flush();
         } catch (Exception e) {
             LogUtil.error(LogEnum.BIZ_DATASET, "publish text to es error:{}", e);
-        }
-    }
-
-    /**
-     * 发布版本时，标注文件复制(需要把标签id替换为name)
-     *
-     * @param labelMaps   标签信息
-     * @param sourceFiles 需要复制的源文件
-     * @param targetDir   复制后文件保存地址
-     */
-    public void minioFileReplaceAndCopy(Map<Long, String> labelMaps, List<String> sourceFiles, String targetDir, List<Label> datasetLabels) {
-        /**
-         * 1.读取源文件
-         * 2.替换其中category_id为标签名称
-         * 3.把新文件内容写入到新文件中
-         */
-        sourceFiles.stream().forEach(str->{
-            try {
-                String jsonStr = minioUtil.readString(bucketName, str);
-                JSONArray jsonArray = JSON.parseArray(jsonStr);
-                for(int i = 0; i < jsonArray.size(); i++) {
-                    JSONObject jsonObject = jsonArray.getJSONObject(i);
-                    String categoryIdStr = jsonObject.getString("category_id");
-                    if (NumberUtil.isNumber(categoryIdStr)) {
-                        if (labelMaps.containsKey(Long.parseLong(categoryIdStr))) {
-                            jsonObject.put("category_id", labelMaps.get(Long.parseLong(categoryIdStr)));
-                        }
-                    }
-                }
-                minioUtil.writeString(bucketName, targetDir + "/" + str.substring(str.lastIndexOf("/")+1, str.length()), JSON.toJSONString(jsonArray));
-            } catch (Exception e) {
-                LogUtil.error(LogEnum.BIZ_DATASET, "MinIO file write exception, {}", e);
-            }
-        });
-        //保存标签信息到标注文件夹中
-        List<String> labelStr = new ArrayList<>();
-        for (Label label : datasetLabels){
-            labelStr.add(label.getName());
-        }
-        try {
-            minioUtil.writeString(bucketName, targetDir + "/labels.text", Strings.join(labelStr, ','));
-            minioUtil.writeString(bucketName, targetDir + "/labelsIds.text", JSONObject.toJSONString(labelMaps));
-        } catch (Exception e) {
-            LogUtil.error(LogEnum.BIZ_DATASET, "MinIO file write exception, {}", e);
         }
     }
 
@@ -1022,9 +1248,11 @@ public class DatasetVersionServiceImpl extends ServiceImpl<DatasetVersionMapper,
                     .datasetId(datasetVersion.getDatasetId())
                     .type(DataTaskTypeEnum.OFRECORD.getValue())
                     .labels("")
+                    .ofRecordVersion(versionName)
                     .datasetVersionId(datasetVersion.getId()).build();
             taskService.createTask(task);
             datasetVersion.setOfRecord(MagicNumConstant.ONE);
+            datasetVersion.setDataConversion(MagicNumConstant.FIVE);
             baseMapper.updateById(datasetVersion);
         }
     }
@@ -1039,4 +1267,13 @@ public class DatasetVersionServiceImpl extends ServiceImpl<DatasetVersionMapper,
         baseMapper.insert(datasetVersion);
     }
 
+    /**
+     * 更新版本
+     *
+     * @param datasetVersion 数据集版本
+     */
+    @Override
+    public void updateByEntity(DatasetVersion datasetVersion) {
+        baseMapper.updateById(datasetVersion);
+    }
 }

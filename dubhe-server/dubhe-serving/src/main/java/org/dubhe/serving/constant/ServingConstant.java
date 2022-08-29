@@ -118,5 +118,20 @@ public class ServingConstant {
      * python脚本后缀
      */
     public static final String PY_SUFFIX = ".py";
-
+    /**
+     * 推理服务pod监听端口
+     */
+    public static final Integer POD_LISTENING_POD = 5000;
+    /**
+     * redis group
+     */
+    public static final String REDIS_GROUP = "serving_group";
+    /**
+     * 在线服务文件根路径
+     */
+    public static final String ONLINE_ROOT_PATH = "serving/deployment/";
+    /**
+     * 批量服务文件根路径
+     */
+    public static final String BATCH_ROOT_PATH = "/serving/batch/";
 }

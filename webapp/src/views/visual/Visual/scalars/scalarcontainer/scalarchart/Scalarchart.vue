@@ -14,6 +14,59 @@
  * =============================================================
  */
 
+<!--
+ * @Descripttion: loss
+ * @version: 1.0
+ * @Author: xds
+ * @Date: 2020-04-24 15:23:44
+ * @LastEditors: Please set LastEditors
+ * @LastEditTime: 2021-07-29 00:15:45
+ -->
+<style lang="less" scoped>
+.chart {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: white;
+}
+
+.tooltip {
+  position: absolute;
+  bottom: 5%;
+  width: 90%;
+  padding: 5px;
+  margin-right: 5%;
+  margin-left: 5%;
+  color: white;
+  visibility: hidden;
+  background-color: rgba(0, 73, 134);
+  border-radius: 5px;
+}
+
+.font1 {
+  font-size: 30px;
+}
+
+.font2 {
+  font-size: 10px;
+}
+
+table {
+  width: 100%;
+}
+
+td {
+  text-align: center;
+}
+
+.td1 {
+  width: 40%;
+}
+
+.td2 {
+  width: 20%;
+}
+</style>
 <template>
   <div :id="classname" class="chart">
     <div :class="['tooltip', scaleLargeSmall ? 'font1' : 'font2']" :scale="scaleLargeSmall">
@@ -35,13 +88,12 @@
 <script>
 import * as d3 from 'd3';
 import { createNamespacedHelpers } from 'vuex';
-import { unixTimestamp2Normal, scientificNotation } from '@/utils';
 
 const { mapMutations: mapScalarMutations, mapGetters: mapScalarGetters } = createNamespacedHelpers(
   'Visual/scalar'
 );
 const { mapMutations: mapCustomMutations } = createNamespacedHelpers('Visual/custom');
-
+const { mapGetters: mapLayoutGetters } = createNamespacedHelpers('Visual/layout');
 export default {
   props: {
     chartdata: Object,
@@ -78,11 +130,11 @@ export default {
       'freshnumber',
       'grade',
     ]),
+    ...mapLayoutGetters(['setDownloadSvgClass', 'getTimer']),
   },
   watch: {
-    freshnumber() {
+    freshnumber(val) {
       if (this.mergetype === '') {
-        d3.select(`#svg${this.classname}`).remove();
         this.SvgDraw();
       }
     },
@@ -90,7 +142,7 @@ export default {
       if (val) {
         if (this.mergetype === 'single') {
           this.thisid = '';
-          for (let i = 0; i < this.mergeddata.length; i += 1) {
+          for (let i = 0; i < this.mergeddata.length; i++) {
             this.thisid = this.thisid + this.mergeddata[i].run + this.mergeddata[i].tag;
           }
           this.customcontent = {
@@ -102,10 +154,10 @@ export default {
           this.setScalar([this.thisid, this.customcontent]);
         } else if (this.mergetype === 'double') {
           this.thisid = '';
-          for (let i = 0; i < this.mergeddata0.length; i += 1) {
+          for (let i = 0; i < this.mergeddata0.length; i++) {
             this.thisid = this.thisid + this.mergeddata0[i].run + this.mergeddata0[i].tag;
           }
-          for (let i = 0; i < this.mergeddata1.length; i += 1) {
+          for (let i = 0; i < this.mergeddata1.length; i++) {
             this.thisid = this.thisid + this.mergeddata1[i].run + this.mergeddata1[i].tag;
           }
           this.customcontent = {
@@ -169,11 +221,9 @@ export default {
             this.mergeditem[this.classname][Object.keys(this.mergeditem[this.classname])[1]]
           );
           d3.select(`#svg${this.classname}`).remove();
-          const foo0 = Object.keys(this.mergeditem[this.classname])[0];
-          this.yname0[0] = foo0;
+          this.yname0[0] = Object.keys(this.mergeditem[this.classname])[0];
           this.yname0[1] = `log(${this.yname0[0]})`;
-          const foo1 = Object.keys(this.mergeditem[this.classname])[1];
-          this.yname1[0] = foo1;
+          this.yname1[0] = Object.keys(this.mergeditem[this.classname])[1];
           this.yname1[1] = `log(${this.yname1[0]})`;
           this.DYMergeSvgDraw();
         }
@@ -196,6 +246,51 @@ export default {
         this.SvgDraw();
       }
     },
+    getTimer() {
+      if (this.grade[this.classname] === 'main') {
+        if (Object.keys(this.mergeditem[this.classname]).length === 1) {
+          this.mergetype = 'single';
+          this.mergeddata = [].concat(
+            this.mergeditem[this.classname][Object.keys(this.mergeditem[this.classname])[0]]
+          );
+          this.legendnumber = this.mergeddata.length;
+          this.MergeSvgDraw();
+        } else if (Object.keys(this.mergeditem[this.classname]).length === 2) {
+          this.mergetype = 'double';
+          this.mergeddata0 = [].concat(
+            this.mergeditem[this.classname][Object.keys(this.mergeditem[this.classname])[0]]
+          );
+          this.mergeddata1 = [].concat(
+            this.mergeditem[this.classname][Object.keys(this.mergeditem[this.classname])[1]]
+          );
+          this.legendnumber = this.mergeddata0.length + this.mergeddata1.length;
+          this.yname0[0] = Object.keys(this.mergeditem[this.classname])[0];
+          this.yname0[1] = `log(${this.yname0[0]})`;
+          this.yname1[0] = Object.keys(this.mergeditem[this.classname])[1];
+          this.yname1[1] = `log(${this.yname1[0]})`;
+          this.DYMergeSvgDraw();
+        }
+      } else if (Object.keys(this.chartdata).length === 2) {
+        this.data = this.chartdata.value[Object.keys(this.chartdata.value)[0]];
+        this.yname[0] = this.ytext;
+        this.yname[1] = `log(${this.ytext})`;
+      } else if (Object.keys(this.chartdata).length === 4) {
+        this.mergetype = 'single';
+        this.legendnumber = this.chartdata.legendnumber;
+        this.mergeddata = this.chartdata.value;
+      } else if (Object.keys(this.chartdata).length === 5) {
+        this.mergetype = 'double';
+        this.legendnumber = this.chartdata.legendnumber;
+        this.mergeddata0 = this.chartdata.value0;
+        this.mergeddata1 = this.chartdata.value1;
+        const arr0 = this.mergeddata0[0].tag.split('/');
+        const arr1 = this.mergeddata1[0].tag.split('/');
+        this.yname0[0] = arr0[arr0.length - 1];
+        this.yname0[1] = `log(${this.yname0[0]})`;
+        this.yname1[0] = arr1[arr1.length - 1];
+        this.yname1[1] = `log(${this.yname1[0]})`;
+      }
+    },
   },
   created() {
     if (this.grade[this.classname] === 'main') {
@@ -215,11 +310,9 @@ export default {
           this.mergeditem[this.classname][Object.keys(this.mergeditem[this.classname])[1]]
         );
         this.legendnumber = this.mergeddata0.length + this.mergeddata1.length;
-        const foo0 = Object.keys(this.mergeditem[this.classname])[0];
-        this.yname0[0] = foo0;
+        this.yname0[0] = Object.keys(this.mergeditem[this.classname])[0];
         this.yname0[1] = `log(${this.yname0[0]})`;
-        const foo1 = Object.keys(this.mergeditem[this.classname])[1];
-        this.yname1[0] = foo1;
+        this.yname1[0] = Object.keys(this.mergeditem[this.classname])[1];
         this.yname1[1] = `log(${this.yname1[0]})`;
         this.DYMergeSvgDraw();
       }
@@ -263,7 +356,7 @@ export default {
       let yaxis = this.yname[0];
       if (this.yaxis === 'log-linear') {
         let flag = 0;
-        for (let i = 0; i < data.length; i += 1) {
+        for (let i = 0; i < data.length; i++) {
           if (datamid[i].value > 0) {
             datamid[i].value = Math.log(datamid[i].value);
           } else {
@@ -272,14 +365,19 @@ export default {
           }
         }
         if (flag === 0) {
-          const foo = this.yname[1];
-          yaxis = foo;
+          yaxis = this.yname[1];
           data = datamid;
         }
       }
       const smoothdata = [].concat(JSON.parse(JSON.stringify(data)));
+
+      if (smoothdata.length === 0) {
+        return;
+      }
+      d3.select(`#svg${this.classname}`).remove();
+
       let last = smoothdata[0].value;
-      for (let i = 1; i < smoothdata.length; i += 1) {
+      for (let i = 1; i < smoothdata.length; i++) {
         smoothdata[i].value = last * smooth + (1 - smooth) * smoothdata[i].value;
         last = smoothdata[i].value;
       }
@@ -329,11 +427,10 @@ export default {
         .attr('d', 'M2,2 L10,6 L2,10 L6,6 L2,2');
 
       // Add X axis
-      const xdomain = d3.extent(data, function my1(d) {
+      const xdomain = d3.extent(data, function(d) {
         return d.step;
       });
       const xgap = xdomain[1] - xdomain[0];
-      // xdomain[0] = xdomain[0] - xgap / 4
       xdomain[1] += xgap / 4;
       const x = d3
         .scaleLinear()
@@ -348,7 +445,23 @@ export default {
             .tickSizeOuter(0)
             .ticks(5)
             .tickFormat((d) => {
-              return scientificNotation(d, 1);
+              const absd = Math.abs(d);
+              if (absd > 10000) {
+                const numLen = absd.toString().length - 1;
+                return `${d / Math.pow(10, numLen)}e+${numLen}`;
+              }
+              if (absd < 0.001) {
+                if (d === 0) return d;
+                const dString = absd.toString();
+                let i = 3;
+                for (; i < dString.length; i++) {
+                  if (dString[i] !== '0') {
+                    break;
+                  }
+                }
+                return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+              }
+              return d;
             })
         );
       xAxis.select('path').attr('marker-end', `url(#xarrowhead${this.classname})`);
@@ -360,7 +473,7 @@ export default {
         .text('step');
 
       // Add Y axis
-      const ydomain = d3.extent(data, function my2(d) {
+      const ydomain = d3.extent(data, function(d) {
         return d.value;
       });
       const ygap = ydomain[1] - ydomain[0];
@@ -376,7 +489,23 @@ export default {
           .tickSizeOuter(0)
           .ticks(5)
           .tickFormat((d) => {
-            return scientificNotation(d, 1);
+            const absd = Math.abs(d);
+            if (absd > 10000) {
+              const numLen = absd.toString().length - 1;
+              return `${d / Math.pow(10, numLen)}e+${numLen}`;
+            }
+            if (absd < 0.001) {
+              if (d === 0) return d;
+              const dString = absd.toString();
+              let i = 3;
+              for (; i < dString.length; i++) {
+                if (dString[i] !== '0') {
+                  break;
+                }
+              }
+              return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+            }
+            return d;
           })
       );
       yAxis.select('path').attr('marker-end', `url(#yarrowhead${this.classname})`);
@@ -400,10 +529,13 @@ export default {
         .attr('y', 0);
 
       // Add brushing
-      const brush = d3.brush().extent([
-        [0, 0],
-        [width, height],
-      ]);
+      const brush = d3
+        .brush()
+        .extent([
+          [0, 0],
+          [width, height],
+        ])
+        .on('end', updateChart);
 
       // Create the line variable: where both the line and the brush take place
       const line = svg.append('g').attr('clip-path', `url(#clip${this.classname})`);
@@ -420,10 +552,10 @@ export default {
           'd',
           d3
             .line()
-            .x(function my3(d) {
+            .x(function(d) {
               return x(d.step);
             })
-            .y(function my4(d) {
+            .y(function(d) {
               return y(d.value);
             })
         );
@@ -439,10 +571,10 @@ export default {
           'd',
           d3
             .line()
-            .x(function my5(d) {
+            .x(function(d) {
               return x(d.step);
             })
-            .y(function my6(d) {
+            .y(function(d) {
               return y(d.value);
             })
         );
@@ -463,10 +595,10 @@ export default {
         .enter()
         .append('circle')
         .attr('class', 'myCircle')
-        .attr('cx', function my7(d) {
+        .attr('cx', function(d) {
           return x(d.step);
         })
-        .attr('cy', function my8(d) {
+        .attr('cy', function(d) {
           return y(d.value);
         })
         .attr('r', 3)
@@ -475,18 +607,41 @@ export default {
         .attr('fill', 'black')
         .attr('fill-opacity', 0)
         .attr('stroke-opacity', 0)
-        .on('mouseover', function my9() {
+        .on('mouseover', function(d) {
           d3.select(this).attr('fill-opacity', 1);
           Tooltip.style('visibility', 'visible');
         })
-        .on('mousemove', function my10(d) {
-          const walltime = unixTimestamp2Normal(d.wall_time);
-          const vv = scientificNotation(d.value, 7);
-          td1.html(walltime);
+        .on('mousemove', function(d) {
+          const unixTimestamp = new Date(d.wall_time * 1000);
+          const commonTime = unixTimestamp.toLocaleString('en-GB', { hour12: false });
+          const tim = commonTime.split('\/');
+          const year = tim[2].split(',')[0];
+          const month = tim[1];
+          const day = tim[0];
+          const tt = tim[2].split(',')[1];
+
+          let vv = d.value;
+          const absd = Math.abs(vv);
+          if (absd > 10000) {
+            const numLen = absd.toString().length - 1;
+            vv = `${vv / Math.pow(10, numLen)}e+${numLen}`;
+          } else if (absd < 0.01 && absd !== 0) {
+            const dString = absd.toString();
+            let i = 3;
+            for (; i < dString.length; i++) {
+              if (dString[i] !== '0') {
+                break;
+              }
+            }
+            vv = `${(vv * Math.pow(10, i - 1)).toFixed(7)}e-${i - 1}`;
+          } else {
+            vv = vv.toFixed(7);
+          }
+          td1.html(`${year}/${month}/${day}${tt}`);
           td2.html(d.step);
           td3.html(vv);
         })
-        .on('mouseout', function my11() {
+        .on('mouseout', function(d) {
           d3.select(this).attr('fill-opacity', 0);
           Tooltip.style('visibility', 'hidden');
         });
@@ -498,12 +653,13 @@ export default {
 
       // A function that update the chart for given boundaries
       function updateChart() {
+        // What are the selected boundaries?
         const extent = d3.event.selection;
         if (!extent) {
           if (!idleTimeout) {
             idleTimeout = setTimeout(idled, 350);
             return idleTimeout;
-          }
+          } // This allows to wait a little bit
           x.domain(xdomain);
           y.domain(ydomain);
         } else {
@@ -511,6 +667,8 @@ export default {
           y.domain([y.invert(extent[1][1]), y.invert(extent[0][1])]);
           line.select('.brush').call(brush.move, null);
         }
+
+        // Update axis and line position
         xAxis
           .transition()
           .duration(1000)
@@ -520,7 +678,23 @@ export default {
               .tickSizeOuter(0)
               .ticks(5)
               .tickFormat((d) => {
-                return scientificNotation(d, 1);
+                const absd = Math.abs(d);
+                if (absd > 10000) {
+                  const numLen = absd.toString().length - 1;
+                  return `${d / Math.pow(10, numLen)}e+${numLen}`;
+                }
+                if (absd < 0.001) {
+                  if (d === 0) return d;
+                  const dString = absd.toString();
+                  let i = 3;
+                  for (; i < dString.length; i++) {
+                    if (dString[i] !== '0') {
+                      break;
+                    }
+                  }
+                  return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+                }
+                return d;
               })
           );
         yAxis
@@ -532,7 +706,23 @@ export default {
               .tickSizeOuter(0)
               .ticks(5)
               .tickFormat((d) => {
-                return scientificNotation(d, 1);
+                const absd = Math.abs(d);
+                if (absd > 10000) {
+                  const numLen = absd.toString().length - 1;
+                  return `${d / Math.pow(10, numLen)}e+${numLen}`;
+                }
+                if (absd < 0.001) {
+                  if (d === 0) return d;
+                  const dString = absd.toString();
+                  let i = 3;
+                  for (; i < dString.length; i++) {
+                    if (dString[i] !== '0') {
+                      break;
+                    }
+                  }
+                  return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+                }
+                return d;
               })
           );
         line
@@ -543,10 +733,10 @@ export default {
             'd',
             d3
               .line()
-              .x(function my81(d) {
+              .x(function(d) {
                 return x(d.step);
               })
-              .y(function my82(d) {
+              .y(function(d) {
                 return y(d.value);
               })
           );
@@ -558,10 +748,10 @@ export default {
             'd',
             d3
               .line()
-              .x(function my83(d) {
+              .x(function(d) {
                 return x(d.step);
               })
-              .y(function my84(d) {
+              .y(function(d) {
                 return y(d.value);
               })
           );
@@ -569,16 +759,15 @@ export default {
           .selectAll('.myCircle')
           .transition()
           .duration(1000)
-          .attr('cx', function my85(d) {
+          .attr('cx', function(d) {
             return x(d.step);
           })
-          .attr('cy', function my86(d) {
+          .attr('cy', function(d) {
             return y(d.value);
           });
       }
-      brush.on('end', updateChart);
       // If user double click, reinitialize the chart
-      svg.on('dblclick', function my12() {
+      svg.on('dblclick', function() {
         x.domain(xdomain);
         xAxis.transition().call(
           d3
@@ -586,7 +775,23 @@ export default {
             .tickSizeOuter(0)
             .ticks(5)
             .tickFormat((d) => {
-              return scientificNotation(d, 1);
+              const absd = Math.abs(d);
+              if (absd > 10000) {
+                const numLen = absd.toString().length - 1;
+                return `${d / Math.pow(10, numLen)}e+${numLen}`;
+              }
+              if (absd < 0.001) {
+                if (d === 0) return d;
+                const dString = absd.toString();
+                let i = 3;
+                for (; i < dString.length; i++) {
+                  if (dString[i] !== '0') {
+                    break;
+                  }
+                }
+                return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+              }
+              return d;
             })
         );
         y.domain(ydomain);
@@ -596,7 +801,23 @@ export default {
             .tickSizeOuter(0)
             .ticks(5)
             .tickFormat((d) => {
-              return scientificNotation(d, 1);
+              const absd = Math.abs(d);
+              if (absd > 10000) {
+                const numLen = absd.toString().length - 1;
+                return `${d / Math.pow(10, numLen)}e+${numLen}`;
+              }
+              if (absd < 0.001) {
+                if (d === 0) return d;
+                const dString = absd.toString();
+                let i = 3;
+                for (; i < dString.length; i++) {
+                  if (dString[i] !== '0') {
+                    break;
+                  }
+                }
+                return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+              }
+              return d;
             })
         );
         line
@@ -607,10 +828,10 @@ export default {
             'd',
             d3
               .line()
-              .x(function my13(d) {
+              .x(function(d) {
                 return x(d.step);
               })
-              .y(function my14(d) {
+              .y(function(d) {
                 return y(d.value);
               })
           );
@@ -622,10 +843,10 @@ export default {
             'd',
             d3
               .line()
-              .x(function my15(d) {
+              .x(function(d) {
                 return x(d.step);
               })
-              .y(function my16(d) {
+              .y(function(d) {
                 return y(d.value);
               })
           );
@@ -633,10 +854,10 @@ export default {
           .selectAll('.myCircle')
           .transition()
           .duration(1000)
-          .attr('cx', function my17(d) {
+          .attr('cx', function(d) {
             return x(d.step);
           })
-          .attr('cy', function my18(d) {
+          .attr('cy', function(d) {
             return y(d.value);
           });
       });
@@ -649,8 +870,8 @@ export default {
       let yaxis = this.yname[0];
       if (this.yaxis === 'log-linear') {
         let flag = 0;
-        for (let i = 0; i < data.length; i += 1) {
-          for (let j = 0; j < data[i].value.length; j += 1) {
+        for (let i = 0; i < data.length; i++) {
+          for (let j = 0; j < data[i].value.length; j++) {
             if (datamid[i].value[j].value > 0) {
               datamid[i].value[j].value = Math.log(datamid[i].value[j].value);
             } else {
@@ -661,15 +882,14 @@ export default {
           if (flag === 1) break;
         }
         if (flag === 0) {
-          const foo = this.yname[1];
-          yaxis = foo;
+          yaxis = this.yname[1];
           data = datamid;
         }
       }
       const smoothdata = [].concat(JSON.parse(JSON.stringify(data)));
-      for (let i = 0; i < smoothdata.length; i += 1) {
+      for (let i = 0; i < smoothdata.length; i++) {
         let last = smoothdata[i].value[0].value;
-        for (let j = 1; j < smoothdata[i].value.length; j += 1) {
+        for (let j = 1; j < smoothdata[i].value.length; j++) {
           smoothdata[i].value[j].value =
             last * smooth + (1 - smooth) * smoothdata[i].value[j].value;
           last = smoothdata[i].value[j].value;
@@ -677,14 +897,14 @@ export default {
       }
       let dataset0 = [];
       let dataset = [];
-      for (let i = 0; i < data.length; i += 1) {
+      for (let i = 0; i < data.length; i++) {
         data[i].order = i;
         smoothdata[i].order = i;
         dataset0 = dataset0.concat(data[i].value);
         dataset = dataset.concat(smoothdata[i].value);
       }
       // color palette
-      const res = data.map(function my19(d) {
+      const res = data.map(function(d) {
         return d.order;
       }); // list of group names
       const color = d3
@@ -737,7 +957,7 @@ export default {
         .attr('d', 'M2,2 L10,6 L2,10 L6,6 L2,2');
 
       // Add X axis
-      const xdomain = d3.extent(dataset0, function my20(d) {
+      const xdomain = d3.extent(dataset0, function(d) {
         return d.step;
       });
       const xgap = xdomain[1] - xdomain[0];
@@ -756,7 +976,23 @@ export default {
             .tickSizeOuter(0)
             .ticks(5)
             .tickFormat((d) => {
-              return scientificNotation(d, 1);
+              const absd = Math.abs(d);
+              if (absd > 10000) {
+                const numLen = absd.toString().length - 1;
+                return `${d / Math.pow(10, numLen)}e+${numLen}`;
+              }
+              if (absd < 0.001) {
+                if (d === 0) return d;
+                const dString = absd.toString();
+                let i = 3;
+                for (; i < dString.length; i++) {
+                  if (dString[i] !== '0') {
+                    break;
+                  }
+                }
+                return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+              }
+              return d;
             })
         );
       xAxis.select('path').attr('marker-end', `url(#xarrowhead${this.classname})`);
@@ -768,7 +1004,7 @@ export default {
         .text('step');
 
       // Add Y axis
-      const ydomain = d3.extent(dataset0, function my21(d) {
+      const ydomain = d3.extent(dataset0, function(d) {
         return d.value;
       });
       const ygap = ydomain[1] - ydomain[0];
@@ -784,7 +1020,23 @@ export default {
           .tickSizeOuter(0)
           .ticks(5)
           .tickFormat((d) => {
-            return scientificNotation(d, 1);
+            const absd = Math.abs(d);
+            if (absd > 10000) {
+              const numLen = absd.toString().length - 1;
+              return `${d / Math.pow(10, numLen)}e+${numLen}`;
+            }
+            if (absd < 0.001) {
+              if (d === 0) return d;
+              const dString = absd.toString();
+              let i = 3;
+              for (; i < dString.length; i++) {
+                if (dString[i] !== '0') {
+                  break;
+                }
+              }
+              return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+            }
+            return d;
           })
       );
       yAxis.select('path').attr('marker-end', `url(#yarrowhead${this.classname})`);
@@ -808,11 +1060,15 @@ export default {
         .attr('y', 0);
 
       // Add brushing
-      const brush = d3.brush().extent([
-        [0, 0],
-        [width, height],
-      ]);
+      const brush = d3
+        .brush() // Add the brush feature using the d3.brush function
+        .extent([
+          [0, 0],
+          [width, height],
+        ]) // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
+        .on('end', updateChart); // Each time the brush selection changes, trigger the 'updateChart' function
 
+      // Create the line variable: where both the line and the brush take place
       const line = svg.append('g').attr('clip-path', `url(#clip${this.classname})`);
       // Add the smooth line
       line
@@ -822,17 +1078,17 @@ export default {
         .append('path')
         .attr('class', 'smoothline')
         .attr('fill', 'none')
-        .attr('stroke', function my22(d) {
+        .attr('stroke', function(d) {
           return color(d.order);
         })
         .attr('stroke-width', 1.5)
-        .attr('d', function my23(d) {
+        .attr('d', function(d) {
           return d3
             .line()
-            .x(function my24(d) {
+            .x(function(d) {
               return x(d.step);
             })
-            .y(function my25(d) {
+            .y(function(d) {
               return y(d.value);
             })(d.value);
         });
@@ -854,10 +1110,10 @@ export default {
         .enter()
         .append('circle')
         .attr('class', 'myCircle')
-        .attr('cx', function my26(d) {
+        .attr('cx', function(d) {
           return x(d.step);
         })
-        .attr('cy', function my27(d) {
+        .attr('cy', function(d) {
           return y(d.value);
         })
         .attr('r', 3)
@@ -866,18 +1122,41 @@ export default {
         .attr('fill', 'black')
         .attr('fill-opacity', 0)
         .attr('stroke-opacity', 0)
-        .on('mouseover', function my28() {
+        .on('mouseover', function(d) {
           d3.select(this).attr('fill-opacity', 1);
           Tooltip.style('visibility', 'visible');
         })
-        .on('mousemove', function my29(d) {
-          const walltime = unixTimestamp2Normal(d.wall_time);
-          const vv = scientificNotation(d.value, 7);
-          td1.html(walltime);
+        .on('mousemove', function(d) {
+          const unixTimestamp = new Date(d.wall_time * 1000);
+          const commonTime = unixTimestamp.toLocaleString('en-GB', { hour12: false });
+          const tim = commonTime.split('\/');
+          const year = tim[2].split(',')[0];
+          const month = tim[1];
+          const day = tim[0];
+          const tt = tim[2].split(',')[1];
+
+          let vv = d.value;
+          const absd = Math.abs(vv);
+          if (absd > 10000) {
+            const numLen = absd.toString().length - 1;
+            vv = `${vv / Math.pow(10, numLen)}e+${numLen}`;
+          } else if (absd < 0.01 && absd !== 0) {
+            const dString = absd.toString();
+            let i = 3;
+            for (; i < dString.length; i++) {
+              if (dString[i] !== '0') {
+                break;
+              }
+            }
+            vv = `${(vv * Math.pow(10, i - 1)).toFixed(7)}e-${i - 1}`;
+          } else {
+            vv = vv.toFixed(7);
+          }
+          td1.html(`${year}/${month}/${day}${tt}`);
           td2.html(d.step);
           td3.html(vv);
         })
-        .on('mouseout', function my30() {
+        .on('mouseout', function(d) {
           d3.select(this).attr('fill-opacity', 0);
           Tooltip.style('visibility', 'hidden');
         });
@@ -889,7 +1168,7 @@ export default {
         .enter()
         .append('g')
         .attr('class', 'legend')
-        .attr('transform', function my31(d, i) {
+        .attr('transform', function(d, i) {
           return `translate(0,${i * 20})`;
         });
 
@@ -899,7 +1178,7 @@ export default {
         .attr('y', height + margin.top + 40)
         .attr('width', 18)
         .attr('height', 4)
-        .style('fill', function my32(d) {
+        .style('fill', function(d) {
           return color(d.order);
         });
 
@@ -910,7 +1189,7 @@ export default {
         .attr('dy', '.5em')
         .attr('font-size', '10px')
         .style('text-anchor', 'start')
-        .text(function my33(d) {
+        .text(function(d) {
           return `${d.run},${d.tag}`;
         });
       // A function that set idleTimeOut to null
@@ -921,19 +1200,24 @@ export default {
 
       // A function that update the chart for given boundaries
       function updateChart() {
+        // What are the selected boundaries?
         const extent = d3.event.selection;
+
+        // If no selection, back to initial coordinate. Otherwise, update X axis domain
         if (!extent) {
           if (!idleTimeout) {
             idleTimeout = setTimeout(idled, 350);
             return idleTimeout;
-          }
+          } // This allows to wait a little bit
           x.domain(xdomain);
           y.domain(xdomain);
         } else {
           x.domain([x.invert(extent[0][0]), x.invert(extent[1][0])]);
           y.domain([y.invert(extent[1][1]), y.invert(extent[0][1])]);
-          line.select('.brush').call(brush.move, null);
+          line.select('.brush').call(brush.move, null); // This remove the grey brush area as soon as the selection has been done
         }
+
+        // Update axis and line position
         xAxis
           .transition()
           .duration(1000)
@@ -943,7 +1227,23 @@ export default {
               .tickSizeOuter(0)
               .ticks(5)
               .tickFormat((d) => {
-                return scientificNotation(d, 1);
+                const absd = Math.abs(d);
+                if (absd > 10000) {
+                  const numLen = absd.toString().length - 1;
+                  return `${d / Math.pow(10, numLen)}e+${numLen}`;
+                }
+                if (absd < 0.001) {
+                  if (d === 0) return d;
+                  const dString = absd.toString();
+                  let i = 3;
+                  for (; i < dString.length; i++) {
+                    if (dString[i] !== '0') {
+                      break;
+                    }
+                  }
+                  return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+                }
+                return d;
               })
           );
         yAxis
@@ -955,20 +1255,36 @@ export default {
               .tickSizeOuter(0)
               .ticks(5)
               .tickFormat((d) => {
-                return scientificNotation(d, 1);
+                const absd = Math.abs(d);
+                if (absd > 10000) {
+                  const numLen = absd.toString().length - 1;
+                  return `${d / Math.pow(10, numLen)}e+${numLen}`;
+                }
+                if (absd < 0.001) {
+                  if (d === 0) return d;
+                  const dString = absd.toString();
+                  let i = 3;
+                  for (; i < dString.length; i++) {
+                    if (dString[i] !== '0') {
+                      break;
+                    }
+                  }
+                  return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+                }
+                return d;
               })
           );
         line
           .selectAll('.smoothline')
           .transition()
           .duration(1000)
-          .attr('d', function my87(d) {
+          .attr('d', function(d) {
             return d3
               .line()
-              .x(function my88(d) {
+              .x(function(d) {
                 return x(d.step);
               })
-              .y(function my89(d) {
+              .y(function(d) {
                 return y(d.value);
               })(d.value);
           });
@@ -976,16 +1292,15 @@ export default {
           .selectAll('.myCircle')
           .transition()
           .duration(1000)
-          .attr('cx', function my90(d) {
+          .attr('cx', function(d) {
             return x(d.step);
           })
-          .attr('cy', function my91(d) {
+          .attr('cy', function(d) {
             return y(d.value);
           });
       }
-      brush.on('end', updateChart);
       // If user double click, reinitialize the chart
-      svg.on('dblclick', function my34() {
+      svg.on('dblclick', function() {
         x.domain(xdomain);
         xAxis.transition().call(
           d3
@@ -993,7 +1308,23 @@ export default {
             .tickSizeOuter(0)
             .ticks(5)
             .tickFormat((d) => {
-              return scientificNotation(d, 1);
+              const absd = Math.abs(d);
+              if (absd > 10000) {
+                const numLen = absd.toString().length - 1;
+                return `${d / Math.pow(10, numLen)}e+${numLen}`;
+              }
+              if (absd < 0.001) {
+                if (d === 0) return d;
+                const dString = absd.toString();
+                let i = 3;
+                for (; i < dString.length; i++) {
+                  if (dString[i] !== '0') {
+                    break;
+                  }
+                }
+                return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+              }
+              return d;
             })
         );
         y.domain(ydomain);
@@ -1003,20 +1334,36 @@ export default {
             .tickSizeOuter(0)
             .ticks(5)
             .tickFormat((d) => {
-              return scientificNotation(d, 1);
+              const absd = Math.abs(d);
+              if (absd > 10000) {
+                const numLen = absd.toString().length - 1;
+                return `${d / Math.pow(10, numLen)}e+${numLen}`;
+              }
+              if (absd < 0.001) {
+                if (d === 0) return d;
+                const dString = absd.toString();
+                let i = 3;
+                for (; i < dString.length; i++) {
+                  if (dString[i] !== '0') {
+                    break;
+                  }
+                }
+                return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+              }
+              return d;
             })
         );
         line
           .selectAll('.smoothline')
           .transition()
           .duration(1000)
-          .attr('d', function my35(d) {
+          .attr('d', function(d) {
             return d3
               .line()
-              .x(function my36(d) {
+              .x(function(d) {
                 return x(d.step);
               })
-              .y(function my37(d) {
+              .y(function(d) {
                 return y(d.value);
               })(d.value);
           });
@@ -1024,10 +1371,10 @@ export default {
           .selectAll('.myCircle')
           .transition()
           .duration(1000)
-          .attr('cx', function my38(d) {
+          .attr('cx', function(d) {
             return x(d.step);
           })
-          .attr('cy', function my39(d) {
+          .attr('cy', function(d) {
             return y(d.value);
           });
       });
@@ -1043,9 +1390,9 @@ export default {
       let yaxis1 = this.yname1[0];
       if (this.yaxis === 'log-linear') {
         let flag = 0;
-        for (let i = 0; i < data0.length; i += 1) {
+        for (let i = 0; i < data0.length; i++) {
           if (flag === 1) break;
-          for (let j = 0; j < data0[i].value.length; j += 1) {
+          for (let j = 0; j < data0[i].value.length; j++) {
             if (datamid0[i].value[j].value > 0) {
               datamid0[i].value[j].value = Math.log(datamid0[i].value[j].value);
             } else {
@@ -1054,9 +1401,9 @@ export default {
             }
           }
         }
-        for (let i = 0; i < data1.length; i += 1) {
+        for (let i = 0; i < data1.length; i++) {
           if (flag === 1) break;
-          for (let j = 0; j < data1[i].value.length; j += 1) {
+          for (let j = 0; j < data1[i].value.length; j++) {
             if (datamid1[i].value[j].value > 0) {
               datamid1[i].value[j].value = Math.log(datamid1[i].value[j].value);
             } else {
@@ -1066,27 +1413,25 @@ export default {
           }
         }
         if (flag === 0) {
-          const foo0 = this.yname0[1];
-          const foo1 = this.yname1[1];
-          yaxis0 = foo0;
-          yaxis1 = foo1;
+          yaxis0 = this.yname0[1];
+          yaxis1 = this.yname1[1];
           data0 = datamid0;
           data1 = datamid1;
         }
       }
       const smoothdata0 = [].concat(JSON.parse(JSON.stringify(data0)));
       const smoothdata1 = [].concat(JSON.parse(JSON.stringify(data1)));
-      for (let i = 0; i < smoothdata0.length; i += 1) {
+      for (let i = 0; i < smoothdata0.length; i++) {
         let last = smoothdata0[i].value[0].value;
-        for (let j = 1; j < smoothdata0[i].value.length; j += 1) {
+        for (let j = 1; j < smoothdata0[i].value.length; j++) {
           smoothdata0[i].value[j].value =
             last * smooth + (1 - smooth) * smoothdata0[i].value[j].value;
           last = smoothdata0[i].value[j].value;
         }
       }
-      for (let i = 0; i < smoothdata1.length; i += 1) {
+      for (let i = 0; i < smoothdata1.length; i++) {
         let last = smoothdata1[i].value[0].value;
-        for (let j = 1; j < smoothdata1[i].value.length; j += 1) {
+        for (let j = 1; j < smoothdata1[i].value.length; j++) {
           smoothdata1[i].value[j].value =
             last * smooth + (1 - smooth) * smoothdata1[i].value[j].value;
           last = smoothdata1[i].value[j].value;
@@ -1096,27 +1441,27 @@ export default {
       let dataset11 = [];
       let dataset0 = [];
       let dataset1 = [];
-      for (let i = 0; i < data0.length; i += 1) {
+      for (let i = 0; i < data0.length; i++) {
         data0[i].order = i;
         smoothdata0[i].order = i;
         dataset00 = dataset00.concat(data0[i].value);
         dataset0 = dataset0.concat(smoothdata0[i].value);
       }
-      for (let i = 0; i < data1.length; i += 1) {
+      for (let i = 0; i < data1.length; i++) {
         data1[i].order = i;
         smoothdata1[i].order = i;
         dataset11 = dataset11.concat(data1[i].value);
         dataset1 = dataset1.concat(smoothdata1[i].value);
       }
       // color palette
-      const res0 = data0.map(function my40(d) {
+      const res0 = data0.map(function(d) {
         return d.order;
       }); // list of group names
       const color0 = d3
         .scaleOrdinal()
         .domain(res0)
         .range(['#ed357b', '#1d276e', '#6ec6d0', '#0c9257', '#ffdf1e', '#fe8325']);
-      const res1 = data1.map(function my41(d) {
+      const res1 = data1.map(function(d) {
         return d.order;
       }); // list of group names
       const color1 = d3
@@ -1157,10 +1502,10 @@ export default {
         .attr('d', 'M2,2 L10,6 L2,10 L6,6 L2,2');
 
       // Add X axis
-      const xdomain0 = d3.extent(dataset00, function my42(d) {
+      const xdomain0 = d3.extent(dataset00, function(d) {
         return d.step;
       });
-      const xdomain1 = d3.extent(dataset11, function my43(d) {
+      const xdomain1 = d3.extent(dataset11, function(d) {
         return d.step;
       });
       const xdomain = [];
@@ -1182,7 +1527,23 @@ export default {
             .tickSizeOuter(0)
             .ticks(5)
             .tickFormat((d) => {
-              return scientificNotation(d, 1);
+              const absd = Math.abs(d);
+              if (absd > 10000) {
+                const numLen = absd.toString().length - 1;
+                return `${d / Math.pow(10, numLen)}e+${numLen}`;
+              }
+              if (absd < 0.001) {
+                if (d === 0) return d;
+                const dString = absd.toString();
+                let i = 3;
+                for (; i < dString.length; i++) {
+                  if (dString[i] !== '0') {
+                    break;
+                  }
+                }
+                return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+              }
+              return d;
             })
         );
       svg
@@ -1193,7 +1554,7 @@ export default {
         .text('step');
 
       // Add Y0 axis
-      const ydomain0 = d3.extent(dataset00, function my44(d) {
+      const ydomain0 = d3.extent(dataset00, function(d) {
         return d.value;
       });
       const ygap0 = ydomain0[1] - ydomain0[0];
@@ -1209,7 +1570,23 @@ export default {
           .tickSizeOuter(0)
           .ticks(5)
           .tickFormat((d) => {
-            return scientificNotation(d, 1);
+            const absd = Math.abs(d);
+            if (absd > 10000) {
+              const numLen = absd.toString().length - 1;
+              return `${d / Math.pow(10, numLen)}e+${numLen}`;
+            }
+            if (absd < 0.001) {
+              if (d === 0) return d;
+              const dString = absd.toString();
+              let i = 3;
+              for (; i < dString.length; i++) {
+                if (dString[i] !== '0') {
+                  break;
+                }
+              }
+              return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+            }
+            return d;
           })
       );
       yAxis0.select('path').attr('marker-end', `url(#yarrowhead${this.classname})`);
@@ -1222,7 +1599,7 @@ export default {
         .text(yaxis0);
 
       // Add Y1 axis
-      const ydomain1 = d3.extent(dataset11, function my45(d) {
+      const ydomain1 = d3.extent(dataset11, function(d) {
         return d.value;
       });
       const ygap1 = ydomain1[1] - ydomain1[0];
@@ -1241,7 +1618,23 @@ export default {
             .tickSizeOuter(0)
             .ticks(5)
             .tickFormat((d) => {
-              return scientificNotation(d, 1);
+              const absd = Math.abs(d);
+              if (absd > 10000) {
+                const numLen = absd.toString().length - 1;
+                return `${d / Math.pow(10, numLen)}e+${numLen}`;
+              }
+              if (absd < 0.001) {
+                if (d === 0) return d;
+                const dString = absd.toString();
+                let i = 3;
+                for (; i < dString.length; i++) {
+                  if (dString[i] !== '0') {
+                    break;
+                  }
+                }
+                return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+              }
+              return d;
             })
         );
       yAxis1.select('path').attr('marker-end', `url(#yarrowhead${this.classname})`);
@@ -1264,10 +1657,13 @@ export default {
         .attr('y', 0);
 
       // Add brushing
-      const brush = d3.brush().extent([
-        [0, 0],
-        [width, height],
-      ]);
+      const brush = d3
+        .brush() // Add the brush feature using the d3.brush function
+        .extent([
+          [0, 0],
+          [width, height],
+        ]) // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
+        .on('end', updateChart); // Each time the brush selection changes, trigger the 'updateChart' function
 
       // Create the line variable: where both the line and the brush take place
       const line = svg.append('g').attr('clip-path', `url(#clip${this.classname})`);
@@ -1280,17 +1676,17 @@ export default {
         .append('path')
         .attr('class', 'smoothline0')
         .attr('fill', 'none')
-        .attr('stroke', function my46(d) {
+        .attr('stroke', function(d) {
           return color0(d.order);
         })
         .attr('stroke-width', 1.5)
-        .attr('d', function my47(d) {
+        .attr('d', function(d) {
           return d3
             .line()
-            .x(function my48(d) {
+            .x(function(d) {
               return x(d.step);
             })
-            .y(function my49(d) {
+            .y(function(d) {
               return y0(d.value);
             })(d.value);
         });
@@ -1301,17 +1697,17 @@ export default {
         .append('path')
         .attr('class', 'smoothline1')
         .attr('fill', 'none')
-        .attr('stroke', function my50(d) {
+        .attr('stroke', function(d) {
           return color1(d.order);
         })
         .attr('stroke-width', 1.5)
-        .attr('d', function my51(d) {
+        .attr('d', function(d) {
           return d3
             .line()
-            .x(function my52(d) {
+            .x(function(d) {
               return x(d.step);
             })
-            .y(function my53(d) {
+            .y(function(d) {
               return y1(d.value);
             })(d.value);
         });
@@ -1333,10 +1729,10 @@ export default {
         .enter()
         .append('circle')
         .attr('class', 'myCircle0')
-        .attr('cx', function my54(d) {
+        .attr('cx', function(d) {
           return x(d.step);
         })
-        .attr('cy', function my55(d) {
+        .attr('cy', function(d) {
           return y0(d.value);
         })
         .attr('r', 3)
@@ -1345,18 +1741,41 @@ export default {
         .attr('fill', 'black')
         .attr('fill-opacity', 0)
         .attr('stroke-opacity', 0)
-        .on('mouseover', function my56() {
+        .on('mouseover', function(d) {
           d3.select(this).attr('fill-opacity', 1);
           Tooltip.style('visibility', 'visible');
         })
-        .on('mousemove', function my57(d) {
-          const walltime = unixTimestamp2Normal(d.wall_time);
-          const vv = scientificNotation(d.value, 7);
-          td1.html(walltime);
+        .on('mousemove', function(d) {
+          const unixTimestamp = new Date(d.wall_time * 1000);
+          const commonTime = unixTimestamp.toLocaleString('en-GB', { hour12: false });
+          const tim = commonTime.split('\/');
+          const year = tim[2].split(',')[0];
+          const month = tim[1];
+          const day = tim[0];
+          const tt = tim[2].split(',')[1];
+
+          let vv = d.value;
+          const absd = Math.abs(vv);
+          if (absd > 10000) {
+            const numLen = absd.toString().length - 1;
+            vv = `${vv / Math.pow(10, numLen)}e+${numLen}`;
+          } else if (absd < 0.01 && absd !== 0) {
+            const dString = absd.toString();
+            let i = 3;
+            for (; i < dString.length; i++) {
+              if (dString[i] !== '0') {
+                break;
+              }
+            }
+            vv = `${(vv * Math.pow(10, i - 1)).toFixed(7)}e-${i - 1}`;
+          } else {
+            vv = vv.toFixed(7);
+          }
+          td1.html(`${year}/${month}/${day}${tt}`);
           td2.html(d.step);
           td3.html(vv);
         })
-        .on('mouseout', function my58() {
+        .on('mouseout', function(d) {
           d3.select(this).attr('fill-opacity', 0);
           Tooltip.style('visibility', 'hidden');
         });
@@ -1366,10 +1785,10 @@ export default {
         .enter()
         .append('circle')
         .attr('class', 'myCircle1')
-        .attr('cx', function my59(d) {
+        .attr('cx', function(d) {
           return x(d.step);
         })
-        .attr('cy', function my60(d) {
+        .attr('cy', function(d) {
           return y1(d.value);
         })
         .attr('r', 3)
@@ -1378,18 +1797,41 @@ export default {
         .attr('fill', 'black')
         .attr('fill-opacity', 0)
         .attr('stroke-opacity', 0)
-        .on('mouseover', function my61() {
+        .on('mouseover', function(d) {
           d3.select(this).attr('fill-opacity', 1);
           Tooltip.style('visibility', 'visible');
         })
-        .on('mousemove', function my62(d) {
-          const walltime = unixTimestamp2Normal(d.wall_time);
-          const vv = scientificNotation(d.value, 7);
-          td1.html(walltime);
+        .on('mousemove', function(d) {
+          const unixTimestamp = new Date(d.wall_time * 1000);
+          const commonTime = unixTimestamp.toLocaleString('en-GB', { hour12: false });
+          const tim = commonTime.split('\/');
+          const year = tim[2].split(',')[0];
+          const month = tim[1];
+          const day = tim[0];
+          const tt = tim[2].split(',')[1];
+
+          let vv = d.value;
+          const absd = Math.abs(vv);
+          if (absd > 10000) {
+            const numLen = absd.toString().length - 1;
+            vv = `${vv / Math.pow(10, numLen)}e+${numLen}`;
+          } else if (absd < 0.01 && absd !== 0) {
+            const dString = absd.toString();
+            let i = 3;
+            for (; i < dString.length; i++) {
+              if (dString[i] !== '0') {
+                break;
+              }
+            }
+            vv = `${(vv * Math.pow(10, i - 1)).toFixed(7)}e-${i - 1}`;
+          } else {
+            vv = vv.toFixed(7);
+          }
+          td1.html(`${year}/${month}/${day}${tt}`);
           td2.html(d.step);
           td3.html(vv);
         })
-        .on('mouseout', function my63() {
+        .on('mouseout', function(d) {
           d3.select(this).attr('fill-opacity', 0);
           Tooltip.style('visibility', 'hidden');
         });
@@ -1402,7 +1844,7 @@ export default {
         .enter()
         .append('g')
         .attr('class', 'legend0')
-        .attr('transform', function my64(d, i) {
+        .attr('transform', function(d, i) {
           return `translate(0,${i * 20})`;
         });
 
@@ -1412,7 +1854,7 @@ export default {
         .attr('y', height + margin.top + 40)
         .attr('width', 18)
         .attr('height', 4)
-        .style('fill', function my65(d) {
+        .style('fill', function(d) {
           return color0(d.order);
         });
 
@@ -1423,7 +1865,7 @@ export default {
         .attr('dy', '.5em')
         .attr('font-size', '10px')
         .style('text-anchor', 'start')
-        .text(function my66(d) {
+        .text(function(d) {
           return `${d.run},${d.tag}`;
         });
       // add the legend0
@@ -1433,7 +1875,7 @@ export default {
         .enter()
         .append('g')
         .attr('class', 'legend1')
-        .attr('transform', function my67(d, i) {
+        .attr('transform', function(d, i) {
           return `translate(0,${(firstdatanumber + i) * 20})`;
         });
 
@@ -1443,7 +1885,7 @@ export default {
         .attr('y', height + margin.top + 40)
         .attr('width', 18)
         .attr('height', 4)
-        .style('fill', function my68(d) {
+        .style('fill', function(d) {
           return color1(d.order);
         });
 
@@ -1454,7 +1896,7 @@ export default {
         .attr('dy', '.5em')
         .attr('font-size', '10px')
         .style('text-anchor', 'start')
-        .text(function my69(d) {
+        .text(function(d) {
           return `${d.run},${d.tag}`;
         });
       // A function that set idleTimeOut to null
@@ -1465,12 +1907,15 @@ export default {
 
       // A function that update the chart for given boundaries
       function updateChart() {
+        // What are the selected boundaries?
         const extent = d3.event.selection;
+
+        // If no selection, back to initial coordinate. Otherwise, update X axis domain
         if (!extent) {
           if (!idleTimeout) {
             idleTimeout = setTimeout(idled, 350);
             return idleTimeout;
-          }
+          } // This allows to wait a little bit
           x.domain(xdomain);
           y0.domain(ydomain0);
           y1.domain(ydomain1);
@@ -1478,8 +1923,10 @@ export default {
           x.domain([x.invert(extent[0][0]), x.invert(extent[1][0])]);
           y0.domain([y0.invert(extent[1][1]), y0.invert(extent[0][1])]);
           y1.domain([y1.invert(extent[1][1]), y1.invert(extent[0][1])]);
-          line.select('.brush').call(brush.move, null);
+          line.select('.brush').call(brush.move, null); // This remove the grey brush area as soon as the selection has been done
         }
+
+        // Update axis and line position
         xAxis
           .transition()
           .duration(1000)
@@ -1489,7 +1936,23 @@ export default {
               .tickSizeOuter(0)
               .ticks(5)
               .tickFormat((d) => {
-                return scientificNotation(d, 1);
+                const absd = Math.abs(d);
+                if (absd > 10000) {
+                  const numLen = absd.toString().length - 1;
+                  return `${d / Math.pow(10, numLen)}e+${numLen}`;
+                }
+                if (absd < 0.001) {
+                  if (d === 0) return d;
+                  const dString = absd.toString();
+                  let i = 3;
+                  for (; i < dString.length; i++) {
+                    if (dString[i] !== '0') {
+                      break;
+                    }
+                  }
+                  return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+                }
+                return d;
               })
           );
         yAxis0
@@ -1501,7 +1964,23 @@ export default {
               .tickSizeOuter(0)
               .ticks(5)
               .tickFormat((d) => {
-                return scientificNotation(d, 1);
+                const absd = Math.abs(d);
+                if (absd > 10000) {
+                  const numLen = absd.toString().length - 1;
+                  return `${d / Math.pow(10, numLen)}e+${numLen}`;
+                }
+                if (absd < 0.001) {
+                  if (d === 0) return d;
+                  const dString = absd.toString();
+                  let i = 3;
+                  for (; i < dString.length; i++) {
+                    if (dString[i] !== '0') {
+                      break;
+                    }
+                  }
+                  return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+                }
+                return d;
               })
           );
         yAxis1
@@ -1513,20 +1992,36 @@ export default {
               .tickSizeOuter(0)
               .ticks(5)
               .tickFormat((d) => {
-                return scientificNotation(d, 1);
+                const absd = Math.abs(d);
+                if (absd > 10000) {
+                  const numLen = absd.toString().length - 1;
+                  return `${d / Math.pow(10, numLen)}e+${numLen}`;
+                }
+                if (absd < 0.001) {
+                  if (d === 0) return d;
+                  const dString = absd.toString();
+                  let i = 3;
+                  for (; i < dString.length; i++) {
+                    if (dString[i] !== '0') {
+                      break;
+                    }
+                  }
+                  return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+                }
+                return d;
               })
           );
         line
           .selectAll('.smoothline0')
           .transition()
           .duration(1000)
-          .attr('d', function my92(d) {
+          .attr('d', function(d) {
             return d3
               .line()
-              .x(function my93(d) {
+              .x(function(d) {
                 return x(d.step);
               })
-              .y(function my94(d) {
+              .y(function(d) {
                 return y0(d.value);
               })(d.value);
           });
@@ -1534,13 +2029,13 @@ export default {
           .selectAll('.smoothline1')
           .transition()
           .duration(1000)
-          .attr('d', function my95(d) {
+          .attr('d', function(d) {
             return d3
               .line()
-              .x(function my96(d) {
+              .x(function(d) {
                 return x(d.step);
               })
-              .y(function my97(d) {
+              .y(function(d) {
                 return y1(d.value);
               })(d.value);
           });
@@ -1548,26 +2043,25 @@ export default {
           .selectAll('.myCircle0')
           .transition()
           .duration(1000)
-          .attr('cx', function my98(d) {
+          .attr('cx', function(d) {
             return x(d.step);
           })
-          .attr('cy', function my99(d) {
+          .attr('cy', function(d) {
             return y0(d.value);
           });
         line
           .selectAll('.myCircle1')
           .transition()
           .duration(1000)
-          .attr('cx', function my100(d) {
+          .attr('cx', function(d) {
             return x(d.step);
           })
-          .attr('cy', function my101(d) {
+          .attr('cy', function(d) {
             return y1(d.value);
           });
       }
-      brush.on('end', updateChart);
       // If user double click, reinitialize the chart
-      svg.on('dblclick', function my70() {
+      svg.on('dblclick', function() {
         x.domain(xdomain);
         xAxis.transition().call(
           d3
@@ -1575,7 +2069,23 @@ export default {
             .tickSizeOuter(0)
             .ticks(5)
             .tickFormat((d) => {
-              return scientificNotation(d, 1);
+              const absd = Math.abs(d);
+              if (absd > 10000) {
+                const numLen = absd.toString().length - 1;
+                return `${d / Math.pow(10, numLen)}e+${numLen}`;
+              }
+              if (absd < 0.001) {
+                if (d === 0) return d;
+                const dString = absd.toString();
+                let i = 3;
+                for (; i < dString.length; i++) {
+                  if (dString[i] !== '0') {
+                    break;
+                  }
+                }
+                return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+              }
+              return d;
             })
         );
         y0.domain(ydomain0);
@@ -1585,7 +2095,23 @@ export default {
             .tickSizeOuter(0)
             .ticks(5)
             .tickFormat((d) => {
-              return scientificNotation(d, 1);
+              const absd = Math.abs(d);
+              if (absd > 10000) {
+                const numLen = absd.toString().length - 1;
+                return `${d / Math.pow(10, numLen)}e+${numLen}`;
+              }
+              if (absd < 0.001) {
+                if (d === 0) return d;
+                const dString = absd.toString();
+                let i = 3;
+                for (; i < dString.length; i++) {
+                  if (dString[i] !== '0') {
+                    break;
+                  }
+                }
+                return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+              }
+              return d;
             })
         );
         y1.domain(ydomain1);
@@ -1595,20 +2121,36 @@ export default {
             .tickSizeOuter(0)
             .ticks(5)
             .tickFormat((d) => {
-              return scientificNotation(d, 1);
+              const absd = Math.abs(d);
+              if (absd > 10000) {
+                const numLen = absd.toString().length - 1;
+                return `${d / Math.pow(10, numLen)}e+${numLen}`;
+              }
+              if (absd < 0.001) {
+                if (d === 0) return d;
+                const dString = absd.toString();
+                let i = 3;
+                for (; i < dString.length; i++) {
+                  if (dString[i] !== '0') {
+                    break;
+                  }
+                }
+                return `${(d * Math.pow(10, i - 1)).toFixed(1)}e-${i - 1}`;
+              }
+              return d;
             })
         );
         line
           .selectAll('.smoothline0')
           .transition()
           .duration(1000)
-          .attr('d', function my71(d) {
+          .attr('d', function(d) {
             return d3
               .line()
-              .x(function my72(d) {
+              .x(function(d) {
                 return x(d.step);
               })
-              .y(function my73(d) {
+              .y(function(d) {
                 return y0(d.value);
               })(d.value);
           });
@@ -1616,23 +2158,23 @@ export default {
           .selectAll('.myCircle0')
           .transition()
           .duration(1000)
-          .attr('cx', function my74(d) {
+          .attr('cx', function(d) {
             return x(d.step);
           })
-          .attr('cy', function my75(d) {
+          .attr('cy', function(d) {
             return y0(d.value);
           });
         line
           .selectAll('.smoothline1')
           .transition()
           .duration(1000)
-          .attr('d', function my76(d) {
+          .attr('d', function(d) {
             return d3
               .line()
-              .x(function my77(d) {
+              .x(function(d) {
                 return x(d.step);
               })
-              .y(function my78(d) {
+              .y(function(d) {
                 return y1(d.value);
               })(d.value);
           });
@@ -1640,10 +2182,10 @@ export default {
           .selectAll('.myCircle1')
           .transition()
           .duration(1000)
-          .attr('cx', function my79(d) {
+          .attr('cx', function(d) {
             return x(d.step);
           })
-          .attr('cy', function my80(d) {
+          .attr('cy', function(d) {
             return y1(d.value);
           });
       });
@@ -1651,49 +2193,3 @@ export default {
   },
 };
 </script>
-
-<style lang="less" scoped>
-.chart {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background-color: white;
-}
-
-.tooltip {
-  position: absolute;
-  bottom: 5%;
-  width: 90%;
-  padding: 5px;
-  margin-right: 5%;
-  margin-left: 5%;
-  color: white;
-  visibility: hidden;
-  background-color: rgba(0, 73, 134);
-  border-radius: 5px;
-}
-
-.font1 {
-  font-size: 30px;
-}
-
-.font2 {
-  font-size: 10px;
-}
-
-table {
-  width: 100%;
-}
-
-td {
-  text-align: center;
-}
-
-.td1 {
-  width: 40%;
-}
-
-.td2 {
-  width: 20%;
-}
-</style>

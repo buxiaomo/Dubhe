@@ -2,7 +2,7 @@
 spring:
   redis:
     #数据库索引
-    database: 0
+    database: 1
     host: 127.0.0.1
     port: 6379
     password:
@@ -45,7 +45,7 @@ spring:
 
 #配置harbor
 harbor:
-  address: harbor.dubhe.com
+  address: harbor.dubhe.ai
   username: admin
   password: Harbor12345
 
