@@ -1,5 +1,6 @@
 # my
-*.log
+/log
+log
 *.swp
 .nfs*
 core

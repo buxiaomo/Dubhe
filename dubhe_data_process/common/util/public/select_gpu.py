@@ -21,7 +21,8 @@ import os
 import random
 import sys
 import pynvml
-import logging
+import common.util.public.logger_util as logger_util
+logger = logger_util.get_logger("algorithm")
 
 pid = os.getpid()
 pynvml.nvmlInit()
@@ -34,17 +35,17 @@ class Select_gpu:
         deviceCount = pynvml.nvmlDeviceGetCount()
         gpu_usable = []
         for i in range(deviceCount):
-            logging.info('-------------get GPU information--------------')
+            logger.info('-------------get GPU information--------------')
             handle = pynvml.nvmlDeviceGetHandleByIndex(i)
-            logging.info("Device:%s %s", i, pynvml.nvmlDeviceGetName(handle))
+            logger.info("Device:%s %s", i, pynvml.nvmlDeviceGetName(handle))
             gpu_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-            logging.info('free:%s MB', gpu_info.free / (1000 * 1000))
+            logger.info('free:%s MB', gpu_info.free / (1000 * 1000))
             if gpu_info.free / (1000 * 1000) > 3072:
                 gpu_usable.append(i)
         gpu_usable_num = len(gpu_usable)
         if gpu_usable_num == 0:
-            logging.info('No GPU is currently available')
+            logger.info('No GPU is currently available')
             sys.exit()
         random_gpu = random.randint(0, gpu_usable_num - 1)
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_usable[random_gpu])
-        logging.info('use GPU:%s %s', gpu_usable[random_gpu], pynvml.nvmlDeviceGetName(handle))
+        logger.info('use GPU:%s %s', gpu_usable[random_gpu], pynvml.nvmlDeviceGetName(handle))

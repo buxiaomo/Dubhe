@@ -20,15 +20,20 @@ limitations under the License.
 
 import logging
 import sys
-from program.impl.config_actuator import ConfigActuator
+import execute.execute as execute
 
 logging.basicConfig(format='%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s: %(message)s',
                     level=logging.DEBUG)
 
 if __name__ == '__main__':
     """
-    Algorithm entry
+       param:
+       argv[1]: name 算法名称
+       argv[2]: gpu true/false 默认为False
+       argv[3]: redis_config 配置用英文的都好作为分隔符，分别为(ip,port,database,password)， 如果为空请输入空字符即可，比如127.0.0.1,6379,0,,
     """
     algorithm = sys.argv[1]
-    actuator = ConfigActuator()
-    actuator.execute(algorithm)
+    gpu = sys.argv[2]
+    redis_config = sys.argv[3]
+    execute.start(algorithm, gpu==False, redis_config)
+    

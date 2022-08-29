@@ -17,25 +17,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 =============================================================
 """
-import redis
-import sys
 
+import annotation as ann
 
-def getRedisConnection(host, port, db, password):
-    return redis.StrictRedis(host=host, port=port, db=db, password=password)
+def load():
+    """
+        加载
+    """
+    print("加载")
+    ann._init()
 
-
-def getOneMinScoreElement(f, queue):
-    return f.zrangebyscore(queue, 0, sys.maxsize, 0, 1)
-
-
-def deleteElement(f, queue, element):
-    f.zrem(queue, element)
-
-# get bu key
-def getByKey(f, key):
-   return f.get(key);
-
-
-def pushToQueue(f, key, value):
-    f.rpush(key, value)
+def inference(task):
+    """
+        推理
+    """
+    return ann.execute(task)
