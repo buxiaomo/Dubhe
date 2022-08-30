@@ -48,7 +48,7 @@ RUN rm -rf /usr/bin/pip
 
 RUN ln -s /usr/local/bin/pip3.7 /usr/bin/pip
 
-RUN wget -P /tmp http://nextcloud.tianshu.org.cn/index.php/s/g5ygmo6z5JTBkFG/download -O oneflow.zip
+RUN wget http://nextcloud.tianshu.org.cn/index.php/s/g5ygmo6z5JTBkFG/download -O /tmp/oneflow.zip
 
 RUN unzip /tmp/oneflow.zip -d /tmp
 

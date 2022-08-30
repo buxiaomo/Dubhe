@@ -35,7 +35,7 @@ RUN python get-pip.py --user -i https://mirrors.cloud.tencent.com/pypi/simple/
 
 RUN ln -s /root/.local/bin/pip3.5 /usr/bin/pip
 
-RUN wget -P /tmp http://nextcloud.tianshu.org.cn/index.php/s/g5ygmo6z5JTBkFG/download -O oneflow.zip
+RUN wget http://nextcloud.tianshu.org.cn/index.php/s/g5ygmo6z5JTBkFG/download -O /tmp/oneflow.zip
 
 RUN unzip /tmp/oneflow.zip -d /tmp
 

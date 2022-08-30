@@ -15,7 +15,7 @@ oneflow 框架
 ## 下载源码
 
 ```shell
-$ git clone https://gitee.com/zhijiangtianshu/Dubhe.git
+$ https://gitee.com/zhijiangtianshu/Dubhe.git
 ```
 
 ## 进入项目根目录
