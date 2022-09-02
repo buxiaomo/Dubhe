@@ -240,6 +240,7 @@ CREATE TABLE `auto_label_model_service` (
 -- 数据集表增加模块字段
 ALTER TABLE `data_dataset` ADD COLUMN `template_type` int(11) NULL DEFAULT 101 AFTER `source_id`;
 ALTER TABLE `data_dataset` ADD COLUMN `module` smallint(3) NULL COMMENT '模块 1-普通数据集 2-重组训练-单任务 3-重组训练-多任务' AFTER `template_type`;
+ALTER TABLE `data_dataset` MODIFY COLUMN `annotate_type` smallint(5) NOT NULL DEFAULT 0 COMMENT '标注类型：2分类,1目标检测,5目标跟踪' AFTER `data_type`;
 
 -- 数据集版本表增加字段
 ALTER TABLE `data_dataset_version` ADD COLUMN `format` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'TS' COMMENT '格式  TS COCO YOLO' AFTER `of_record`;
