@@ -26,7 +26,6 @@ import org.springframework.stereotype.Component;
  * @description 镜像远程服务调用熔断类
  * @date 2020-12-15
  */
-@Component
 public class ImageClientFallback implements ImageClient {
 
     @Override

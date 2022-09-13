@@ -18,8 +18,10 @@
 package org.dubhe.servinggateway.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.dubhe.biz.base.constant.MagicNumConstant;
 import org.dubhe.biz.base.constant.NumberConstant;
 import org.dubhe.biz.base.constant.SymbolConstant;
+import org.dubhe.biz.base.utils.StringUtils;
 import org.dubhe.biz.log.enums.LogEnum;
 import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.servinggateway.constant.GatewayConstant;
@@ -38,8 +40,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,9 +56,6 @@ import java.util.Objects;
 public class GatewayServiceHandler implements ApplicationEventPublisherAware, CommandLineRunner {
 
     private ApplicationEventPublisher publisher;
-
-    @Value("${serving.gateway.postfixUrl}")
-    private String postfixUrl;
 
     @Resource
     private RedisRouteDefinitionRepository routeDefinitionRepository;
@@ -87,6 +86,9 @@ public class GatewayServiceHandler implements ApplicationEventPublisherAware, Co
         LogUtil.info(LogEnum.SERVING_GATEWAY, "Begin load route config");
         List<GatewayRouteQueryVO> activeRoutes = gatewayRouteService.findActiveRoutes();
         for (GatewayRouteQueryVO activeRoute : activeRoutes) {
+            if (StringUtils.isEmpty(activeRoute.getUri())){
+                continue;
+            }
             RouteDefinition definition = this.convert2RouteDefinition(activeRoute);
             routeDefinitionRepository.save(Mono.just(definition)).subscribe();
         }
@@ -103,7 +105,19 @@ public class GatewayServiceHandler implements ApplicationEventPublisherAware, Co
     public void saveRouteByRouteId(Long id) {
         LogUtil.info(LogEnum.SERVING_GATEWAY, "Deal save route event");
         GatewayRouteQueryVO gatewayRouteQueryVO = gatewayRouteService.findActiveById(id);
-        if (Objects.nonNull(gatewayRouteQueryVO)) {
+        //查不到数据进行重试
+        int count = 0;
+        while (gatewayRouteQueryVO == null && count < MagicNumConstant.THREE){
+            LogUtil.info(LogEnum.SERVING_GATEWAY, "gatewayRouteQueryVO is null retry:"+count +" id="+id);
+            gatewayRouteQueryVO = gatewayRouteService.findActiveById(id);
+            count++;
+            try {
+                Thread.sleep(MagicNumConstant.FIVE_HUNDRED);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        if (Objects.nonNull(gatewayRouteQueryVO) && StringUtils.isNotEmpty(gatewayRouteQueryVO.getUri())) {
             routeDefinitionRepository.save(Mono.just(this.convert2RouteDefinition(gatewayRouteQueryVO))).subscribe();
         }
         // 发布刷新路由事件
@@ -131,17 +145,19 @@ public class GatewayServiceHandler implements ApplicationEventPublisherAware, Co
      * @return 网关所需的RouteDefinition
      */
     private RouteDefinition convert2RouteDefinition(GatewayRouteQueryVO gatewayRouteQueryVO) {
+        if(StringUtils.isEmpty(gatewayRouteQueryVO.getUri())){
+            return null;
+        }
         RouteDefinition definition = new RouteDefinition();
         // 设置路由基础信息
         definition.setId(GatewayConstant.ROUTE_PREFIX + gatewayRouteQueryVO.getId());
-        definition.setUri(UriComponentsBuilder.fromHttpUrl(SymbolConstant.HTTP_SLASH + gatewayRouteQueryVO.getUri() +
-                SymbolConstant.COLON + httpPort).build().toUri());
+        definition.setUri(UriComponentsBuilder.fromHttpUrl(SymbolConstant.HTTP_SLASH + gatewayRouteQueryVO.getUri()).build().toUri());
         // 定义url匹配规则的断言
         // 举例 {abc}.dubhe.ai 匹配{abc}部分
         PredicateDefinition pathPredicate = new PredicateDefinition();
-        pathPredicate.setName("Host");
+        pathPredicate.setName("Path");
         Map<String, String> predicateParams = new HashMap<>(NumberConstant.NUMBER_8);
-        predicateParams.put("pattern", gatewayRouteQueryVO.getPatternPath() + postfixUrl);
+        predicateParams.put("pattern", "/"+gatewayRouteQueryVO.getPatternPath() + "/**");
         pathPredicate.setArgs(predicateParams);
         // 定义权重断言
         // 根据配置的权重信息进行分流
@@ -152,11 +168,21 @@ public class GatewayServiceHandler implements ApplicationEventPublisherAware, Co
         weightParams.put("weight.weight", gatewayRouteQueryVO.getWeight());
         weightPredicate.setArgs(weightParams);
         definition.setPredicates(Arrays.asList(pathPredicate, weightPredicate));
+
+        List<FilterDefinition> filters =new ArrayList<>();
         // 传入自定义的监控指标过滤器
         FilterDefinition filterDefinition = new FilterDefinition();
         // name设置为定义的MetricsGatewayFilterFactory中GatewayFilterFactory前部分
         filterDefinition.setName("Metrics");
-        definition.setFilters(Collections.singletonList(filterDefinition));
+        filters.add(filterDefinition);
+
+        //去除一级url转发
+        FilterDefinition filterDefinitionUrl = new FilterDefinition();
+        filterDefinitionUrl.setName("StripPrefix");
+        filterDefinitionUrl.addArg("parts","1");
+        filters.add(filterDefinitionUrl);
+
+        definition.setFilters(filters);
         // 塞入自定义数据，供之后filter使用
         HashMap<String, Object> metadata = new HashMap<>(NumberConstant.NUMBER_4);
         metadata.put("servingInfoId", gatewayRouteQueryVO.getServiceInfoId());

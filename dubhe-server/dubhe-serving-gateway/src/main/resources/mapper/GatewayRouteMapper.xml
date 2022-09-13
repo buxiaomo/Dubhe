@@ -7,7 +7,7 @@
         select smc.id id, si.id serviceInfoId, si.uuid patternPath, smc.release_rate weight, smc.url uri
         from serving_model_config smc
         left join serving_info si on si.id = smc.serving_id
-        where si.`status` = 2 and si.deleted = 0 and smc.ready_replicas > 0 and smc.deleted = 0
+        where si.deleted = 0 and smc.deleted = 0
         and smc.id = #{id}
     </select>
 

@@ -17,6 +17,7 @@
 
 package org.dubhe.dubhek8s.observer;
 
+import org.dubhe.biz.base.constant.MagicNumConstant;
 import org.dubhe.biz.base.enums.BizEnum;
 import org.dubhe.biz.base.utils.SpringContextHolder;
 import org.dubhe.biz.log.enums.LogEnum;
@@ -54,8 +55,18 @@ public class TrainJobObserver implements Observer {
             BizPod pod = (BizPod)arg;
             boolean trainJobFailed = PodPhaseEnum.FAILED.getPhase().equals(pod.getPhase()) && BizEnum.ALGORITHM.getBizCode().equals(pod.getBusinessLabel()) && SpringContextHolder.getActiveProfile().equals(pod.getLabel(K8sLabelConstants.PLATFORM_RUNTIME_ENV));
             if (trainJobFailed){
-                LogUtil.warn(LogEnum.BIZ_K8S,"delete failed train job resourceName {};phase {};podName {}",pod.getLabel(K8sLabelConstants.BASE_TAG_SOURCE),pod.getPhase(),pod.getName());
-                trainJobApi.delete(pod.getNamespace(),pod.getLabel(K8sLabelConstants.BASE_TAG_SOURCE));
+                new Thread(new Runnable(){
+                    @Override
+                    public void run(){
+                        try {
+                            Thread.sleep(MagicNumConstant.ONE_MINUTE);
+                        } catch (InterruptedException e) {
+                            LogUtil.error(LogEnum.BIZ_K8S,"TrainJobObserver update error {}",e.getMessage(),e);
+                        }
+                        LogUtil.warn(LogEnum.BIZ_K8S,"delete failed train job resourceName {};phase {};podName {}",pod.getLabel(K8sLabelConstants.BASE_TAG_SOURCE),pod.getPhase(),pod.getName());
+                        trainJobApi.delete(pod.getNamespace(),pod.getLabel(K8sLabelConstants.BASE_TAG_SOURCE));
+                    }
+                }).start();
             }
         }
     }

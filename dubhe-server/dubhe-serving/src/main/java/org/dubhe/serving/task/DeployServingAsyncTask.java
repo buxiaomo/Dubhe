@@ -31,6 +31,7 @@ import org.dubhe.biz.log.enums.LogEnum;
 import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.k8s.api.DistributeTrainApi;
 import org.dubhe.k8s.api.ModelServingApi;
+import org.dubhe.k8s.api.NodeApi;
 import org.dubhe.k8s.api.TrainJobApi;
 import org.dubhe.k8s.domain.PtBaseResult;
 import org.dubhe.k8s.domain.bo.DistributeTrainBO;
@@ -38,7 +39,7 @@ import org.dubhe.k8s.domain.bo.ModelServingBO;
 import org.dubhe.k8s.domain.bo.PtJupyterJobBO;
 import org.dubhe.k8s.domain.bo.PtMountDirBO;
 import org.dubhe.k8s.domain.resource.BizDistributeTrain;
-import org.dubhe.k8s.domain.resource.BizIngressRule;
+import org.dubhe.k8s.domain.resource.BizServicePort;
 import org.dubhe.k8s.domain.vo.ModelServingVO;
 import org.dubhe.k8s.domain.vo.PtJupyterJobVO;
 import org.dubhe.k8s.utils.K8sNameTool;
@@ -87,6 +88,9 @@ public class DeployServingAsyncTask {
 
     @Resource
     private ModelServingApi modelServingApi;
+
+     @Resource
+    private NodeApi nodeApi;
 
     @Resource
     private K8sNameTool k8sNameTool;
@@ -143,11 +147,14 @@ public class DeployServingAsyncTask {
                 String statusDetailKey = ServingStatusDetailDescUtil.getServingStatusDetailKey(ServingStatusDetailDescUtil.CONTAINER_DEPLOYMENT_EXCEPTION, uniqueName);
                 if (ServingConstant.SUCCESS_CODE.equals(modelServingVO.getCode())) {
                     // 获取pod对应的url，并修改模型部署状态
-                    List<BizIngressRule> rules = modelServingVO.getBizIngress().getRules();
+                    List<BizServicePort> ports = modelServingVO.getBizService().getPorts();
 
-                    if (CollectionUtils.isNotEmpty(rules)) {
+                    if (CollectionUtils.isNotEmpty(ports)) {
                         //取第一个url
-                        String url = rules.get(NumberConstant.NUMBER_0).getHost();
+                        String url = "";
+                        if (ports.get(NumberConstant.NUMBER_0).getNodePort() != null){
+                            url = nodeApi.getAvailableNodeIp()+":"+ports.get(NumberConstant.NUMBER_0).getNodePort();
+                        }
                         servingModelConfig.setUrl(url);
                         flag = true;
                         servingInfo.removeStatusDetail(statusDetailKey);
@@ -176,7 +183,6 @@ public class DeployServingAsyncTask {
                 servingInfo.putStatusDetail(statusDetailKey, e.getMessage());
                 LogUtil.error(LogEnum.SERVING, "User {} create serving failed.The name of serving is {}", user.getUsername(), servingInfo.getName(), e);
             }
-
         }
 
         //修改服务状态
@@ -276,7 +282,7 @@ public class DeployServingAsyncTask {
                     return null;
                 }
             } else {
-                LogUtil.info(LogEnum.SERVING, "User {} failed to copy the inference script, script {} not exist", user.getUsername(), pyPathList.get(0));
+                LogUtil.info(LogEnum.SERVING, "User {} failed to copy the inference script, script {} not exist", user.getUsername(), pyPathList);
                 return null;
             }
             servingPath = fileStoreApi.formatPath(targetPath + getSourceName(sourcePath));

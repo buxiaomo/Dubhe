@@ -252,9 +252,9 @@ ALTER TABLE `data_task` ADD COLUMN `file_type` smallint(3) NULL COMMENT '待处�
 ALTER TABLE `data_task` ADD COLUMN `stop` bit(1) NULL COMMENT '是否停止 0-没有 1-已停止' AFTER `file_type`;
 ALTER TABLE `data_task` ADD COLUMN `of_record_version` varchar(255) NULL COMMENT '生成ofRecord的版本号' AFTER `stop`;
 
-
 -- 医学表
 ALTER TABLE `data_medicine` ADD COLUMN `stop` bit(1) NULL AFTER `annotate_type`;
+
 
 -- 点云数据集表
 create table if not exists `pc_dataset` (
@@ -397,3 +397,5 @@ CREATE TABLE `pt_atlas_camera` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `camera_index_uniq` (`camera_index_code`) COMMENT '设备标识唯一'
 ) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COMMENT='模型炼知视频流管理';
+
+ALTER TABLE pt_image DROP image_status;

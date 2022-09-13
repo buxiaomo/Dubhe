@@ -16,6 +16,7 @@
  */
 package org.dubhe.admin.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.asymmetric.KeyType;
@@ -704,6 +705,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             Oauth2TokenDTO userDto = restResult.getData();
             UserDTO user = findByName(authUserDTO.getUsername());
             Set<String> permissions = this.queryPermissionByUserId(user.getId());
+            if (CollUtil.isEmpty(permissions)) {
+                throw new BusinessException(BaseErrorCodeEnum.SYSTEM_ROLE_NOT_EXISTS);
+            }
             // 返回 token 与 用户信息
             authInfo.put("token", userDto.getTokenHead() + userDto.getToken());
             authInfo.put("user", user);

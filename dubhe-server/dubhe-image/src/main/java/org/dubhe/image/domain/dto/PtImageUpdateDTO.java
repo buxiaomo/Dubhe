@@ -20,10 +20,13 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.dubhe.biz.base.constant.MagicNumConstant;
+import org.dubhe.biz.base.constant.StringConstant;
 import org.hibernate.validator.constraints.Length;
 
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Pattern;
 import java.io.Serializable;
 import java.util.List;
 
@@ -39,14 +42,29 @@ public class PtImageUpdateDTO implements Serializable {
 
     @ApiModelProperty(value = "id", required = true)
     @NotNull(message = "镜像id不能为空")
-    private List<Long> ids;
-
-    @ApiModelProperty("镜像描述")
-    @Length(max = MagicNumConstant.BINARY_TEN_EXP, message = "镜像描述-输入长度不能超过1024个字符")
-    private String remark;
+    private Long id;
 
     @ApiModelProperty(value = "镜像用途", required = true)
     @NotEmpty(message = "镜像用途(0:notebook , 1:train , 2:serving, 3:terminal, 4:point-cloud)不能为空")
     private List<Integer> imageTypes;
 
+    @ApiModelProperty(value = "镜像路径", required = true)
+    @NotBlank(message = "镜像路径不能为空")
+    private String imageUrl;
+
+    @ApiModelProperty(value = "镜像名称", required = true)
+    @NotBlank(message = "源镜像名称不能为空")
+    @Length(min = MagicNumConstant.ONE, max = MagicNumConstant.SIXTY_FOUR, message = "镜像名称长度在1-64个字符")
+    @Pattern(regexp = StringConstant.REGEXP_NAME, message = "镜像名称支持字母、数字、英文横杠和下划线")
+    private String imageName;
+
+    @ApiModelProperty(value = "镜像版本号", required = true)
+    @NotBlank(message = "镜像版本号不能为空")
+    @Length(max = MagicNumConstant.SIXTY_FOUR, message = "镜像版本号长度在1-64个字符")
+    @Pattern(regexp = StringConstant.REGEXP_TAG, message = "镜像版本号支持字母、数字、英文横杠、英文.号和下划线")
+    private String imageTag;
+
+    @ApiModelProperty("镜像描述")
+    @Length(max = MagicNumConstant.BINARY_TEN_EXP, message = "镜像描述-输入长度不能超过1024个字符")
+    private String remark;
 }

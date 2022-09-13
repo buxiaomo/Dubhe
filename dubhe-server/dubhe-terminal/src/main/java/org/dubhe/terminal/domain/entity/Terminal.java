@@ -182,6 +182,6 @@ public class Terminal extends BaseEntity {
             return null;
         }
         String[] strings = imageUrl.split(SymbolConstant.SLASH);
-        return strings.length > 0 ? strings[MagicNumConstant.ZERO] : null;
+        return strings.length > 0 ? strings[MagicNumConstant.ONE] : null;
     }
 }

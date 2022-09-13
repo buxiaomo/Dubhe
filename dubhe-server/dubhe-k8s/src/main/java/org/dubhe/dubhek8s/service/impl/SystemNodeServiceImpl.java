@@ -79,7 +79,7 @@ public class SystemNodeServiceImpl implements SystemNodeService {
     @Resource
     private AdminClient adminClient;
 
-    private final static String INTERNAL_IP = "InternalIP";
+
 
 
     /**
@@ -231,7 +231,7 @@ public class SystemNodeServiceImpl implements SystemNodeService {
             nodeDTO.setUid(node.getUid());
             nodeDTO.setName(node.getName());
             node.getAddresses().stream().forEach(bizNodeAddress -> {
-                if (INTERNAL_IP.equals(bizNodeAddress.getType())) {
+                if (K8sParamConstants.INTERNAL_IP.equals(bizNodeAddress.getType())) {
                     nodeDTO.setIp(bizNodeAddress.getAddress());
                     return;
                 }

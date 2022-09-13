@@ -400,13 +400,16 @@ public class PodApiImpl implements PodApi {
     public String getUrlByResourceName(String namespace, String resourceName) {
         LogUtil.info(LogEnum.BIZ_K8S,"Start GetUrlByResourceName {} {}",namespace,resourceName);
         PtJupyterDeployVO info = jupyterResourceApi.get(namespace, resourceName);
-        if (info != null && info.getIngressInfo() != null && CollectionUtil.isNotEmpty(info.getIngressInfo().getRules())) {
+        if (info != null && info.getServiceInfo() != null && CollectionUtil.isNotEmpty(info.getServiceInfo().getPorts())) {
             String token = getTokenByResourceName(namespace, resourceName);
             if (StringUtils.isBlank(token)) {
                 LogUtil.info(LogEnum.BIZ_K8S, "GetUrlByResourceName Jupyter Notebook token not generated,[namespace]={}, [resourceName]={}", namespace, resourceName);
                 return "";
             }
-            String url = StrUtil.format(POD_URL, info.getIngressInfo().getRules().get(0).getHost(), k8sUtils.getPort(), token);
+
+            BizPod pod = getWithResourceName(namespace,resourceName);
+
+            String url = StrUtil.format(POD_URL, pod.getHostIP(), info.getServiceInfo().getPorts().get(0).getNodePort(), token);
             return validateJupyterUrl(url);
         }
         LogUtil.info(LogEnum.BIZ_K8S, "GetUrlByResourceName Jupyter statefulset not created,[namespace]={}, [resourceName]={}",namespace,resourceName);

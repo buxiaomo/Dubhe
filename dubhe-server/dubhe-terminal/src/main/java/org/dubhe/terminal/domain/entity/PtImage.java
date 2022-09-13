@@ -71,13 +71,6 @@ public class PtImage extends BaseEntity {
     @TableField(value = "image_resource")
     private Integer imageResource;
 
-
-    /**
-     * 镜像状态
-     */
-    @TableField(value = "image_status")
-    private Integer imageStatus;
-
     /**
      * 资源拥有者ID
      */

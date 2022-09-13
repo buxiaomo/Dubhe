@@ -207,4 +207,11 @@ public interface NodeApi {
      * @return
      */
     List<BizTaint> geBizTaintListByUserId();
+
+    /**
+     * 获取一个可用node的ip
+     *
+     * @return String
+     */
+    String getAvailableNodeIp();
 }

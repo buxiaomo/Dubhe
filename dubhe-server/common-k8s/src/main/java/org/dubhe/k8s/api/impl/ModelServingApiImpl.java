@@ -65,6 +65,7 @@ import org.dubhe.k8s.enums.K8sKindEnum;
 import org.dubhe.k8s.enums.K8sResponseEnum;
 import org.dubhe.k8s.enums.LimitsOfResourcesEnum;
 import org.dubhe.k8s.enums.RestartPolicyEnum;
+import org.dubhe.k8s.enums.ServiceTypeENum;
 import org.dubhe.k8s.enums.ShellCommandEnum;
 import org.dubhe.k8s.utils.BizConvertUtils;
 import org.dubhe.k8s.utils.K8sUtils;
@@ -144,7 +145,6 @@ public class ModelServingApiImpl implements ModelServingApi {
             //名称生成
             String deploymentName = StrUtil.format(K8sParamConstants.RESOURCE_NAME_TEMPLATE, bo.getResourceName(), RandomUtil.randomString(MagicNumConstant.EIGHT));
             String svcName = StrUtil.format(K8sParamConstants.SUB_RESOURCE_NAME_TEMPLATE, bo.getResourceName(), K8sParamConstants.SVC_SUFFIX, RandomUtil.randomString(MagicNumConstant.FIVE));
-            String ingressName = StrUtil.format(K8sParamConstants.SUB_RESOURCE_NAME_TEMPLATE, bo.getResourceName(), K8sParamConstants.INGRESS_SUFFIX, RandomUtil.randomString(MagicNumConstant.FIVE));
 
             //标签生成
             Map<String, String> baseLabels = LabelUtils.getBaseLabels(bo.getResourceName(), bo.getBusinessLabel());
@@ -164,45 +164,12 @@ public class ModelServingApiImpl implements ModelServingApi {
             if (bo.getGrpcPort() != null) {
                 buildServiceBO.addPort(ResourceBuildUtils.buildServicePort(bo.getGrpcPort(), bo.getGrpcPort(), SymbolConstant.GRPC));
             }
+            buildServiceBO.setType(ServiceTypeENum.NODE_PORT.getType());
             Service service = ResourceBuildUtils.buildService(buildServiceBO);
             LogUtil.info(LogEnum.BIZ_K8S, "Ready to deploy {}, yaml信息为{}", svcName, YamlUtils.dumpAsYaml(service));
-            Service serviceResult = client.services().create(service);
+            Service serviceResult = client.services().inNamespace(bo.getNamespace()).create(service);
 
-            //部署ingress
-            BuildIngressBO buildIngressBO = new BuildIngressBO(bo.getNamespace(), ingressName, baseLabels);
-            if (StringUtils.isNotEmpty(buildIngressBO.getMaxUploadSize())) {
-                buildIngressBO.putAnnotation(K8sParamConstants.INGRESS_PROXY_BODY_SIZE_KEY, buildIngressBO.getMaxUploadSize());
-            }
-            buildIngressBO.putAnnotation(K8sParamConstants.INGRESS_READ_TIMEOUT_KEY, String.valueOf(MagicNumConstant.TEN));
-            buildIngressBO.putAnnotation(K8sParamConstants.INGRESS_NEXT_UPSTREAM_TIMEOUT_KEY, String.valueOf(MagicNumConstant.TEN));
-            if (bo.getHttpPort() != null) {
-                String httpHost = RandomUtil.randomString(MagicNumConstant.SIX) + SymbolConstant.DOT + servingHost;
-                buildIngressBO.addIngressRule(ResourceBuildUtils.buildIngressRule(httpHost, svcName, SymbolConstant.HTTP));
-            }
-            Secret secretResult = null;
-            if (bo.getGrpcPort() != null) {
-                String secretName = StrUtil.format(K8sParamConstants.SUB_RESOURCE_NAME_TEMPLATE, bo.getResourceName(), SymbolConstant.TOKEN, RandomUtil.randomString(MagicNumConstant.FIVE));
-                Map<String, String> data = new HashMap<String, String>(MagicNumConstant.FOUR) {
-                    {
-                        put(K8sParamConstants.SECRET_TLS_TLS_CRT, servingTlsCrt);
-                        put(K8sParamConstants.SECRET_TLS_TLS_KEY, servingTlsKey);
-                    }
-                };
-                Secret secret = ResourceBuildUtils.buildTlsSecret(bo.getNamespace(), secretName, baseLabels, data);
-                secretResult = client.secrets().create(secret);
-
-                String grpcHost = RandomUtil.randomString(MagicNumConstant.SIX) + SymbolConstant.DOT + servingHost;
-                buildIngressBO.addIngressRule(ResourceBuildUtils.buildIngressRule(grpcHost, svcName, SymbolConstant.GRPC));
-                buildIngressBO.addIngressTLS(ResourceBuildUtils.buildIngressTLS(secretName, grpcHost));
-                buildIngressBO.putAnnotation(K8sParamConstants.INGRESS_CLASS_KEY, StringConstant.NGINX_LOWERCASE);
-                buildIngressBO.putAnnotation(K8sParamConstants.INGRESS_SSL_REDIRECT_KEY, StringConstant.TRUE_LOWERCASE);
-                buildIngressBO.putAnnotation(K8sParamConstants.INGRESS_BACKEND_PROTOCOL_KEY, StringConstant.GRPC_CAPITALIZE);
-            }
-            Ingress ingress = ResourceBuildUtils.buildIngress(buildIngressBO);
-            LogUtil.info(LogEnum.BIZ_K8S, "Ready to deploy {}, yaml信息为{}", ingressName, YamlUtils.dumpAsYaml(ingress));
-            Ingress ingressResult = client.extensions().ingresses().create(ingress);
-
-            return new ModelServingVO(BizConvertUtils.toBizSecret(secretResult), BizConvertUtils.toBizService(serviceResult), BizConvertUtils.toBizDeployment(deploymentResult), BizConvertUtils.toBizIngress(ingressResult));
+            return new ModelServingVO(null, BizConvertUtils.toBizService(serviceResult), BizConvertUtils.toBizDeployment(deploymentResult), null);
         } catch (KubernetesClientException e) {
             LogUtil.error(LogEnum.BIZ_K8S, "ModelOptJobApiImpl.create error, param:{} error:", bo, e);
             return new ModelServingVO().error(String.valueOf(e.getCode()), e.getMessage());

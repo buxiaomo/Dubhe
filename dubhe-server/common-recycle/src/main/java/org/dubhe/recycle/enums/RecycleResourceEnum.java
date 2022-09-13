@@ -70,11 +70,6 @@ public enum RecycleResourceEnum {
     MEASURE_RECYCLE_FILE("measureRecycleFile", "度量文件回收"),
 
     /**
-     * 镜像回收
-     */
-    IMAGE_RECYCLE_FILE("imageRecycleFile", "镜像回收"),
-
-    /**
      * 算法文件回收
      */
     ALGORITHM_RECYCLE_FILE("algorithmRecycleFile", "算法文件回收"),

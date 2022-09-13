@@ -120,7 +120,7 @@ public class MetricsGatewayFilterFactory extends AbstractGatewayFilterFactory<Me
                                 DataBufferUtils.join(body)
                                         .doOnNext(dataBuffer -> {
                                             // 判断该请求是否为推理请求
-                                            boolean isInference = exchange.getRequest().getPath().toString().startsWith(GatewayConstant.INFERENCE_INTERFACE_NAME);
+                                            boolean isInference = exchange.getRequest().getPath().toString().endsWith(GatewayConstant.INFERENCE_INTERFACE_NAME);
                                             if (isInference) {
                                                 LogUtil.info(LogEnum.SERVING_GATEWAY, "Begin deal inference request filter");
                                                 // 调用请求是否成功

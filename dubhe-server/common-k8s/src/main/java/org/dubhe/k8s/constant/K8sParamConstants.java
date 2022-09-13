@@ -101,4 +101,5 @@ public class K8sParamConstants {
 
     public static final String WAITING_REASON_CONTAINER_CREATING = "ContainerCreating";
 
+    public final static String INTERNAL_IP = "InternalIP";
 }

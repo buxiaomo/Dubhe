@@ -75,7 +75,7 @@ public class DeploymentCallback extends Observable {
             setChanged();
             notifyObservers(deployment);
             if (StringUtils.isNotEmpty(businessLabel)){
-                BaseK8sDeploymentCallbackCreateDTO baseK8sDeploymentCallbackCreateDTO = new BaseK8sDeploymentCallbackCreateDTO(deployment.getNamespace(), deployment.getLabel(K8sLabelConstants.BASE_TAG_SOURCE),deployment.getName(),  deployment.getReadyReplicas() == null?0:deployment.getReadyReplicas(), deployment.getReplicas() == null?0:deployment.getReplicas());
+                BaseK8sDeploymentCallbackCreateDTO baseK8sDeploymentCallbackCreateDTO = new BaseK8sDeploymentCallbackCreateDTO(deployment.getNamespace(), deployment.getLabel(K8sLabelConstants.BASE_TAG_SOURCE),deployment.getName(),  deployment.getReadyReplicas() == null?0:deployment.getReadyReplicas(), deployment.getReplicas() == null?0:deployment.getReplicas(),watcherActionEnum.getAction());
                 String url = k8sCallBackTool.getDeploymentCallbackUrl(businessLabel);
                 String token = k8sCallBackTool.generateToken();
 

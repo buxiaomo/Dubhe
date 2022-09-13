@@ -16,7 +16,6 @@
  */
 
 package org.dubhe.terminal.service.impl;
-import java.sql.Timestamp;
 
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
@@ -38,6 +37,7 @@ import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.biz.permission.base.BaseService;
 import org.dubhe.biz.redis.utils.RedisUtils;
 import org.dubhe.docker.api.DockerApi;
+import org.dubhe.docker.callback.TerminalPushImageResultCallback;
 import org.dubhe.docker.config.DockerClientFactory;
 import org.dubhe.docker.enums.DockerOperationEnum;
 import org.dubhe.docker.utils.DockerCallbackTool;
@@ -53,7 +53,6 @@ import org.dubhe.k8s.domain.vo.TerminalResourceVO;
 import org.dubhe.k8s.enums.BusinessLabelServiceNameEnum;
 import org.dubhe.k8s.enums.PodPhaseEnum;
 import org.dubhe.k8s.utils.K8sNameTool;
-import org.dubhe.docker.callback.TerminalPushImageResultCallback;
 import org.dubhe.terminal.config.TerminalConfig;
 import org.dubhe.terminal.constant.TerminalConstant;
 import org.dubhe.terminal.dao.PtImageMapper;
@@ -77,6 +76,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -217,14 +217,13 @@ public class TerminalServiceImpl implements TerminalService {
         terminal.putStatusDetail(TerminalStatusEnum.SAVING.getDescription(),"commit 镜像...");
         terminalMapper.updateById(terminal);
         DockerClient dockerClient = dockerClientFactory.getDockerClient(pod.getHostIP());
-        String newImagePath = terminal.getImageProject()+SymbolConstant.SLASH+terminal.getCreateUserId()+SymbolConstant.SLASH+terminalPreserveDTO.getImageName();
-        String newImageRepository = terminalConfig.getHarborAddress()+SymbolConstant.SLASH+newImagePath;
+        String newImagePath = terminalConfig.getHarborAddress() + StrUtil.SLASH + terminal.getImageProject() + SymbolConstant.SLASH + terminal.getCreateUserId() + SymbolConstant.SLASH + terminalPreserveDTO.getImageName();
         try {
-            dockerApi.commit(dockerClient,containerID,newImageRepository,terminalPreserveDTO.getImageTag());
+            dockerApi.commit(dockerClient,containerID,newImagePath,terminalPreserveDTO.getImageTag());
             terminal.setStatus(null);
             terminal.putStatusDetail(TerminalStatusEnum.SAVING.getDescription(),"push 镜像...");
             terminalMapper.updateById(terminal);
-            boolean pushResult = dockerApi.push(dockerClient,newImageRepository+SymbolConstant.COLON+terminalPreserveDTO.getImageTag(),new TerminalPushImageResultCallback(dockerCallbackTool.getCallbackUrl(SymbolConstant.LOCAL_HOST,terminalConfig.getServerPort(), DockerOperationEnum.PUSH.getType()),terminal.getId(),dockerClient,terminal.getCreateUserId()));
+            boolean pushResult = dockerApi.push(dockerClient,newImagePath+SymbolConstant.COLON+terminalPreserveDTO.getImageTag(),new TerminalPushImageResultCallback(dockerCallbackTool.getCallbackUrl(SymbolConstant.LOCAL_HOST,terminalConfig.getServerPort(), DockerOperationEnum.PUSH.getType()),terminal.getId(),dockerClient,terminal.getCreateUserId()));
             if (!pushResult){
                 LogUtil.error(LogEnum.TERMINAL,"master 推送镜像错误 terminalPreserveDTO:{}",terminalPreserveDTO);
                 throw new BusinessException("推送镜像错误:");
@@ -234,7 +233,7 @@ public class TerminalServiceImpl implements TerminalService {
             throw new BusinessException("保存容器错误:"+e.getMessage());
         }
 
-        terminal.setImageUrl(newImagePath+SymbolConstant.COLON+terminalPreserveDTO.getImageTag());
+        terminal.setImageUrl(newImagePath + SymbolConstant.COLON + terminalPreserveDTO.getImageTag());
         terminal.setImageName(terminalPreserveDTO.getImageName());
         terminal.setDescription(terminalPreserveDTO.getImageRemark());
         terminal.setImageTag(terminalPreserveDTO.getImageTag());
@@ -499,7 +498,6 @@ public class TerminalServiceImpl implements TerminalService {
                 ptImage.setImageTag(terminal.getImageTag());
                 ptImage.setRemark(terminal.getDescription());
                 ptImage.setImageResource(MagicNumConstant.ZERO);
-                ptImage.setImageStatus(MagicNumConstant.ONE);
                 ptImage.setDeleted(false);
                 ptImage.setUpdateUserId(userId);
                 ptImage.setUpdateTime(new Timestamp(new java.util.Date().getTime()));
@@ -563,7 +561,7 @@ public class TerminalServiceImpl implements TerminalService {
         terminalBO.setGpuNum(terminalInfo.getGpuNum());
         terminalBO.setMemNum(terminalInfo.getMemNum());
         terminalBO.setCpuNum(terminalInfo.getCpuNum());
-        terminalBO.setImage(terminalConfig.getHarborAddress()+SymbolConstant.SLASH+terminalCreateDTO.getImageUrl());
+        terminalBO.setImage(terminalCreateDTO.getImageUrl());
         terminalBO.setFsMounts(Maps.newHashMap());
         terminalBO.setBusinessLabel(BusinessLabelServiceNameEnum.TERMINAL.getBusinessLabel());
         terminalBO.setTaskIdentifyLabel(taskIdentifyLabel);

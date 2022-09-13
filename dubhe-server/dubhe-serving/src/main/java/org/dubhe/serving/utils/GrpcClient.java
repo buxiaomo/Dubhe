@@ -86,6 +86,19 @@ public class GrpcClient {
     }
 
     /**
+     * 创建grpc通道
+     *
+     * @param url
+     * @return ManagedChannel 通道
+     * @throws SSLException
+     */
+    public ManagedChannel createChannel(String url) {
+        String[] host = url.split(":");
+        ManagedChannel channel = NettyChannelBuilder.forAddress(host[0], Integer.parseInt(host[1])).maxInboundMessageSize(NumberConstant.MAX_MESSAGE_LENGTH).negotiationType(NegotiationType.PLAINTEXT).build();
+        return channel;
+    }
+
+    /**
      * 获取crt证书路径
      */
     public String getTlsCrt() {
@@ -148,7 +161,7 @@ public class GrpcClient {
         }
         ManagedChannel channel = null;
         try {
-            channel = this.createTlsChannel(url);
+            channel = this.createChannel(url);
             channelMap.put(servingId, channel);
         } catch (Exception e) {
             LogUtil.error(LogEnum.SERVING, "An Exception occurred when user {} creating the grpc channel, service id：{}", user.getUsername(), servingId, e);
@@ -169,7 +182,7 @@ public class GrpcClient {
         }
         ManagedChannel channel = null;
         try {
-            channel = this.createTlsChannel(url);
+            channel = this.createChannel(url);
             channelMap.put(servingId, channel);
         } catch (Exception e) {
             LogUtil.error(LogEnum.SERVING, "An Exception occurred when getting grpc channel, service id：{}", servingId, e);

@@ -71,7 +71,6 @@ import org.dubhe.serving.client.AlgorithmClient;
 import org.dubhe.serving.client.ImageClient;
 import org.dubhe.serving.client.ModelBranchClient;
 import org.dubhe.serving.client.ModelInfoClient;
-import org.dubhe.serving.config.TrainHarborConfig;
 import org.dubhe.serving.constant.ServingConstant;
 import org.dubhe.serving.dao.BatchServingMapper;
 import org.dubhe.serving.domain.dto.*;
@@ -134,8 +133,6 @@ public class BatchServingServiceImpl extends ServiceImpl<BatchServingMapper, Bat
     private RecycleConfig recycleConfig;
     @Resource
     private ImageClient imageClient;
-    @Resource
-    private TrainHarborConfig trainHarborConfig;
     @Resource
     private AlgorithmClient algorithmClient;
     @Autowired
@@ -238,7 +235,7 @@ public class BatchServingServiceImpl extends ServiceImpl<BatchServingMapper, Bat
         BeanUtils.copyProperties(batchServingCreateDTO, batchServing);
 
         String imageUrl = getImageUrl(batchServingCreateDTO.getImageName(), batchServingCreateDTO.getImageTag());
-        batchServing.setImage(trainHarborConfig.getAddress() + SymbolConstant.SLASH + imageUrl);
+        batchServing.setImage(imageUrl);
         PtModelInfoQueryVO ptModelInfoQueryVO = getPtModelInfo(batchServingCreateDTO.getModelId());
         batchServing.setModelAddress(ptModelInfoQueryVO.getModelAddress());
         if (ptModelInfoQueryVO.getFrameType() > NumberConstant.NUMBER_4) {
@@ -421,7 +418,7 @@ public class BatchServingServiceImpl extends ServiceImpl<BatchServingMapper, Bat
         BeanUtils.copyProperties(batchServingUpdateDTO, batchServing);
 
         String imageUrl = getImageUrl(batchServingUpdateDTO.getImageName(), batchServingUpdateDTO.getImageTag());
-        batchServing.setImage(trainHarborConfig.getAddress() + SymbolConstant.SLASH + imageUrl);
+        batchServing.setImage(imageUrl);
         checkScriptPath(batchServing);
         checkResourceType(batchServing.getFrameType(), batchServing.getResourcesPoolType());
         batchServing.setStatus(ServingStatusEnum.IN_DEPLOYMENT.getStatus());

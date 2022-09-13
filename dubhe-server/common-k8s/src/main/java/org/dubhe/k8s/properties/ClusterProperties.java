@@ -33,10 +33,6 @@ public class ClusterProperties {
 
     private String nfs;
 
-    private String host;
-
-    private String port;
-
     private String kubeconfig;
 
     /**

@@ -24,12 +24,25 @@ import org.dubhe.biz.base.dto.PtImageIdDTO;
 import org.dubhe.biz.base.dto.PtImageIdsDTO;
 import org.dubhe.biz.base.vo.DataResponseBody;
 import org.dubhe.biz.base.vo.PtImageVO;
-import org.dubhe.image.domain.dto.*;
+import org.dubhe.image.domain.dto.PtImageDeleteDTO;
+import org.dubhe.image.domain.dto.PtImageQueryDTO;
+import org.dubhe.image.domain.dto.PtImageQueryImageDTO;
+import org.dubhe.image.domain.dto.PtImageQueryNameDTO;
+import org.dubhe.image.domain.dto.PtImageQueryUrlDTO;
+import org.dubhe.image.domain.dto.PtImageSaveDTO;
+import org.dubhe.image.domain.dto.PtImageUpdateDTO;
 import org.dubhe.image.service.PtImageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -45,7 +58,7 @@ public class PtImageController {
     @Autowired
     private PtImageService ptImageService;
 
-    @GetMapping("/info")
+    @GetMapping("/list")
     @ApiOperation("查询镜像")
     @PreAuthorize(Permissions.IMAGE)
     public DataResponseBody getImage(PtImageQueryDTO ptImageQueryDTO) {
@@ -58,11 +71,11 @@ public class PtImageController {
         return new DataResponseBody(ptImageService.searchImages(ptImageQueryImageDTO));
     }
 
-    @PostMapping("uploadImage")
-    @ApiOperation("上传镜像包到harbor")
-    @PreAuthorize(Permissions.IMAGE_UPLOAD)
-    public DataResponseBody uploadImage(@Validated @RequestBody PtImageUploadDTO ptImageUploadDTO) {
-        ptImageService.uploadImage(ptImageUploadDTO);
+    @PostMapping
+    @ApiOperation("保存镜像信息")
+    @PreAuthorize(Permissions.IMAGE_SAVE)
+    public DataResponseBody saveImageInfo(@Validated @RequestBody PtImageSaveDTO ptImageSaveDTO) {
+        ptImageService.saveImageInfo(ptImageSaveDTO);
         return new DataResponseBody();
     }
 

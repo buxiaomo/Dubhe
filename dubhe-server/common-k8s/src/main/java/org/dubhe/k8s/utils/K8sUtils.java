@@ -98,8 +98,6 @@ public class K8sUtils implements ApplicationContextAware {
 
 
         nfs = clusterProperties.getNfs();
-        host = clusterProperties.getHost();
-        port = clusterProperties.getPort();
 
         //打印集群信息
         LogUtil.info(LogEnum.BIZ_K8S, "ApiVersion   : {}", client.getApiVersion());

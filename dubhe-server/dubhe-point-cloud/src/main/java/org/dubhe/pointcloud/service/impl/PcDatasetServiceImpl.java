@@ -66,7 +66,6 @@ import org.dubhe.pointcloud.client.DataClient;
 import org.dubhe.pointcloud.client.ImageClient;
 import org.dubhe.pointcloud.client.ModelClient;
 import org.dubhe.pointcloud.common.Constant;
-import org.dubhe.pointcloud.config.PointCloudHarborConfig;
 import org.dubhe.pointcloud.dao.PcAnnotationDetailMapper;
 import org.dubhe.pointcloud.dao.PcDatasetFileMapper;
 import org.dubhe.pointcloud.dao.PcDatasetMapper;
@@ -140,9 +139,6 @@ public class PcDatasetServiceImpl implements PcDatasetService {
 
     @Resource
     private DeployAsyncTask deployAsyncTask;
-
-    @Resource
-    private PointCloudHarborConfig pointCloudHarborConfig;
 
     @Resource
     private ImageClient imageClient;
@@ -652,7 +648,7 @@ public class PcDatasetServiceImpl implements PcDatasetService {
         if (!dataResponseBody.succeed()) {
             throw new BusinessException(ErrorEnum.CALL_IMAGE_SERVER_FAIL);
         }
-        return pointCloudHarborConfig.getAddress() + SymbolConstant.SLASH + dataResponseBody.getData();
+        return dataResponseBody.getData();
     }
 
     /**

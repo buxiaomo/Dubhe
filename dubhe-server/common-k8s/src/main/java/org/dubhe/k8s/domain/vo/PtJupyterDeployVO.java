@@ -30,6 +30,7 @@ import org.dubhe.k8s.annotation.K8sField;
 import org.dubhe.k8s.constant.K8sParamConstants;
 import org.dubhe.k8s.domain.PtBaseResult;
 import org.dubhe.k8s.domain.resource.BizContainer;
+import org.dubhe.k8s.domain.resource.BizServicePort;
 import org.dubhe.k8s.utils.MappingUtils;
 
 import java.util.List;
@@ -105,6 +106,8 @@ public class PtJupyterDeployVO extends PtBaseResult<PtJupyterDeployVO> {
         private String namespace;
         @K8sField("metadata:uid")
         private String uid;
+        @K8sField("spec:ports")
+        private List<BizServicePort> ports;
     }
 
     @Data
