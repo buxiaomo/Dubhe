@@ -33,11 +33,11 @@ ribbon:
 dubhe-proxy:
   visual:
     keyword: visual
-    server: 10.5.26.88
+    server: 127.0.0.1
     port: 9898
   refine:
     keyword: refine
-    server: localhost
+    server: 127.0.0.1
     port: 9797
 ## 测试标识
 debug:

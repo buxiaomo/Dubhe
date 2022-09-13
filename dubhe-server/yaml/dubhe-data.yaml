@@ -32,11 +32,11 @@ spring:
               precise-algorithm-class-name: org.dubhe.data.util.MyPreciseShardingAlgorithm
 k8s:
   # nfs服务暴露的IP地址 如需测试需修改为合适的地址
-  nfs: 10.5.26.234
+  nfs: 127.0.0.1
   #nfs服务端 共享目录
   nfs-root-path: /nfs/
   nfs-root-windows-path: "Z:"
-  file-store: 10.5.26.234
+  file-store: 127.0.0.1
   #文件存储服务端 共享目录
   file-store-root-path: /nfs/
   file-store-root-windows-path: "Z:"
@@ -80,8 +80,8 @@ recycle:
     
 # ES服务地址及端口
 es:
-  host: 10.5.29.100
-  serverPort: 9200
-  transportPort: 9300
-  clusterName: docker-cluster
+  host: 127.0.0.1
+  serverPort: 32321
+  transportPort: 32322
+  clusterName: kubenets-logging
   index: dataset_text_test

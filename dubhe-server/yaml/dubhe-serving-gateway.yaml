@@ -23,7 +23,7 @@ management:
 serving:
   gateway:
     # 在线服务http接口 host:port,解析地址为serving网关部署的服务地址
-    postfixUrl: 10.101.12.41:8081
+    postfixUrl: 127.0.0.1:8081
     token:
       secret-key: 1n3512x
       expire-seconds: 108000
