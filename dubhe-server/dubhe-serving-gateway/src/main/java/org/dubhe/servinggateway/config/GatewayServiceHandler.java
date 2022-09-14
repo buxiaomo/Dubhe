@@ -63,12 +63,6 @@ public class GatewayServiceHandler implements ApplicationEventPublisherAware, Co
     @Resource
     private GatewayRouteService gatewayRouteService;
 
-    /**
-     * 模型服务部署使用的端口
-     */
-    @Value("${k8s.port}")
-    private String httpPort;
-
     @Override
     public void run(String... args) {
         this.loadRouteConfig();

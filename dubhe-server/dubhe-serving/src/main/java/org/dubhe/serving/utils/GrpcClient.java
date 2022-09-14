@@ -17,13 +17,9 @@
 
 package org.dubhe.serving.utils;
 
-import cn.hutool.core.codec.Base64;
-import cn.hutool.core.io.FileUtil;
 import io.grpc.ManagedChannel;
-import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NegotiationType;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
-import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import org.dubhe.biz.base.constant.NumberConstant;
 import org.dubhe.biz.base.context.UserContext;
 import org.dubhe.biz.log.enums.LogEnum;
@@ -31,12 +27,9 @@ import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.serving.domain.entity.DataInfo;
 import org.dubhe.serving.proto.Inference;
 import org.dubhe.serving.proto.InferenceServiceGrpc;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLException;
-import java.io.File;
-import java.io.InputStream;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -52,38 +45,6 @@ public class GrpcClient {
      * <服务id, grpc客户端channel>
      */
     public static ConcurrentHashMap<Long, ManagedChannel> channelMap = new ConcurrentHashMap<>();
-    /**
-     * 项目根路径
-     */
-    private final static String USER_DIR_SYSTEM_PROPERTY = "user.dir";
-    /**
-     * k8s crt证书文件名
-     */
-    private final static String TLS_CRT = "server.crt";
-    /**
-     * k8s grpc端口
-     */
-    @Value("${k8s.https-port:31365}")
-    private String grpcPort;
-    /**
-     * k8s 模型部署tls证书 crt
-     */
-    @Value("${k8s.serving.tls-crt}")
-    private String tlsCrt;
-
-    /**
-     * 创建带tls认证的grpc通道
-     *
-     * @param url tls证书地址
-     * @return ManagedChannel 通道
-     * @throws SSLException
-     */
-    public ManagedChannel createTlsChannel(String url) throws Exception {
-        String path = getTlsCrt();
-        SslContext sslContext = GrpcSslContexts.forClient().trustManager(new File(path)).build();
-        ManagedChannel channel = NettyChannelBuilder.forAddress(url, Integer.parseInt(grpcPort)).maxInboundMessageSize(NumberConstant.MAX_MESSAGE_LENGTH).negotiationType(NegotiationType.TLS).sslContext(sslContext).build();
-        return channel;
-    }
 
     /**
      * 创建grpc通道
@@ -97,18 +58,6 @@ public class GrpcClient {
         ManagedChannel channel = NettyChannelBuilder.forAddress(host[0], Integer.parseInt(host[1])).maxInboundMessageSize(NumberConstant.MAX_MESSAGE_LENGTH).negotiationType(NegotiationType.PLAINTEXT).build();
         return channel;
     }
-
-    /**
-     * 获取crt证书路径
-     */
-    public String getTlsCrt() {
-        String path = System.getProperty(USER_DIR_SYSTEM_PROPERTY) + File.separator.concat(TLS_CRT);
-        if(!FileUtil.exist(path)) {
-            FileUtil.writeUtf8String(Base64.decodeStr(tlsCrt), path);
-        }
-        return path;
-    }
-
 
     /**
      * 关闭通道
