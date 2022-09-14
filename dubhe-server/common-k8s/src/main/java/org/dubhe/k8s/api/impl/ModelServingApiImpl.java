@@ -103,15 +103,6 @@ public class ModelServingApiImpl implements ModelServingApi {
     @Autowired
     private ResourceIisolationApi resourceIisolationApi;
 
-    @Value("${k8s.serving.host}")
-    String servingHost;
-
-    @Value("${k8s.serving.tls-crt}")
-    String servingTlsCrt;
-
-    @Value("${k8s.serving.tls-key}")
-    String servingTlsKey;
-
     private static final String MODEL_SERVING_MAX_UPLOAD_SIZE = "100m";
 
     public ModelServingApiImpl(K8sUtils k8sUtils) {
