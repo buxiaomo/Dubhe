@@ -541,6 +541,7 @@ import {
   RESOURCES_MODULE_ENUM,
   RESOURCES_POOL_TYPE_ENUM,
   RESOURCES_POOL_TYPE_MAP,
+  IMAGE_TYPE_ENUM,
 } from '@/utils';
 import { list as getAlgorithmList, getAlgorithmInfo } from '@/api/algorithm/algorithm';
 import { getModelByResource } from '@/api/model/model';
@@ -551,7 +552,7 @@ import { list as getSpecsNames } from '@/api/system/resources';
 import { list as getNotebooks } from '@/api/development/notebook';
 import { trainConfig } from '@/config';
 import { NOTEBOOK_STATUS_ENUM } from '@/views/development/utils';
-import { IMAGE_TYPE, TRAINING_TYPE_ENUM } from '@/views/trainingJob/utils';
+import { TRAINING_TYPE_ENUM } from '@/views/trainingJob/utils';
 import BaseTooltip from '@/components/BaseTooltip';
 import DataSourceSelector from './dataSourceSelector';
 
@@ -929,7 +930,7 @@ export default {
     },
     async getHarborProjects() {
       this.harborProjectList = await getImageNameList({
-        imageTypes: [IMAGE_TYPE.TRAIN],
+        imageTypes: [IMAGE_TYPE_ENUM.TRAIN],
       });
       if (
         this.form.imageName &&

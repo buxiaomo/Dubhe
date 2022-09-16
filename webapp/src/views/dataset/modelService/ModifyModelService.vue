@@ -143,8 +143,12 @@ import { list as listBranchModel } from '@/api/model/modelVersion';
 import { getImageNameList, getImageTagList } from '@/api/trainingImage';
 import { list as listResourceSpec } from '@/api/system/resources';
 import { types } from '@/utils/validate';
-import { RESOURCES_POOL_TYPE_ENUM, RESOURCES_MODULE_ENUM, modelTypeSymbol } from '@/utils/constant';
-import { IMAGE_TYPE } from '@/views/trainingJob/utils';
+import {
+  RESOURCES_POOL_TYPE_ENUM,
+  RESOURCES_MODULE_ENUM,
+  modelTypeSymbol,
+  IMAGE_TYPE_ENUM,
+} from '@/utils/constant';
 
 const initialForm = {
   name: undefined,
@@ -283,7 +287,7 @@ export default {
 
     // 查询镜像列表
     const queryImages = () => {
-      return getImageNameList({ imageTypes: [IMAGE_TYPE.DATASETMARKED] });
+      return getImageNameList({ imageTypes: [IMAGE_TYPE_ENUM.DATASETMARKED] });
     };
 
     // 查询镜像版本列表

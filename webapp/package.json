@@ -24,6 +24,18 @@
     "lint:style": "stylelint src/**/*.{html,vue,css,sass,scss}",
     "fix:style": "stylelint src/**/*.{html,vue,css,sass,scss} --fix"
   },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
+  },
+  "lint-staged": {
+    "src/**/*.{js,vue}": [
+      "eslint --fix",
+      "git add"
+    ]
+  },
   "repository": {
     "type": "git",
     "url": "git@codeup.teambition.com:zhejianglab/dubhe-web.git"

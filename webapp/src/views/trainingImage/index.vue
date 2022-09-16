@@ -48,7 +48,7 @@
     <el-table
       v-if="prefabricate"
       ref="table"
-      v-loading="crud.loading || disableEdit"
+      v-loading="crud.loading"
       :data="crud.data"
       highlight-current-row
       @selection-change="crud.selectionChangeHandler"
@@ -57,21 +57,6 @@
       <el-table-column v-if="!isPreset" prop="id" label="ID" sortable="custom" width="80px" />
       <el-table-column prop="imageName" label="镜像名称" sortable="custom" />
       <el-table-column prop="imageTag" label="镜像版本号" sortable="custom" />
-      <el-table-column prop="imageStatus" label="状态" width="130px">
-        <template #header>
-          <dropdown-header
-            title="状态"
-            :list="imageStatusList"
-            :filtered="Boolean(localQuery.imageStatus)"
-            @command="filterStatus"
-          />
-        </template>
-        <template slot-scope="scope">
-          <el-tag effect="plain" :type="map[scope.row.imageStatus]">
-            {{ statusMap[scope.row.imageStatus] }}
-          </el-tag>
-        </template>
-      </el-table-column>
       <el-table-column prop="imageTypes" label="镜像用途" width="180px">
         <template #header>
           <dropdown-header
@@ -91,31 +76,8 @@
           <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column v-if="isNotebook" prop="imageResource" label="是否为默认" align="center">
-        <template slot-scope="scope">
-          <i
-            :class="resourceObj(scope.row.imageResource).icon"
-            :style="{ color: resourceObj(scope.row.imageResource).color, fontSize: '20px' }"
-          ></i>
-        </template>
-      </el-table-column>
       <el-table-column v-if="isAdmin || isCustom" label="操作" width="200px" fixed="right">
         <template slot-scope="scope">
-          <el-tooltip
-            v-if="isAdmin && isNotebook"
-            effect="dark"
-            content="设为在线编辑算法时创建nootbook的默认镜像"
-            placement="top"
-          >
-            <el-button
-              :id="`doPrecast_` + scope.$index"
-              :disabled="Boolean(scope.row.imageResource)"
-              type="text"
-              @click.stop="doPrecast(scope.row.id)"
-            >
-              {{ resourceObj(scope.row.imageResource).butText }}
-            </el-button>
-          </el-tooltip>
           <el-button
             v-if="(hasPermission('training:image:edit') && isCustom) || (isPreset && isAdmin)"
             :id="`doEdit_` + scope.$index"
@@ -143,15 +105,13 @@
       :visible="crud.status.cu > 0"
       :title="crud.status.title"
       :loading="crud.status.cu === 2"
-      :disabled="loading"
       width="600px"
       @open="onDialogOpen"
-      @close="onDialogClose"
       @cancel="crud.cancelCU"
       @ok="crud.submitCU"
     >
       <el-form ref="form" :model="form" :rules="rules" label-width="120px">
-        <el-form-item v-if="isEdit && isAdmin" label="镜像类别" prop="imageResource">
+        <el-form-item v-if="isFormAdd && isAdmin" label="镜像类别" prop="imageResource">
           <el-radio-group v-model="form.imageResource" @change="imageResourceChange">
             <el-radio :label="Number(IMAGE_RESOURCE_ENUM.CUSTOM)" border class="mr-0"
               >我的镜像</el-radio
@@ -159,21 +119,20 @@
             <el-radio :label="Number(IMAGE_RESOURCE_ENUM.PRESET)" border>预置镜像</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="isEdit" label="镜像名称" prop="imageName">
+        <el-form-item label="镜像名称" prop="imageName">
           <el-autocomplete
             ref="imageName"
             v-model="form.imageName"
-            class="inline-input"
+            class="inline-input w-400"
             :fetch-suggestions="querySearchAsync"
             placeholder="请选择或输入镜像名称"
-            style="width: 400px;"
           ></el-autocomplete>
         </el-form-item>
         <el-form-item label="镜像用途">
           <el-select
             v-model="form.imageTypes"
             placeholder="请选择或输入镜像用途"
-            style="width: 400px;"
+            class="w-400"
             multiple
             filterable
             allow-create
@@ -187,36 +146,18 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="isEdit" ref="imagePath" label="镜像文件路径" prop="imagePath">
-          <upload-inline
-            v-if="crud.status.cu > 0"
-            ref="upload"
-            action="fakeApi"
-            accept=".zip,.tar,.rar,.gz"
-            list-type="text"
-            :acceptSize="imageConfig.uploadFileAcceptSize"
-            :acceptSizeFormat="uploadSizeFomatter"
-            :params="uploadParams"
-            :show-file-count="false"
-            :auto-upload="true"
-            :filters="uploadFilters"
-            :limit="1"
-            :on-remove="onFileRemove"
-            @uploadStart="uploadStart"
-            @uploadSuccess="uploadSuccess"
-            @uploadError="uploadError"
-          />
-          <upload-progress
-            v-if="loading"
-            :progress="progress"
-            :color="customColors"
-            :status="status"
-            :size="size"
-            @onSetProgress="onSetProgress"
-          />
+        <el-form-item ref="imageUrl" label="镜像地址" prop="imageUrl">
+          <el-input v-model="form.imageUrl" placeholder="请输入镜像地址" class="w-400" />
+          <BaseTooltip icon="el-icon-warning" class="c-info">
+            <template #content>
+              <div>
+                镜像地址标准格式：镜像仓库域名/命名空间/镜像名:镜像版本号<br />示例：registry.cn-hangzhou.aliyuncs.com/enlin/notebook:v1
+              </div>
+            </template>
+          </BaseTooltip>
         </el-form-item>
-        <el-form-item v-if="isEdit" label="镜像版本号" prop="imageTag">
-          <el-input id="imageTag" v-model="form.imageTag" style="width: 400px;" />
+        <el-form-item label="镜像版本号" prop="imageTag">
+          <el-input id="imageTag" v-model="form.imageTag" class="w-400" />
         </el-form-item>
         <el-form-item label="描述" prop="remark">
           <el-input
@@ -227,19 +168,19 @@
             maxlength="1024"
             show-word-limit
             placeholder
-            style="width: 400px;"
+            class="w-400"
           />
         </el-form-item>
       </el-form>
     </BaseModal>
     <!--Notebook默认镜像设置表单-->
     <BaseModal
-      :visible.sync="formVisible"
+      :visible.sync="notebookFormVisible"
       title="Notebook默认镜像设置"
-      :loading="formSubmitting"
+      :loading="notebookFormSubmitting"
       width="800px"
-      @cancel="formVisible = false"
-      @ok="onSubmitForm"
+      @cancel="notebookFormVisible = false"
+      @ok="onSubmitNotebookForm"
     >
       <el-form
         ref="noteBookFormRef"
@@ -253,7 +194,7 @@
             id="defaultImage"
             v-model="noteBookForm.defaultImage"
             placeholder="请选择镜像"
-            style="width: 400px;"
+            class="w-400"
             filterable
             allow-create
             default-first-option
@@ -283,8 +224,6 @@
 
 <script>
 import { mapGetters } from 'vuex';
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { debounce } from 'throttle-debounce';
 
 import cdOperation from '@crud/CD.operation';
 import rrOperation from '@crud/RR.operation';
@@ -292,40 +231,36 @@ import pagination from '@crud/Pagination';
 import CRUD, { presenter, header, form, crud } from '@crud/crud';
 import trainingImageApi, {
   del,
-  setPrecast,
   setDefaultImage,
   getDefaultImage,
   getImageNameList,
   getImageTagList,
 } from '@/api/trainingImage/index';
 import {
-  getUniqueId,
-  uploadSizeFomatter,
-  invalidFileNameChar,
   ADMIN_ROLE_ID,
   hasPermission,
   validateImageName,
   validateImageTag,
+  IMAGE_TYPE_ENUM,
+  IMAGE_TYPE_MAP,
 } from '@/utils';
 import BaseModal from '@/components/BaseModal';
-import UploadInline from '@/components/UploadForm/inline';
+import BaseTooltip from '@/components/BaseTooltip';
 import DropdownHeader from '@/components/DropdownHeader';
-import UploadProgress from '@/components/UploadProgress';
 import { imageConfig } from '@/config';
 
-import { IMAGE_RESOURCE_ENUM, IMAGE_TYPE } from '../trainingJob/utils';
+import { IMAGE_RESOURCE_ENUM } from '../trainingJob/utils';
 
 const defaultForm = {
-  imagePath: null,
+  imageUrl: null,
   imageTag: null,
   remark: null,
-  imageTypes: Number(IMAGE_TYPE),
+  imageTypes: Number(IMAGE_TYPE_ENUM),
   imageResource: Number(IMAGE_RESOURCE_ENUM.CUSTOM),
   imageName: null,
 };
 
 const defaultQuery = {
-  imageStatus: null,
   imageNameOrId: null,
   imageTypes: null,
 };
@@ -334,28 +269,27 @@ export default {
   name: 'TrainingImage',
   components: {
     BaseModal,
+    BaseTooltip,
     pagination,
     cdOperation,
     rrOperation,
-    UploadInline,
     DropdownHeader,
-    UploadProgress,
   },
   cruds() {
     return CRUD({
       title: '镜像',
       crudMethod: { ...trainingImageApi },
       optShow: {
-        add: imageConfig.allowUploadImage && hasPermission('training:image:upload'),
+        add: imageConfig.allowUploadImage && hasPermission('training:image:save'),
         del: false,
       },
       queryOnPresenterCreated: false,
       props: {
         optText: {
-          add: '上传镜像',
+          add: '创建镜像',
         },
         optTitle: {
-          add: '上传',
+          add: '创建',
         },
       },
     });
@@ -365,24 +299,6 @@ export default {
     return {
       active: IMAGE_RESOURCE_ENUM.CUSTOM,
       localQuery: { ...defaultQuery },
-      map: {
-        0: 'info',
-        1: 'success',
-        2: 'danger',
-      },
-      statusMap: {
-        0: '制作中',
-        1: '制作成功',
-        2: '制作失败',
-      },
-      imageTypesMap: {
-        0: 'Notebook镜像',
-        1: '训练镜像',
-        2: 'Serving镜像',
-        3: '终端镜像',
-        4: '点云镜像',
-        5: '数据标注镜像',
-      },
       rules: {
         imageTypes: [{ required: true, message: '请选择镜像类型', trigger: 'change' }],
         imageResource: [{ required: true, message: '请选择镜像来源', trigger: 'change' }],
@@ -390,7 +306,7 @@ export default {
           { required: true, message: '请选择项目名称', trigger: 'change' },
           { validator: validateImageName, trigger: ['blur', 'change'] },
         ],
-        imagePath: [{ required: true, message: '请输入镜像路径', trigger: ['blur', 'manual'] }],
+        imageUrl: [{ required: true, message: '请输入镜像地址', trigger: ['blur', 'manual'] }],
         imageTag: [
           { required: true, message: '请输入镜像版本号', trigger: 'blur' },
           { validator: validateImageTag, trigger: ['blur', 'change'] },
@@ -401,32 +317,17 @@ export default {
         id: [{ required: true, message: '请选择默认镜像版本', trigger: 'blur' }],
       },
       harborProjectList: [],
-      drawer: false,
-      uploadParams: {
-        objectPath: null, // 对象存储路径
-      },
-      progress: 0,
-      size: 0,
-      customColors: [
-        { color: '#909399', percentage: 40 },
-        { color: '#e6a23c', percentage: 80 },
-        { color: '#67c23a', percentage: 100 },
-      ],
-      disableEdit: false,
-      loading: false,
-      isEdit: false,
       prefabricate: true,
       // 以下为配置参数及常量参数
-      imageConfig,
       IMAGE_RESOURCE_ENUM,
-      IMAGE_TYPE,
-      uploadFilters: [invalidFileNameChar],
       // 设置notebook默认镜像相关参数
       noteBookImages: [],
       noteBookTags: [],
       noteBookForm: { defaultImage: '', defaultTag: '', id: '' },
-      formVisible: false,
-      formSubmitting: false,
+
+      formType: 'add',
+      notebookFormVisible: false,
+      notebookFormSubmitting: false,
     };
   },
   computed: {
@@ -441,14 +342,8 @@ export default {
     isPreset() {
       return this.active === IMAGE_RESOURCE_ENUM.PRESET;
     },
-    isNotebook() {
-      return this.active === IMAGE_RESOURCE_ENUM.NOTEBOOK;
-    },
-    isTerminal() {
-      return this.active === IMAGE_RESOURCE_ENUM.TERMINAL;
-    },
     disableAdd() {
-      if (this.isAdmin) return this.isTerminal; // 管理员只有在终端镜像处无法点击上传
+      if (this.isAdmin) return false; // 管理员可以创建我的镜像和预置镜像
       return !this.isCustom; // 其他角色只有在我的镜像处可以点击上传
     },
     operationProps() {
@@ -456,37 +351,24 @@ export default {
         disabled: this.disableAdd,
       };
     },
-    imageStatusList() {
-      const arr = [{ label: '全部', value: null }];
-      for (const key in this.statusMap) {
-        arr.push({ label: this.statusMap[key], value: key });
-      }
-      return arr;
-    },
     imageTypesList() {
       const arr = [{ label: '全部', value: null }];
-      for (const key in this.imageTypesMap) {
-        arr.push({ label: this.imageTypesMap[key], value: +key });
+      for (const key in IMAGE_TYPE_MAP) {
+        arr.push({ label: IMAGE_TYPE_MAP[key], value: +key });
       }
       return arr;
     },
-    status() {
-      return this.progress === 100 ? 'success' : null;
+    isFormAdd() {
+      return this.formType === 'add';
     },
   },
   mounted() {
     this.crud.refresh();
-    this.refetch = debounce(3000, this.crud.refresh);
-    this.updateImagePath();
   },
   methods: {
     hasPermission,
     getImageTypes(imageTypes) {
-      const usageStr = [];
-      imageTypes.forEach((item) => {
-        usageStr.push(this.imageTypesMap[item]);
-      });
-      return usageStr.join(',');
+      return imageTypes.map((type) => IMAGE_TYPE_MAP[type]).join(',');
     },
     getNoteBookTags() {
       this.noteBookForm.defaultTag = null;
@@ -497,7 +379,7 @@ export default {
       }
       return getImageTagList({
         imageName: this.noteBookForm.defaultImage,
-        imageTypes: IMAGE_TYPE.NOTEBOOK,
+        imageTypes: IMAGE_TYPE_ENUM.NOTEBOOK,
         imageResource: Number(IMAGE_RESOURCE_ENUM.PRESET),
       }).then((res) => {
         this.noteBookTags = res;
@@ -513,46 +395,11 @@ export default {
         this.prefabricate = true;
       });
     },
-    onFileRemove() {
-      this.form.imagePath = null;
-      this.loading = false;
-      this.$refs.imagePath.validate('manual');
-    },
-    uploadStart(files) {
-      this.updateImagePath();
-      [this.loading, this.size, this.progress] = [true, files.size, 0];
-    },
-    onSetProgress(val) {
-      this.progress += val;
-    },
-    uploadSuccess(res) {
-      this.progress = 100;
-      setTimeout(() => {
-        this.loading = false;
-      }, 1000);
-      if (this.loading) {
-        this.form.imagePath = res[0].data.objectName;
-        this.$refs.imagePath.validate('manual');
-      }
-    },
-    uploadError() {
-      this.$message({
-        message: '上传文件失败',
-        type: 'error',
-      });
-      this.loading = false;
-    },
     // hook
-    [CRUD.HOOK.afterRefresh]() {
-      this.checkStatus();
-    },
     [CRUD.HOOK.beforeToAdd]() {
-      this.isEdit = true;
       this.formType = 'add';
       if (this.isPreset) {
         this.form.imageResource = Number(IMAGE_RESOURCE_ENUM.PRESET);
-      } else if (this.isNotebook) {
-        this.form.imageTypes = IMAGE_TYPE.NOTEBOOK;
       }
     },
     [CRUD.HOOK.beforeRefresh]() {
@@ -567,7 +414,7 @@ export default {
       }
     },
     [CRUD.HOOK.beforeToEdit]() {
-      this.isEdit = false;
+      this.formType = 'edit';
     },
     async querySearchAsync(queryString, cb) {
       let { harborProjectList } = this;
@@ -597,23 +444,8 @@ export default {
       this.form.imageResource = Number(IMAGE_RESOURCE_ENUM.CUSTOM);
       this.getImageNameList();
     },
-    onDialogClose() {
-      if (this.isEdit) {
-        this.$refs.upload.formRef.reset();
-      }
-      this.loading = false;
-    },
     async onDialogOpen() {
       this.getImageNameList();
-    },
-    checkStatus() {
-      if (this.crud.data.some((item) => [0].includes(item.imageStatus))) {
-        this.refetch();
-      }
-    },
-    filterStatus(status) {
-      this.localQuery.imageStatus = status;
-      this.crud.toQuery();
     },
     filterImageTypes(imageTypes) {
       this.localQuery.imageTypes = imageTypes;
@@ -621,9 +453,6 @@ export default {
     },
     resetQuery() {
       this.localQuery = { ...defaultQuery };
-    },
-    updateImagePath() {
-      this.uploadParams.objectPath = `upload-temp/${this.user.id}/${getUniqueId()}`;
     },
     async doEdit(imageObj) {
       const dataObj = {
@@ -642,21 +471,6 @@ export default {
         this.crud.refresh();
       });
     },
-    doPrecast(i) {
-      setPrecast({ id: i }).then(() => {
-        this.$message({
-          message: '设置成功',
-          type: 'success',
-        });
-        this.crud.refresh();
-      });
-    },
-    resourceObj(resource) {
-      return resource
-        ? { icon: 'el-icon-circle-check', color: '#67C23A', butText: '当前为默认' }
-        : { icon: 'el-icon-circle-close', color: '#F56C6C', butText: '设为默认' };
-    },
-    uploadSizeFomatter,
 
     async doSetDefaultImage() {
       // 获取默认镜像
@@ -666,20 +480,20 @@ export default {
       this.noteBookForm.id = defaultImage.length ? defaultImage[0].id : '';
       // 获取镜像列表
       this.noteBookImages = await getImageNameList({
-        imageTypes: IMAGE_TYPE.NOTEBOOK,
+        imageTypes: IMAGE_TYPE_ENUM.NOTEBOOK,
         imageResource: Number(IMAGE_RESOURCE_ENUM.PRESET),
       });
       if (this.noteBookForm.defaultImage) {
         this.noteBookTags = await getImageTagList({
           imageName: this.noteBookForm.defaultImage,
-          imageTypes: IMAGE_TYPE.NOTEBOOK,
+          imageTypes: IMAGE_TYPE_ENUM.NOTEBOOK,
           imageResource: Number(IMAGE_RESOURCE_ENUM.PRESET),
         });
       } else {
         this.noteBookTags = [];
       }
 
-      this.formVisible = true;
+      this.notebookFormVisible = true;
       this.$nextTick(() => {
         this.clearValidate();
       });
@@ -690,17 +504,17 @@ export default {
     validateField(field) {
       this.$refs.noteBookFormRef.validateField(field);
     },
-    onSubmitForm() {
+    onSubmitNotebookForm() {
       this.$refs.noteBookFormRef.validate((valid) => {
         if (valid) {
-          this.formSubmitting = true;
+          this.notebookFormSubmitting = true;
           setDefaultImage({ id: this.noteBookForm.id })
             .then(() => {
-              this.formVisible = false;
+              this.notebookFormVisible = false;
               this.crud.toQuery();
             })
             .finally(() => {
-              this.formSubmitting = false;
+              this.notebookFormSubmitting = false;
             });
         }
       });

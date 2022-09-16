@@ -122,14 +122,13 @@
 </template>
 
 <script>
-import { validateNameWithHyphen, RESOURCES_MODULE_ENUM } from '@/utils';
+import { validateNameWithHyphen, RESOURCES_MODULE_ENUM, IMAGE_TYPE_ENUM } from '@/utils';
 import BaseModal from '@/components/BaseModal';
 import InfoSelect from '@/components/InfoSelect';
 import { getPublishedDatasets, getDatasetVersions } from '@/api/preparation/dataset';
 import { add as addNotebook } from '@/api/development/notebook';
 import { list as getSpecsNames } from '@/api/system/resources';
 import { getImageNameList, getImageTagList } from '@/api/trainingImage/index';
-import { IMAGE_TYPE } from '@/views/trainingJob/utils';
 
 const defaultForm = {
   noteBookName: null,
@@ -208,7 +207,7 @@ export default {
       }
     },
     async getHarborProjects() {
-      this.harborProjectList = await getImageNameList({ imageTypes: [IMAGE_TYPE.NOTEBOOK] });
+      this.harborProjectList = await getImageNameList({ imageTypes: [IMAGE_TYPE_ENUM.NOTEBOOK] });
       if (
         this.form.imageName &&
         !this.harborProjectList.some((project) => project === this.form.imageName)
@@ -237,7 +236,7 @@ export default {
       }
       return getImageTagList({
         imageName: this.form.imageName,
-        imageTypes: [IMAGE_TYPE.NOTEBOOK],
+        imageTypes: [IMAGE_TYPE_ENUM.NOTEBOOK],
       }).then((res) => {
         this.harborImageList = res;
       });

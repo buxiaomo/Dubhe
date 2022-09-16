@@ -163,8 +163,8 @@ import {
   ALGORITHM_RESOURCE_ENUM,
   MODEL_RESOURCE_ENUM,
   RESOURCES_POOL_TYPE_ENUM,
+  IMAGE_TYPE_ENUM,
 } from '@/utils';
-import { IMAGE_TYPE } from '@/views/trainingJob/utils';
 
 const initFormState = {
   modelId: null,
@@ -285,7 +285,7 @@ export default {
         return Promise.reject();
       }
       return getImageTagList({
-        imageTypes: IMAGE_TYPE.POINTCLOUD,
+        imageTypes: IMAGE_TYPE_ENUM.POINTCLOUD,
         imageName: modelState.imageName,
       }).then((res) => {
         state.imageTagList = res;
@@ -294,7 +294,7 @@ export default {
 
     // 镜像选择
     const getImageNames = async () => {
-      state.imageNameList = await getImageNameList({ imageTypes: [IMAGE_TYPE.POINTCLOUD] });
+      state.imageNameList = await getImageNameList({ imageTypes: [IMAGE_TYPE_ENUM.POINTCLOUD] });
       if (
         modelState.imageName &&
         !state.imageNameList.some((image) => image === modelState.imageName)

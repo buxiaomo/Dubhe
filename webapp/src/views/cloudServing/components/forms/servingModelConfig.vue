@@ -204,8 +204,7 @@ import { getImageNameList, getImageTagList } from '@/api/trainingImage';
 import { getInferenceAlgorithm, add as addAlgorithm } from '@/api/algorithm/algorithm';
 import { list as getSpecsNames } from '@/api/system/resources';
 import { servingConfig } from '@/config';
-import { RESOURCES_MODULE_ENUM } from '@/utils';
-import { IMAGE_TYPE } from '@/views/trainingJob/utils';
+import { RESOURCES_MODULE_ENUM, IMAGE_TYPE_ENUM } from '@/utils';
 import RunParamForm from '@/components/Training/runParamForm';
 import BaseModal from '@/components/BaseModal';
 import AlgorithmForm from '@/views/algorithm/components/algorithmForm';
@@ -540,7 +539,7 @@ export default {
     // 镜像选择
     // 获取镜像名称列表
     async getImageNames(keepValue = false) {
-      this.imageNameList = await getImageNameList({ imageTypes: [IMAGE_TYPE.SERVING] });
+      this.imageNameList = await getImageNameList({ imageTypes: [IMAGE_TYPE_ENUM.SERVING] });
       if (!keepValue || !this.form.imageName) {
         this.form.imageTag = null;
       } else if (!this.imageNameList.includes(this.form.imageName)) {
@@ -554,7 +553,7 @@ export default {
     async getImageTags(imageName, keepValue = false) {
       this.imageTagList = await getImageTagList({
         imageName,
-        imageTypes: [IMAGE_TYPE.SERVING],
+        imageTypes: [IMAGE_TYPE_ENUM.SERVING],
       });
       if (keepValue && this.form.imageTag) {
         if (!this.imageTagList.some((image) => image.imageTag === this.form.imageTag)) {
