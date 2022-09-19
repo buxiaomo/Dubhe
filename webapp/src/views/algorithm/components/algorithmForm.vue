@@ -171,13 +171,13 @@ import {
   invalidFileNameChar,
   defaultProcessColors,
   ALGORITHM_RESOURCE_ENUM,
+  IMAGE_TYPE_ENUM,
 } from '@/utils';
 import UploadInline from '@/components/UploadForm/inline';
 import UploadProgress from '@/components/UploadProgress';
 import { useMapGetters } from '@/hooks';
 import { algorithmConfig } from '@/config';
 import { getImageNameList, getImageTagList } from '@/api/trainingImage';
-import { IMAGE_TYPE } from '@/views/trainingJob/utils';
 
 const defaultForm = {
   id: null,
@@ -289,7 +289,7 @@ export default {
     };
     // 获取镜像名列表
     const getImageNames = async (keepValue = false) => {
-      state.imageNameList = await getImageNameList({ imageTypes: [IMAGE_TYPE.TRAIN] });
+      state.imageNameList = await getImageNameList({ imageTypes: [IMAGE_TYPE_ENUM.TRAIN] });
       if (!keepValue || !form.imageName) {
         form.imageTag = null;
       } else if (!state.imageNameList.includes(form.imageName)) {

@@ -21,8 +21,8 @@ import com.alibaba.fastjson.JSON;
 import org.dubhe.biz.base.constant.AuthConst;
 import org.dubhe.cloud.unittest.base.BaseTest;
 import org.dubhe.image.domain.dto.PtImageDeleteDTO;
+import org.dubhe.image.domain.dto.PtImageSaveDTO;
 import org.dubhe.image.domain.dto.PtImageUpdateDTO;
-import org.dubhe.image.domain.dto.PtImageUploadDTO;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -78,9 +78,9 @@ public class PtImageTest extends BaseTest {
      */
     @Test
     public void uploadImageTest() throws Exception {
-        PtImageUploadDTO ptImageUploadDTO = new PtImageUploadDTO();
+        PtImageSaveDTO ptImageUploadDTO = new PtImageSaveDTO();
         ptImageUploadDTO.setImageName("mysql");
-        ptImageUploadDTO.setImagePath("F:/mysql.tar");
+        ptImageUploadDTO.setImageUrl("F:/mysql.tar");
         ptImageUploadDTO.setImageTag("5.7");
         ptImageUploadDTO.setRemark("测试上传镜像");
 
@@ -94,7 +94,7 @@ public class PtImageTest extends BaseTest {
     @Test
     public void updateImageTest() throws Exception {
         PtImageUpdateDTO imageUpdateDTO = new PtImageUpdateDTO();
-        imageUpdateDTO.setIds(Arrays.asList());
+        imageUpdateDTO.setId(1L);
         imageUpdateDTO.setRemark("");
         mockMvcTest(MockMvcRequestBuilders.put("/ptImage"), JSON.toJSONString(imageUpdateDTO),
                 MockMvcResultMatchers.status().is2xxSuccessful(), 200);

@@ -21,13 +21,10 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.DateBetween;
 import cn.hutool.core.date.DateUnit;
 import cn.hutool.core.util.RandomUtil;
-import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.dubhe.biz.base.utils.StringUtils;
-import org.dubhe.biz.base.constant.HarborProperties;
 import org.dubhe.biz.base.constant.MagicNumConstant;
 import org.dubhe.biz.base.constant.NumberConstant;
 import org.dubhe.biz.base.constant.StringConstant;
@@ -45,8 +42,10 @@ import org.dubhe.biz.base.service.UserContextService;
 import org.dubhe.biz.base.utils.HttpUtils;
 import org.dubhe.biz.base.utils.NumberUtil;
 import org.dubhe.biz.base.utils.ResultUtil;
+import org.dubhe.biz.base.utils.StringUtils;
 import org.dubhe.biz.base.vo.DataResponseBody;
 import org.dubhe.biz.base.vo.DatasetVO;
+import org.dubhe.biz.base.vo.NoteBookVO;
 import org.dubhe.biz.db.utils.PageUtil;
 import org.dubhe.biz.db.utils.WrapperHelp;
 import org.dubhe.biz.file.api.FileStoreApi;
@@ -79,7 +78,6 @@ import org.dubhe.notebook.enums.NoteBookStatusEnum;
 import org.dubhe.notebook.service.NoteBookService;
 import org.dubhe.notebook.service.ProcessNotebookCommand;
 import org.dubhe.notebook.utils.NotebookUtil;
-import org.dubhe.biz.base.vo.NoteBookVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -89,7 +87,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -126,9 +130,6 @@ public class NoteBookServiceImpl implements NoteBookService {
 
     @Autowired
     private ImageClient imageClient;
-
-    @Autowired
-    private HarborProperties harborProperties;
 
     @Autowired
     @Qualifier("hostFileStoreApiImpl")
@@ -223,7 +224,7 @@ public class NoteBookServiceImpl implements NoteBookService {
             throw new BusinessException(ImageTypeEnum.NOTEBOOK.getCode() + "未配置默认镜像！");
         }
 
-        return harborProperties.getAddress() + StrUtil.SLASH + imageUrl;
+        return imageUrl;
     }
 
     /**

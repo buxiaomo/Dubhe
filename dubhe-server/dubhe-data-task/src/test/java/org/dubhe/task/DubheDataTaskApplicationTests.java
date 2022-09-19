@@ -14,7 +14,6 @@
  * limitations under the License.
  * =============================================================
  */
-
 package org.dubhe.task;
 
 import org.junit.jupiter.api.Test;

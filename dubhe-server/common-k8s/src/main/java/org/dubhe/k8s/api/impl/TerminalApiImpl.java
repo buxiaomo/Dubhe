@@ -148,7 +148,7 @@ public class TerminalApiImpl implements TerminalApi {
             }
             Service service = ResourceBuildUtils.buildService(buildServiceBO);
             LogUtil.info(LogEnum.BIZ_K8S, "Ready to deploy {}, yaml信息为{}", svcName, YamlUtils.dumpAsYaml(service));
-            Service serviceResult = client.services().create(service);
+            Service serviceResult = client.services().inNamespace(service.getMetadata().getNamespace()).create(service);
             return new TerminalResourceVO(BizConvertUtils.toBizDeployment(deploymentResult),BizConvertUtils.toBizService(serviceResult));
         }catch (KubernetesClientException e) {
             LogUtil.error(LogEnum.BIZ_K8S, "TerminalApiImpl.create error, param:{} error:", bo, e);

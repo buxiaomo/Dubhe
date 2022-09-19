@@ -57,16 +57,21 @@ public class BaseK8sDeploymentCallbackCreateDTO {
     @NotNull(message = "replicas 不能为空！")
     private Integer replicas;
 
+    @ApiModelProperty(required = true, value = "action")
+    @NotBlank(message = "action 不能为空！")
+    private String action;
+
     public BaseK8sDeploymentCallbackCreateDTO() {
 
     }
 
-    public BaseK8sDeploymentCallbackCreateDTO(String namespace, String resourceName, String deploymentName, Integer readyReplicas, Integer replicas) {
+    public BaseK8sDeploymentCallbackCreateDTO(String namespace, String resourceName, String deploymentName, Integer readyReplicas, Integer replicas,String action) {
         this.namespace = namespace;
         this.resourceName = resourceName;
         this.deploymentName = deploymentName;
         this.readyReplicas = readyReplicas;
         this.replicas = replicas;
+        this.action = action;
     }
 
     @Override
@@ -77,6 +82,7 @@ public class BaseK8sDeploymentCallbackCreateDTO {
                 ", deploymentName='" + deploymentName + '\'' +
                 ", readyReplicas='" + readyReplicas + '\'' +
                 ", replicas='" + replicas + '\'' +
+                ", action='" + action + '\'' +
                 '}';
     }
 }

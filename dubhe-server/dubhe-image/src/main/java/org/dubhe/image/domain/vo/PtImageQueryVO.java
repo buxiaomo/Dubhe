@@ -41,9 +41,6 @@ public class PtImageQueryVO implements Serializable {
     @ApiModelProperty("镜像版本")
     private String imageTag;
 
-    @ApiModelProperty("镜像状态(0:上传中,1:上传成功,2:上传失败)")
-    private Integer imageStatus;
-
     @ApiModelProperty("备注")
     private String remark;
 
@@ -58,4 +55,7 @@ public class PtImageQueryVO implements Serializable {
 
     @ApiModelProperty("镜像用途")
     private List<Integer> imageTypes;
+
+    @ApiModelProperty("镜像地址")
+    private String imageUrl;
 }

@@ -141,7 +141,7 @@ public class PtAtlasCameraServiceImpl implements PtAtlasCameraService {
 			ResponseEntity<Map> exchange = restTemplate.exchange(atlasUrlProperties.getVms() + "/checkCameraUrl", HttpMethod.POST, requestEntity, Map.class, param);
 			Map<String, String> statusMap = (Map) exchange.getBody().get("data");
 			if (statusMap.containsKey("cameraUrl")) {
-				ptAtlasCamera.setHlsUrl(statusMap.get("cameraUrl").replace("127.0.0.1", "127.0.0.1"));
+				ptAtlasCamera.setHlsUrl(statusMap.get("cameraUrl").replace("172.18.26.2", "10.105.10.51"));
 				ptAtlasCameraMapper.updateById(ptAtlasCamera);
 			}
 		} catch (Exception e) {

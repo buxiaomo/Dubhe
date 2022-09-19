@@ -126,9 +126,6 @@ public final class StringConstant {
     public static final String CACHE_TASK_ID ="task_id";
     public static final String CACHE_TASK_NAME ="task_name";
 
-
-    public static final String DEFAULT_IMAGE_PROJECT ="dubhe";
-
     /**
      * python命令行参数格式
      */

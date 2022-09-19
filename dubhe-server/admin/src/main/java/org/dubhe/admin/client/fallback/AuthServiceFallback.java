@@ -27,7 +27,6 @@ import java.util.Map;
  * @description Feign 熔断处理类
  * @date 2020-11-04
  */
-@Component
 public class AuthServiceFallback implements AuthServiceClient {
 
 

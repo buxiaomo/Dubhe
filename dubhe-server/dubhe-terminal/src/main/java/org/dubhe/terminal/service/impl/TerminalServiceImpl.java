@@ -16,7 +16,6 @@
  */
 
 package org.dubhe.terminal.service.impl;
-import java.sql.Timestamp;
 
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
@@ -38,6 +37,7 @@ import org.dubhe.biz.log.utils.LogUtil;
 import org.dubhe.biz.permission.base.BaseService;
 import org.dubhe.biz.redis.utils.RedisUtils;
 import org.dubhe.docker.api.DockerApi;
+import org.dubhe.docker.callback.TerminalPushImageResultCallback;
 import org.dubhe.docker.config.DockerClientFactory;
 import org.dubhe.docker.enums.DockerOperationEnum;
 import org.dubhe.docker.utils.DockerCallbackTool;
@@ -53,7 +53,6 @@ import org.dubhe.k8s.domain.vo.TerminalResourceVO;
 import org.dubhe.k8s.enums.BusinessLabelServiceNameEnum;
 import org.dubhe.k8s.enums.PodPhaseEnum;
 import org.dubhe.k8s.utils.K8sNameTool;
-import org.dubhe.docker.callback.TerminalPushImageResultCallback;
 import org.dubhe.terminal.config.TerminalConfig;
 import org.dubhe.terminal.constant.TerminalConstant;
 import org.dubhe.terminal.dao.PtImageMapper;
@@ -77,6 +76,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -174,38 +174,43 @@ public class TerminalServiceImpl implements TerminalService {
 
     @Override
     public boolean preserve(TerminalPreserveDTO terminalPreserveDTO) {
+
         Terminal terminal = terminalMapper.selectById(terminalPreserveDTO.getId());
-        if (terminal == null){
-            LogUtil.error(LogEnum.TERMINAL,"preserve terminal 数据不存在 terminalPreserveDTO: {}",terminalPreserveDTO);
+
+        if (checkImageExists(terminal.getImageProject(), terminalPreserveDTO.getImageName(), terminalPreserveDTO.getImageTag())) {
+            throw new BusinessException("请确认镜像版本号是否重复！");
+        }
+        if (terminal == null) {
+            LogUtil.error(LogEnum.TERMINAL, "preserve terminal 数据不存在 terminalPreserveDTO: {}", terminalPreserveDTO);
             throw new BusinessException("数据不存在");
         }
 
         LambdaQueryWrapper<TerminalInfo> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(TerminalInfo::getTerminalId, terminalPreserveDTO.getId());
         List<TerminalInfo> terminalInfoList = terminalInfoMapper.selectList(wrapper);
-        if (CollectionUtils.isEmpty(terminalInfoList)){
-            LogUtil.error(LogEnum.TERMINAL,"preserve terminalInfoList 数据不存在 terminalPreserveDTO: {}",terminalPreserveDTO);
+        if (CollectionUtils.isEmpty(terminalInfoList)) {
+            LogUtil.error(LogEnum.TERMINAL, "preserve terminalInfoList 数据不存在 terminalPreserveDTO: {}", terminalPreserveDTO);
             throw new BusinessException("数据不存在");
         }
 
         TerminalInfo masterTerminalInfo = null;
         for (TerminalInfo terminalInfo : terminalInfoList) {
-            if (terminalInfo.isMasterFlag()){
+            if (terminalInfo.isMasterFlag()) {
                 masterTerminalInfo = terminalInfo;
             }
         }
-        if (masterTerminalInfo == null){
-            LogUtil.error(LogEnum.TERMINAL,"master 节点不存在 terminalPreserveDTO:{}",terminalPreserveDTO);
+        if (masterTerminalInfo == null) {
+            LogUtil.error(LogEnum.TERMINAL, "master 节点不存在 terminalPreserveDTO:{}", terminalPreserveDTO);
             throw new BusinessException("master 节点不存在");
         }
 
-        BizPod pod = podApi.getWithResourceName(k8sNameTool.getNamespace(terminal.getCreateUserId()),masterTerminalInfo.getK8sResourceName());
-        if (pod == null){
-            LogUtil.error(LogEnum.TERMINAL,"master 容器不存在 terminalPreserveDTO:{}",terminalPreserveDTO);
+        BizPod pod = podApi.getWithResourceName(k8sNameTool.getNamespace(terminal.getCreateUserId()), masterTerminalInfo.getK8sResourceName());
+        if (pod == null) {
+            LogUtil.error(LogEnum.TERMINAL, "master 容器不存在 terminalPreserveDTO:{}", terminalPreserveDTO);
             throw new BusinessException("master 容器不存在");
         }
-        if (!PodPhaseEnum.RUNNING.getPhase().equals(pod.getPhase()) || pod.getPodIp() == null || StringUtils.isNotEmpty(pod.getContainerStateMessages())){
-            LogUtil.error(LogEnum.TERMINAL,"master 容器未运行 terminalPreserveDTO:{}",terminalPreserveDTO);
+        if (!PodPhaseEnum.RUNNING.getPhase().equals(pod.getPhase()) || pod.getPodIp() == null || StringUtils.isNotEmpty(pod.getContainerStateMessages())) {
+            LogUtil.error(LogEnum.TERMINAL, "master 容器未运行 terminalPreserveDTO:{}", terminalPreserveDTO);
             throw new BusinessException("master 容器未运行");
         }
         String containerID = pod.getContainerId();
@@ -217,14 +222,13 @@ public class TerminalServiceImpl implements TerminalService {
         terminal.putStatusDetail(TerminalStatusEnum.SAVING.getDescription(),"commit 镜像...");
         terminalMapper.updateById(terminal);
         DockerClient dockerClient = dockerClientFactory.getDockerClient(pod.getHostIP());
-        String newImagePath = terminal.getImageProject()+SymbolConstant.SLASH+terminal.getCreateUserId()+SymbolConstant.SLASH+terminalPreserveDTO.getImageName();
-        String newImageRepository = terminalConfig.getHarborAddress()+SymbolConstant.SLASH+newImagePath;
+        String newImagePath = terminalConfig.getHarborAddress() + StrUtil.SLASH + terminal.getImageProject() + SymbolConstant.SLASH + terminalPreserveDTO.getImageName();
         try {
-            dockerApi.commit(dockerClient,containerID,newImageRepository,terminalPreserveDTO.getImageTag());
+            dockerApi.commit(dockerClient,containerID,newImagePath,terminalPreserveDTO.getImageTag());
             terminal.setStatus(null);
             terminal.putStatusDetail(TerminalStatusEnum.SAVING.getDescription(),"push 镜像...");
             terminalMapper.updateById(terminal);
-            boolean pushResult = dockerApi.push(dockerClient,newImageRepository+SymbolConstant.COLON+terminalPreserveDTO.getImageTag(),new TerminalPushImageResultCallback(dockerCallbackTool.getCallbackUrl(SymbolConstant.LOCAL_HOST,terminalConfig.getServerPort(), DockerOperationEnum.PUSH.getType()),terminal.getId(),dockerClient,terminal.getCreateUserId()));
+            boolean pushResult = dockerApi.push(dockerClient,newImagePath+SymbolConstant.COLON+terminalPreserveDTO.getImageTag(),new TerminalPushImageResultCallback(dockerCallbackTool.getCallbackUrl(SymbolConstant.LOCAL_HOST,terminalConfig.getServerPort(), DockerOperationEnum.PUSH.getType()),terminal.getId(),dockerClient,terminal.getCreateUserId()));
             if (!pushResult){
                 LogUtil.error(LogEnum.TERMINAL,"master 推送镜像错误 terminalPreserveDTO:{}",terminalPreserveDTO);
                 throw new BusinessException("推送镜像错误:");
@@ -234,7 +238,7 @@ public class TerminalServiceImpl implements TerminalService {
             throw new BusinessException("保存容器错误:"+e.getMessage());
         }
 
-        terminal.setImageUrl(newImagePath+SymbolConstant.COLON+terminalPreserveDTO.getImageTag());
+        terminal.setImageUrl(newImagePath + SymbolConstant.COLON + terminalPreserveDTO.getImageTag());
         terminal.setImageName(terminalPreserveDTO.getImageName());
         terminal.setDescription(terminalPreserveDTO.getImageRemark());
         terminal.setImageTag(terminalPreserveDTO.getImageTag());
@@ -244,13 +248,24 @@ public class TerminalServiceImpl implements TerminalService {
         return terminalMapper.updateById(terminal) > 0;
     }
 
+    private boolean checkImageExists(String imageProject, String imageName, String imageTag) {
+        // 拼接镜像的完整路径
+        String imageUrl = terminalConfig.getHarborAddress() + StrUtil.SLASH + imageProject + SymbolConstant.SLASH + imageName + StrUtil.COLON + imageTag;
+
+        // 校验该待保存镜像是否存在
+        LambdaQueryWrapper<PtImage> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PtImage::getImageUrl, imageUrl);
+        queryWrapper.ne(PtImage::getCreateUserId, userContextService.getCurUserId());
+        return ptImageMapper.selectCount(queryWrapper) > 0;
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean delete(TerminalDTO terminalDTO) {
-        try{
+        try {
             Terminal terminal = terminalMapper.selectById(terminalDTO.getId());
-            if (terminal == null){
-                LogUtil.error(LogEnum.TERMINAL,"delete 数据不存在 terminalDTO: {}",terminalDTO);
+            if (terminal == null) {
+                LogUtil.error(LogEnum.TERMINAL, "delete 数据不存在 terminalDTO: {}", terminalDTO);
                 throw new BusinessException("数据不存在");
             }
             terminal.setDeleted(true);
@@ -259,7 +274,7 @@ public class TerminalServiceImpl implements TerminalService {
             terminalMapper.deleteById(terminal);
             // 删除任务缓存
             String taskIdentify = (String) redisUtils.get(terminalIdPrefix + String.valueOf(terminal.getId()));
-            if (StringUtils.isNotEmpty(taskIdentify)){
+            if (StringUtils.isNotEmpty(taskIdentify)) {
                 redisUtils.del(taskIdentify, terminalIdPrefix + String.valueOf(terminal.getId()));
             }
             String namespace = k8sNameTool.getNamespace(terminal.getCreateUserId());
@@ -477,6 +492,13 @@ public class TerminalServiceImpl implements TerminalService {
                 return;
             }
             Terminal terminal = terminalMapper.selectById(terminalId);
+            List<TerminalInfo> terminalInfoList = terminalInfoMapper.selectByTerminalId(terminalId);
+            TerminalInfo masterTerminalInfo = null;
+            for (TerminalInfo info : terminalInfoList){
+                if (info.isMasterFlag()){
+                    masterTerminalInfo = info;
+                }
+            }
             if (terminal == null){
                 LogUtil.error(LogEnum.TERMINAL,"pushImageComplete no terminal found id:{}",terminalId);
                 return;
@@ -499,10 +521,11 @@ public class TerminalServiceImpl implements TerminalService {
                 ptImage.setImageTag(terminal.getImageTag());
                 ptImage.setRemark(terminal.getDescription());
                 ptImage.setImageResource(MagicNumConstant.ZERO);
-                ptImage.setImageStatus(MagicNumConstant.ONE);
                 ptImage.setDeleted(false);
                 ptImage.setUpdateUserId(userId);
                 ptImage.setUpdateTime(new Timestamp(new java.util.Date().getTime()));
+                ptImage.setSshUser(masterTerminalInfo.getSshUser());
+                ptImage.setSshPwd(masterTerminalInfo.getSshPassword());
 
                 if (ptImage.getId() != null){
                     ptImageMapper.updateById(ptImage);
@@ -563,7 +586,7 @@ public class TerminalServiceImpl implements TerminalService {
         terminalBO.setGpuNum(terminalInfo.getGpuNum());
         terminalBO.setMemNum(terminalInfo.getMemNum());
         terminalBO.setCpuNum(terminalInfo.getCpuNum());
-        terminalBO.setImage(terminalConfig.getHarborAddress()+SymbolConstant.SLASH+terminalCreateDTO.getImageUrl());
+        terminalBO.setImage(terminalCreateDTO.getImageUrl());
         terminalBO.setFsMounts(Maps.newHashMap());
         terminalBO.setBusinessLabel(BusinessLabelServiceNameEnum.TERMINAL.getBusinessLabel());
         terminalBO.setTaskIdentifyLabel(taskIdentifyLabel);

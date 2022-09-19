@@ -18,9 +18,14 @@
 package org.dubhe.image.service;
 
 import org.dubhe.biz.base.vo.PtImageVO;
-import org.dubhe.image.domain.dto.*;
+import org.dubhe.image.domain.dto.PtImageDeleteDTO;
+import org.dubhe.image.domain.dto.PtImageQueryDTO;
+import org.dubhe.image.domain.dto.PtImageQueryImageDTO;
+import org.dubhe.image.domain.dto.PtImageQueryNameDTO;
+import org.dubhe.image.domain.dto.PtImageQueryUrlDTO;
+import org.dubhe.image.domain.dto.PtImageSaveDTO;
+import org.dubhe.image.domain.dto.PtImageUpdateDTO;
 import org.dubhe.image.domain.entity.PtImage;
-import org.dubhe.recycle.domain.dto.RecycleCreateDTO;
 
 import java.util.List;
 import java.util.Map;
@@ -42,11 +47,11 @@ public interface PtImageService {
 
 
     /**
-     * 上传镜像到harbor
+     * 保存镜像信息
      *
-     * @param ptImageUploadDTO 上传条件
+     * @param ptImageSaveDTO 镜像信息DTO
      */
-    void uploadImage(PtImageUploadDTO ptImageUploadDTO);
+    void saveImageInfo(PtImageSaveDTO ptImageSaveDTO);
 
 
     /**
@@ -97,13 +102,6 @@ public interface PtImageService {
      * @return String 镜像url
      */
     String getImageUrl(PtImageQueryUrlDTO imageQueryUrlDTO);
-
-    /**
-     * 镜像回收还原
-     *
-     * @param dto 还原DTO对象
-     */
-    void recycleRollback(RecycleCreateDTO dto);
 
     /**
      * 获取终端镜像列表

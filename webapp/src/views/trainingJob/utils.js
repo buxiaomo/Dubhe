@@ -96,15 +96,6 @@ export const ATLAS_ALGORITHM_TYPE_ENUM = {
   DDRL: 4, // ddrl
 };
 
-export const IMAGE_TYPE = {
-  NOTEBOOK: 0, // notebook镜像类型
-  TRAIN: 1, // 训练镜像和预置镜像类型
-  SERVING: 2, // serving镜像
-  TERMINAL: 3, // 终端镜像
-  POINTCLOUD: 4, // 点云镜像
-  DATASETMARKED: 5, // 数据标注镜像
-};
-
 // 训练可视化列表页查询项
 export const trainVisualQueryFormItems = [
   {

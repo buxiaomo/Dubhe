@@ -18,6 +18,7 @@
 package org.dubhe.serving.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -56,11 +57,16 @@ import org.dubhe.biz.permission.annotation.DataPermissionMethod;
 import org.dubhe.biz.permission.base.BaseService;
 import org.dubhe.biz.redis.utils.RedisUtils;
 import org.dubhe.k8s.api.MetricsApi;
+import org.dubhe.k8s.api.ModelServingApi;
+import org.dubhe.k8s.api.NodeApi;
 import org.dubhe.k8s.cache.ResourceCache;
 import org.dubhe.k8s.domain.dto.PodQueryDTO;
+import org.dubhe.k8s.domain.resource.BizServicePort;
+import org.dubhe.k8s.domain.vo.ModelServingVO;
 import org.dubhe.k8s.domain.vo.PodVO;
 import org.dubhe.k8s.domain.vo.PtPodsVO;
 import org.dubhe.k8s.enums.PodPhaseEnum;
+import org.dubhe.k8s.enums.WatcherActionEnum;
 import org.dubhe.k8s.service.PodService;
 import org.dubhe.k8s.utils.K8sNameTool;
 import org.dubhe.recycle.config.RecycleConfig;
@@ -75,7 +81,6 @@ import org.dubhe.serving.client.AlgorithmClient;
 import org.dubhe.serving.client.ImageClient;
 import org.dubhe.serving.client.ModelBranchClient;
 import org.dubhe.serving.client.ModelInfoClient;
-import org.dubhe.serving.config.TrainHarborConfig;
 import org.dubhe.serving.constant.ServingConstant;
 import org.dubhe.serving.dao.ServingInfoMapper;
 import org.dubhe.serving.dao.ServingModelConfigMapper;
@@ -178,8 +183,6 @@ public class ServingServiceImpl implements ServingService {
     @Resource
     private ImageClient imageClient;
     @Resource
-    private TrainHarborConfig trainHarborConfig;
-    @Resource
     private AlgorithmClient algorithmClient;
     @Resource
     private RecycleConfig recycleConfig;
@@ -191,6 +194,10 @@ public class ServingServiceImpl implements ServingService {
     private ResourceCache resourceCache;
     @Value("Task:Serving:" + "${spring.profiles.active}_serving_id_")
     private String servingIdPrefix;
+    @Resource
+    private ModelServingApi modelServingApi;
+    @Resource
+    private NodeApi nodeApi;
 
     private final static List<String> FILE_NAMES;
 
@@ -265,7 +272,7 @@ public class ServingServiceImpl implements ServingService {
         List<ServingInfoQueryVO> queryList = servingInfos.getRecords().stream().map(servingInfo -> {
             ServingInfoQueryVO servingInfoQueryVO = new ServingInfoQueryVO();
             BeanUtils.copyProperties(servingInfo, servingInfoQueryVO);
-            servingInfoQueryVO.setUrl(servingInfo.getUuid() + GATEWAY_URI_POSTFIX);
+            servingInfoQueryVO.setUrl(GATEWAY_URI_POSTFIX+"/"+servingInfo.getUuid());
             Map<String, String> statistics = servingLuaScriptService.countCallsByServingInfoId(servingInfo.getId());
             servingInfoQueryVO.setTotalNum(statistics.getOrDefault("callCount", SymbolConstant.ZERO));
             servingInfoQueryVO.setFailNum(statistics.getOrDefault("failedCount", SymbolConstant.ZERO));
@@ -419,7 +426,7 @@ public class ServingServiceImpl implements ServingService {
                 throw new BusinessException(ServingErrorEnum.CALL_IMAGE_SERVER_FAIL);
             }
             servingModelConfig
-                    .setImage(trainHarborConfig.getAddress() + SymbolConstant.SLASH + dataResponseBody.getData());
+                    .setImage(dataResponseBody.getData());
 
             // 校验模型文件是否存在
             String path = k8sNameTool.getAbsolutePath(servingModelConfig.getModelAddress());
@@ -933,8 +940,8 @@ public class ServingServiceImpl implements ServingService {
             predictParamVO.setOutputs(outputs);
             predictParamVO.setOther(other);
         } else if (ServingTypeEnum.HTTP.getType().equals(servingInfo.getType())) {
-            String url = "http://" + servingInfo.getUuid() + GATEWAY_URI_POSTFIX
-                    + ServingConstant.INFERENCE_INTERFACE_NAME;
+            String url = "http://" + GATEWAY_URI_POSTFIX
+                    +"/"+ servingInfo.getUuid()+ ServingConstant.INFERENCE_INTERFACE_NAME;
             predictParamVO.setUrl(url);
             Map<String, String> inputs = new HashMap<>();
             inputs.put("files", "File");
@@ -1079,6 +1086,7 @@ public class ServingServiceImpl implements ServingService {
      */
     @Override
     public boolean servingDeploymentCallback(ServingK8sDeploymentCallbackCreateDTO req) {
+        LogUtil.info(LogEnum.BIZ_K8S,"servingDeploymentCallback:{}", JSON.toJSONString(req));
         // 根据namespace和podName找到模型配置
         String resourceInfo = k8sNameTool.getResourceInfoFromResourceName(BizEnum.SERVING, req.getResourceName());
         if (StringUtils.isBlank(resourceInfo)) {
@@ -1105,13 +1113,13 @@ public class ServingServiceImpl implements ServingService {
             return false;
         }
         // 增加发送路由信息
-        if (req.getReadyReplicas() > NumberConstant.NUMBER_0
+        if (WatcherActionEnum.ADDED.getAction().equals(req.getAction())
                 && ServingTypeEnum.HTTP.getType().equals(servingInfo.getType())) {
             this.notifyUpdateServingRoute(Collections.singletonList(servingModelConfig.getId()),
                     Collections.emptyList());
         }
         // 增加删除路由信息
-        if (req.getReadyReplicas() == NumberConstant.NUMBER_0
+        if (WatcherActionEnum.DELETED.getAction().equals(req.getAction())
                 && ServingTypeEnum.HTTP.getType().equals(servingInfo.getType())) {
             this.notifyUpdateServingRoute(Collections.emptyList(),
                     Collections.singletonList(servingModelConfig.getId()));
@@ -1148,8 +1156,29 @@ public class ServingServiceImpl implements ServingService {
     @Transactional(rollbackFor = Exception.class)
     public boolean updateByCallback(ServingK8sDeploymentCallbackCreateDTO req, ServingModelConfig servingModelConfig,
                                     ServingInfo servingInfo) {
+
+        //更新url
+        if (StringUtils.isEmpty(servingModelConfig.getUrl())){
+            //查询
+            ModelServingVO modelServingVO = modelServingApi.get(req.getNamespace(),req.getResourceName());
+            if (ServingConstant.SUCCESS_CODE.equals(modelServingVO.getCode())) {
+                // 获取pod对应的url，并修改模型部署状态
+                List<BizServicePort> ports = modelServingVO.getBizService().getPorts();
+
+                if (CollectionUtils.isNotEmpty(ports)) {
+                    //取第一个url
+                    String url = "";
+                    if (ports.get(NumberConstant.NUMBER_0).getNodePort() != null) {
+                        url = nodeApi.getAvailableNodeIp() + ":" + ports.get(NumberConstant.NUMBER_0).getNodePort();
+                    }
+                    servingModelConfig.setUrl(url);
+                }
+            }
+        }
+
         // 更新当前模型配置有效节点数
         servingModelConfig.setReadyReplicas(req.getReadyReplicas());
+        servingModelConfig.setResourceInfo(null);
         int result = servingModelConfigMapper.updateById(servingModelConfig);
         if (result < NumberConstant.NUMBER_1) {
             return true;

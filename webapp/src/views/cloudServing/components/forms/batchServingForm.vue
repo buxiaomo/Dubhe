@@ -199,14 +199,13 @@
 <script>
 import { mapGetters } from 'vuex';
 
-import { getUniqueId, invalidFileNameChar, RESOURCES_MODULE_ENUM } from '@/utils';
+import { getUniqueId, invalidFileNameChar, RESOURCES_MODULE_ENUM, IMAGE_TYPE_ENUM } from '@/utils';
 import { getServingModel } from '@/api/model/model';
 import { list as getModelVersions } from '@/api/model/modelVersion';
 import { getImageNameList, getImageTagList } from '@/api/trainingImage';
 import { getInferenceAlgorithm, add as addAlgorithm } from '@/api/algorithm/algorithm';
 import { list as getSpecsNames } from '@/api/system/resources';
 import { validateNameWithHyphen } from '@/utils/validate';
-import { IMAGE_TYPE } from '@/views/trainingJob/utils';
 import RunParamForm from '@/components/Training/runParamForm';
 import BaseModal from '@/components/BaseModal';
 import AlgorithmForm from '@/views/algorithm/components/algorithmForm';
@@ -541,7 +540,7 @@ export default {
 
     // 镜像选择
     async getImageNames(keepValue = false) {
-      this.imageNameList = await getImageNameList({ imageTypes: [IMAGE_TYPE.SERVING] });
+      this.imageNameList = await getImageNameList({ imageTypes: [IMAGE_TYPE_ENUM.SERVING] });
       if (!keepValue || !this.form.imageName) {
         this.form.imageTag = null;
       } else if (!this.imageNameList.includes(this.form.imageName)) {

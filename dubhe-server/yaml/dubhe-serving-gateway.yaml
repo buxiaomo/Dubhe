@@ -22,8 +22,8 @@ management:
 
 serving:
   gateway:
-    # 在线服务http接口域名,解析地址为serving网关部署的服务器地址
-    postfixUrl: .openapi.dubhe.club
+    # 在线服务http接口 host:port,解析地址为serving网关部署的服务地址
+    postfixUrl: 10.101.12.41:8081
     token:
       secret-key: 1n3512x
       expire-seconds: 108000
@@ -31,7 +31,6 @@ serving:
     httpclient:
       connect-timeout: 1000
       response-timeout: 3000
-
 #关闭熔断机制
 feign:
   hystrix:

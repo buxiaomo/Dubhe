@@ -3,7 +3,7 @@ notebook-specs:
   # cpu数量（核）
   cpu-num: 1
   # gpu数量（核）
-  gpu-num: 1
+  gpu-num: 0
   # 内存大小（M）
   mem-num: 1024
   # 工作空间配额（m）

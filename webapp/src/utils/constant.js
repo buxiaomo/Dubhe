@@ -133,6 +133,24 @@ export const K8S_BUSINESS_LABEL_MAP = {
   [K8S_BUSINESS_LABEL_ENUM.POINT_CLOUD]: '点云数据集',
 };
 
+// 镜像分类枚举
+export const IMAGE_TYPE_ENUM = {
+  NOTEBOOK: 0, // notebook镜像类型
+  TRAIN: 1, // 训练镜像和预置镜像类型
+  SERVING: 2, // serving镜像
+  TERMINAL: 3, // 终端镜像
+  POINTCLOUD: 4, // 点云镜像
+  DATASETMARKED: 5, // 数据标注镜像
+};
+export const IMAGE_TYPE_MAP = {
+  [IMAGE_TYPE_ENUM.NOTEBOOK]: 'Notebook镜像',
+  [IMAGE_TYPE_ENUM.TRAIN]: '训练镜像',
+  [IMAGE_TYPE_ENUM.SERVING]: 'Serving镜像',
+  [IMAGE_TYPE_ENUM.TERMINAL]: '终端镜像',
+  [IMAGE_TYPE_ENUM.POINTCLOUD]: '点云镜像',
+  [IMAGE_TYPE_ENUM.DATASETMARKED]: '数据标注镜像',
+};
+
 // 默认进度条颜色
 export const defaultProcessColors = [
   { color: '#909399', percentage: 40 },

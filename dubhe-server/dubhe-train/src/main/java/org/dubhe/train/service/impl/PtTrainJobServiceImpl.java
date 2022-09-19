@@ -96,7 +96,6 @@ import org.dubhe.train.client.ModelBranchClient;
 import org.dubhe.train.client.ModelInfoClient;
 import org.dubhe.train.client.NoteBookClient;
 import org.dubhe.train.client.ResourceSpecsClient;
-import org.dubhe.train.config.TrainHarborConfig;
 import org.dubhe.train.config.TrainJobConfig;
 import org.dubhe.train.constant.ATlasTrainConstant;
 import org.dubhe.train.constant.TrainConstant;
@@ -201,9 +200,6 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
 
     @Autowired
     private TrainJobConfig trainJobConfig;
-
-    @Autowired
-    private TrainHarborConfig trainHarborConfig;
 
     @Autowired
     private K8sNameTool k8sNameTool;
@@ -484,7 +480,12 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
     public void buildImageAndTagInfo(PtJobParam ptJobParam, PtTrainJobDetailVO ptTrainJobDetailVO) {
         //image信息拼装
         if (StringUtils.isNotBlank(ptJobParam.getImageName())) {
-            String imageNameSuffix = ptJobParam.getImageName().substring(ptJobParam.getImageName().lastIndexOf(StrUtil.SLASH) + MagicNumConstant.ONE);
+            String imageNameSuffix;
+            if (ptJobParam.getImageName().contains(StrUtil.SLASH)) {
+                imageNameSuffix = ptJobParam.getImageName().substring(ptJobParam.getImageName().lastIndexOf(StrUtil.SLASH) + MagicNumConstant.ONE);
+            } else {
+                imageNameSuffix = ptJobParam.getImageName();
+            }
             String[] imageNameSuffixArray = imageNameSuffix.split(StrUtil.COLON);
             ptTrainJobDetailVO.setImageName(imageNameSuffixArray[0]);
             ptTrainJobDetailVO.setImageTag(imageNameSuffixArray[1]);
@@ -563,26 +564,15 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
                 .setMemNum(ptTrainJobCreateDTO.getMemNum())
                 .setWorkspaceRequest(ptTrainJobCreateDTO.getWorkspaceRequest())
                 .setTaskIdentify(taskIdentify);
-
-        //例如：  将harbor.dubhe.ai/notebook/notebook:v1 去掉 harbor地址
-        String userImageName = trimHarborAddress(ptImageAndAlgorithmVO.getImageName());
+        
+        String imageNameAndTag = ptTrainJobCreateDTO.getImageName() + StrUtil.COLON + ptTrainJobCreateDTO.getImageTag();
         //结果集处理
-        PtTrainJob ptTrainJob = saveTrainJobTableData(ptTrainJobCreateDTO, userContextService.getCurUser(), userImageName, trainKey, baseTrainJobDTO);
+        PtTrainJob ptTrainJob = saveTrainJobTableData(ptTrainJobCreateDTO, userContextService.getCurUser(), imageNameAndTag, trainKey, baseTrainJobDTO);
         //添加任务缓存
         resourceCache.addTaskCache(taskIdentify, ptTrainJob.getTrainId(), ptTrainJobCreateDTO.getTrainName(), trainIdPrefix);
         // 提交job
         asyncManager.execute(baseTrainJobDTO, userContextService.getCurUserId(), ptImageAndAlgorithmVO, ptTrainJob);
         return Collections.singletonList(ptTrainJob.getTrainId());
-    }
-
-    /**
-     * 去掉harbor地址
-     *
-     * @param imageName
-     * @return
-     */
-    private String trimHarborAddress(String imageName) {
-        return StringUtils.isBlank(imageName) ? StringUtils.EMPTY : imageName.replace(trainHarborConfig.getAddress() + StrUtil.SLASH, StringUtils.EMPTY);
     }
 
     /**
@@ -611,9 +601,8 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
             String imageUrl = imageUtil.getImageUrl(ptTrainJobBaseDTO, userContextService.getCurUser());
             String userImageName = imageUrl.split(StrUtil.SLASH)[0] + StrUtil.SLASH + ptTrainJobBaseDTO.getImageName() + StrUtil.COLON + ptTrainJobBaseDTO.getImageTag();
             ptImageAndAlgorithmVO = getPtImageByAlgorithmId(ptTrainJobBaseDTO.getAlgorithmId());
-            String imageName = trainHarborConfig.getAddress() + StrUtil.SLASH + userImageName;
-            ptImageAndAlgorithmVO.setImageName(imageName);
-            ptImageAndAlgorithmVO.setImageUrl(trainHarborConfig.getAddress() + StrUtil.SLASH + imageUrl);
+            ptImageAndAlgorithmVO.setImageName(ptTrainJobBaseDTO.getImageName());
+            ptImageAndAlgorithmVO.setImageUrl(imageUrl);
 
         }
         ptImageAndAlgorithmVO.setRunCommand(ptTrainJobBaseDTO.getRunCommand());
@@ -676,13 +665,13 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
      *
      * @param ptTrainJobCreateDTO 创建训练任务DTO
      * @param currentUser         用户
-     * @param imageName           镜像名称
+     * @param imageNameAndTag     镜像名称和tag
      * @param trainKey            训练key
      * @param baseTrainJobDTO     基础训练参数
      * @return PtTrain            训练
      */
     private PtTrainJob saveTrainJobTableData(PtTrainJobCreateDTO ptTrainJobCreateDTO, UserContext currentUser,
-                                             String imageName, String trainKey, BaseTrainJobDTO baseTrainJobDTO) {
+                                             String imageNameAndTag, String trainKey, BaseTrainJobDTO baseTrainJobDTO) {
         // 添加train表
         PtTrain ptTrain = new PtTrain();
         ptTrain.setTrainName(ptTrainJobCreateDTO.getTrainName())
@@ -732,7 +721,7 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
         ptJobParam.setTrainJobId(ptTrainJob.getId())
                 .setAlgorithmId(ptTrainJobCreateDTO.getAlgorithmId())
                 .setRunCommand(ptTrainJobCreateDTO.getRunCommand())
-                .setImageName(imageName)
+                .setImageName(imageNameAndTag)
                 .setRunParams(ptTrainJobCreateDTO.getRunParams())
                 .setRunParamsNameMap(ptTrainJobCreateDTO.getRunParamsNameMap())
                 .setCreateUserId(currentUser.getId());
@@ -1010,9 +999,8 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
                 .setWorkspaceRequest(ptTrainJobUpdateDTO.getWorkspaceRequest())
                 .setTaskIdentify(taskIdentify);
 
-        String userImageName = trimHarborAddress(ptImageAndAlgorithmVO.getImageName());
         //结果集处理
-        PtTrainJob ptTrainJob = updateTrainJobTableData(ptTrainJobUpdateDTO, userContextService.getCurUser(), existPtTrainJob, userImageName, ptTrain, baseTrainJobDTO);
+        PtTrainJob ptTrainJob = updateTrainJobTableData(ptTrainJobUpdateDTO, userContextService.getCurUser(), existPtTrainJob, ptTrainJobUpdateDTO.getImageName() + StrUtil.COLON + ptTrainJobUpdateDTO.getImageTag(), ptTrain, baseTrainJobDTO);
         //提交job
         asyncManager.execute(baseTrainJobDTO, ptTrain.getCreateUserId(), ptImageAndAlgorithmVO, ptTrainJob);
 
@@ -1025,13 +1013,13 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
      * @param ptTrainJobUpdateDTO 更新训练任务DTO
      * @param currentUser         当前用户
      * @param existPtTrainJob     存在的训练任务
-     * @param imageName           镜像名称
+     * @param imageNameAndTag     镜像名称和tag
      * @param ptTrain             训练
      * @param baseTrainJobDTO     基本训练信息
      * @return PtTrainJob         训练任务
      */
     private PtTrainJob updateTrainJobTableData(PtTrainJobUpdateDTO ptTrainJobUpdateDTO, UserContext
-            currentUser, PtTrainJob existPtTrainJob, String imageName, PtTrain ptTrain, BaseTrainJobDTO baseTrainJobDTO) {
+            currentUser, PtTrainJob existPtTrainJob, String imageNameAndTag, PtTrain ptTrain, BaseTrainJobDTO baseTrainJobDTO) {
 
         //检查模型是否合法,合法则保存其路径地址
         checkModelAndSavePath(currentUser, baseTrainJobDTO);
@@ -1070,7 +1058,7 @@ public class PtTrainJobServiceImpl implements PtTrainJobService {
         ptJobParam.setTrainJobId(ptTrainJob.getId())
                 .setAlgorithmId(ptTrainJobUpdateDTO.getAlgorithmId())
                 .setRunCommand(ptTrainJobUpdateDTO.getRunCommand())
-                .setImageName(imageName)
+                .setImageName(imageNameAndTag)
                 .setRunParams(ptTrainJobUpdateDTO.getRunParams())
                 .setRunParamsNameMap(ptTrainJobUpdateDTO.getRunParamsNameMap())
                 .setCreateUserId(ptTrain.getCreateUserId());

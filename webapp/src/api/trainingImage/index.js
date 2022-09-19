@@ -19,7 +19,7 @@ import { API_MODULE_NAME } from '@/config';
 
 export function list(params) {
   return request({
-    url: `/${API_MODULE_NAME.IMAGE}/ptImage/info`,
+    url: `/${API_MODULE_NAME.IMAGE}/ptImage/list`,
     method: 'get',
     params,
   });
@@ -27,7 +27,7 @@ export function list(params) {
 
 export function add(data) {
   return request({
-    url: `/${API_MODULE_NAME.IMAGE}/ptImage/uploadImage`,
+    url: `/${API_MODULE_NAME.IMAGE}/ptImage`,
     method: 'post',
     data,
   });
@@ -61,14 +61,6 @@ export function getImageTagList(params) {
   return request({
     url: `/${API_MODULE_NAME.IMAGE}/ptImage`,
     method: 'get',
-    params,
-  });
-}
-
-export function setPrecast(params) {
-  return request({
-    url: `/${API_MODULE_NAME.IMAGE}/ptImage/imageResource`,
-    method: 'put',
     params,
   });
 }

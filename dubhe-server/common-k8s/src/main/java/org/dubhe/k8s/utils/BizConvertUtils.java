@@ -218,7 +218,9 @@ public class BizConvertUtils {
      */
     public static BizIngress toBizIngress(Ingress ingress) {
         BizIngress bizIngress = MappingUtils.mappingTo(ingress, BizIngress.class);
-        bizIngress.getRules().forEach(BizIngressRule::takeServicePort);
+        if (bizIngress != null){
+            bizIngress.getRules().forEach(BizIngressRule::takeServicePort);
+        }
         return bizIngress;
     }
 

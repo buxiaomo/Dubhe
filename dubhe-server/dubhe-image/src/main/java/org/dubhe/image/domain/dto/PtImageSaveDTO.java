@@ -38,7 +38,7 @@ import java.util.List;
  */
 @Data
 @Accessors(chain = true)
-public class PtImageUploadDTO implements Serializable {
+public class PtImageSaveDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -50,9 +50,9 @@ public class PtImageUploadDTO implements Serializable {
     @FlagValidator(value = {"0", "1"}, message = "无效镜像来源")
     private Integer imageResource;
 
-    @ApiModelProperty(value = "镜像文件路径", required = true)
-    @NotBlank(message = "镜像文件路径不能为空")
-    private String imagePath;
+    @ApiModelProperty(value = "镜像地址", required = true)
+    @NotBlank(message = "镜像地址不能为空")
+    private String imageUrl;
 
     @ApiModelProperty(value = "镜像名称", required = true)
     @NotBlank(message = "源镜像名称不能为空")

@@ -28,9 +28,15 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.apache.commons.compress.utils.Lists;
 import org.dubhe.biz.base.constant.MagicNumConstant;
-import org.dubhe.biz.base.constant.SymbolConstant;
 import org.dubhe.biz.base.context.UserContext;
-import org.dubhe.biz.base.dto.*;
+import org.dubhe.biz.base.dto.PtImageIdDTO;
+import org.dubhe.biz.base.dto.PtImageIdsDTO;
+import org.dubhe.biz.base.dto.PtModelBranchQueryByIdDTO;
+import org.dubhe.biz.base.dto.PtModelBranchQueryByIdsDTO;
+import org.dubhe.biz.base.dto.TrainAlgorithmSelectAllBatchIdDTO;
+import org.dubhe.biz.base.dto.TrainAlgorithmSelectByIdDTO;
+import org.dubhe.biz.base.dto.UserDTO;
+import org.dubhe.biz.base.dto.UserSmallDTO;
 import org.dubhe.biz.base.enums.BizEnum;
 import org.dubhe.biz.base.enums.ResourcesPoolTypeEnum;
 import org.dubhe.biz.base.exception.BusinessException;
@@ -49,13 +55,15 @@ import org.dubhe.cloud.authconfig.service.AdminClient;
 import org.dubhe.data.client.AlgorithmClient;
 import org.dubhe.data.client.ImageClient;
 import org.dubhe.data.client.ModelClient;
-import org.dubhe.data.config.DataHarborConfig;
 import org.dubhe.data.config.DataRedisConfig;
 import org.dubhe.data.constant.AutoLabelModelServiceStatusEnum;
 import org.dubhe.data.constant.Constant;
 import org.dubhe.data.constant.ErrorEnum;
 import org.dubhe.data.dao.AutoLabelModelServiceMapper;
-import org.dubhe.data.domain.dto.*;
+import org.dubhe.data.domain.dto.AutoLabelModelServiceCreateDTO;
+import org.dubhe.data.domain.dto.AutoLabelModelServiceQueryDTO;
+import org.dubhe.data.domain.dto.AutoLabelModelServiceUpdateDTO;
+import org.dubhe.data.domain.dto.DataK8sDeploymentCallbackCreateDTO;
 import org.dubhe.data.domain.entity.AutoLabelModelService;
 import org.dubhe.data.domain.vo.AutoLabelModelServicePodVO;
 import org.dubhe.data.domain.vo.AutoLabelModelServiceVO;
@@ -75,9 +83,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+
 import javax.annotation.Resource;
 import java.sql.Timestamp;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -115,9 +130,6 @@ public class AutoLabelModelServiceServiceImpl extends ServiceImpl<AutoLabelModel
 
     @Resource
     private UserContextService userContextService;
-
-    @Resource
-    private DataHarborConfig dataHarborConfig;
 
     @Resource
     private DataRedisConfig dataRedisConfig;
@@ -197,7 +209,7 @@ public class AutoLabelModelServiceServiceImpl extends ServiceImpl<AutoLabelModel
         modelServiceBO.setResourceName(k8sNameTool.generateResourceName(BizEnum.DATA, autoLabelModelService.getId().toString()));
         modelServiceBO.setBusinessLabel(k8sNameTool.getPodLabel(BizEnum.DATA));
         modelServiceBO.setReplicas(autoLabelModelService.getInstanceNum());
-        modelServiceBO.setImage(dataHarborConfig.getAddress() + SymbolConstant.SLASH + ptImageVO.getImageUrl());
+        modelServiceBO.setImage(ptImageVO.getImageUrl());
         modelServiceBO.setTaskIdentifyLabel(taskIdentify);
 
         String command = String.format(Constant.MODEL_SERVICE_COMMAND, modelServiceId,

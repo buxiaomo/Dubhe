@@ -41,6 +41,7 @@ import org.dubhe.k8s.constant.K8sLabelConstants;
 import org.dubhe.k8s.constant.K8sParamConstants;
 import org.dubhe.k8s.domain.PtBaseResult;
 import org.dubhe.k8s.domain.resource.BizNode;
+import org.dubhe.k8s.domain.resource.BizNodeAddress;
 import org.dubhe.k8s.domain.resource.BizTaint;
 import org.dubhe.k8s.domain.vo.PtNodeMetricsVO;
 import org.dubhe.k8s.enums.K8sResponseEnum;
@@ -560,6 +561,25 @@ public class NodeApiImpl implements NodeApi {
         return geBizTaintListByUserId(userContextService.getCurUserId());
     }
 
+    /**
+     * 获取一个可用node的ip
+     *
+     * @return String
+     */
+    @Override
+    public String getAvailableNodeIp(){
+        List<BizNode> nodes = listAll();
+        for (BizNode node : nodes){
+            if (node.getReady() && !node.isUnschedulable()){
+                for (BizNodeAddress address : node.getAddresses()){
+                    if (K8sParamConstants.INTERNAL_IP.equals(address.getType())){
+                        return address.getAddress();
+                    }
+                }
+            }
+        }
+        return "";
+    }
 
     /**
      * 查询节点内存资源是否可分配

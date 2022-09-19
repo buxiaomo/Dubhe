@@ -9,6 +9,9 @@ the License. * ============================================================= */
 <template>
   <el-tooltip v-bind="mergedAttrs">
     <i class="primary f18 vm" :class="[icon]" />
+    <template #content>
+      <slot name="content" />
+    </template>
   </el-tooltip>
 </template>
 

@@ -39,7 +39,7 @@ const covertSVG2Image = (node, name, width, height, type = 'png') => {
   const context = canvas.getContext('2d');
   context.fillStyle = '#fff';
   context.fillRect(0, 0, 10000, 10000);
-  image.onload = function() {
+  image.onload = () => {
     context.drawImage(image, 0, 0);
     const a = document.createElement('a');
     a.download = `${name}.${type}`;
