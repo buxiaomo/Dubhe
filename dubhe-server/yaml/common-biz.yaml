@@ -17,7 +17,7 @@ spring:
   redis:
     #数据库索引
     database: 4
-    host: 127.0.0.1
+    host: 10.5.26.88
     port: 6379
     password:
     #连接超时时间
@@ -26,9 +26,9 @@ spring:
     druid:
       db-type: com.alibaba.druid.pool.DruidDataSource
       driverClassName: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
-      url: jdbc:log4jdbc:mysql://127.0.0.1:3306/dubhe-cloud-prod?serverTimezone=Asia/Shanghai&characterEncoding=utf8&useSSL=false&allowMultiQueries=true&useInformationSchema=true
+      url: jdbc:log4jdbc:mysql://127.0.0.1/dubhe-cloud-test?serverTimezone=Asia/Shanghai&characterEncoding=utf8&useSSL=false&allowMultiQueries=true&useInformationSchema=true
       username: test
-      password: test
+      password: zj12345678
 
       # 初始化配置
       initial-size: 3
@@ -67,17 +67,17 @@ logging.config:
 # 文件存储服务配置
 storage:
   # 文件存储服务暴露的IP地址 如需测试需修改为合适的地址
-  file-store: 127.0.0.1
+  file-store: 10.5.26.234
   # 文件存储服务端 共享目录
   file-store-root-path: /nfs/
   file-store-root-windows-path: "Z:"
 
 # minio配置
 minio:
-  url: http://127.0.0.1:9000/
+  url: http://10.5.26.90:9000/
   accessKey: admin
   secretKey: 123@abc.com
-  bucketName: dubhe-prod
+  bucketName: dubhe-cloud-test
   presignedUrlExpiryTime: 300
   annotation: /annotation/
 
@@ -121,13 +121,6 @@ feign:
   okhttp:
     enabled: false
 
-#配置harbor
-harbor:
-  address: harbor.dubhe.ai
-  username: admin
-  password: Harbor12345
-  model-name: train
-
 #配置dev环境单元测试用户名与密码
 unittest:
   username: admin
@@ -136,10 +129,10 @@ unittest:
 model:
   measuring:
     url:
-      package: http://127.0.0.1:32760/model_measure/package
-      json: http://127.0.0.1:32760/model_measure/measure
+      package: http://10.5.26.90:32760/model_measure/package
+      json: http://10.5.26.90:32760/model_measure/measure
   converter:
-    url: http://127.0.0.1:32230/model_convert
+    url: http://10.5.26.90:32230/model_convert
 
 user:
   config:

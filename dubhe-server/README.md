@@ -11,8 +11,8 @@ Nacos + Fegin + Gateway + （Spring Security + JWT + OAuth2）
 
 初始化sql位置   /sql
 
-**地址：** 127.0.0.1:3306
-**用户名：** test **密码：** test
+**地址：** 127.0.0.1
+**用户名：** test **密码：** zj12345678
 
 ### Nacos
 
