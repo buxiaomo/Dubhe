@@ -115,4 +115,12 @@ public class AuthController {
         return DataResponseFactory.failed("Logout failed!");
     }
 
+    /**
+     * 健康检查
+     */
+    @GetMapping(value="/health")
+    public DataResponseBody<String> health(){
+        return DataResponseFactory.successWithMsg("ok");
+    }
+
 }
