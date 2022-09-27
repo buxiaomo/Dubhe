@@ -20,7 +20,7 @@ import ZIP from './zip';
 
 const pMap = require('p-map');
 
-streamSaver.mitm = 'https://static.zhejianglab.com/mitm.html';
+//streamSaver.mitm = 'https://static.zhejianglab.com/mitm.html';
 
 // 默认名字解析
 const defaultName = (file) => file.name;
