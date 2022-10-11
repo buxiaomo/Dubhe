@@ -257,7 +257,7 @@ public class DatasetVersionFileServiceImpl extends ServiceImpl<DatasetVersionFil
         Dataset oneById = datasetService.getOneById(datasetId);
         List<DataFileAnnotation> labelIdByDatasetIdAndVersionId = new ArrayList<>();
         if(!ArrayUtils.isEmpty(labelId) || (DatatypeEnum.AUDIO.getValue().equals(oneById.getDataType()) &&
-                !status[0].equals(FileTypeEnum.UNFINISHED_FILE.getValue()) && !status[0].equals(FileTypeEnum.UNFINISHED.getValue())) &&
+                !Arrays.asList(status).contains(FileTypeEnum.UNFINISHED_FILE.getValue()) && !Arrays.asList(status).contains(FileTypeEnum.UNFINISHED.getValue())) &&
                 !oneById.getAnnotateType().equals(AnnotateTypeEnum.SPEECH_RECOGNITION.getValue())){
             labelIdByDatasetIdAndVersionId = dataFileAnnotationService.getLabelIdByDatasetIdAndVersionId(labelId, datasetId,offset,limit, oneById.getCurrentVersionName());
             if(labelIdByDatasetIdAndVersionId.isEmpty()){
