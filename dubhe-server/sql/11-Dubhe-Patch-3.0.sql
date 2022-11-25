@@ -399,3 +399,5 @@ CREATE TABLE `pt_atlas_camera` (
 ) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COMMENT='模型炼知视频流管理';
 
 ALTER TABLE pt_image DROP image_status;
+
+ALTER TABLE pt_job_param ADD COLUMN `notebook_id` bigint(20) DEFAULT NULL COMMENT 'notebookId';
