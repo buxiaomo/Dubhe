@@ -85,3 +85,14 @@ es:
   transportPort: 9300
   clusterName: docker-cluster
   index: dataset_text_test
+
+dataset:
+  model:
+    service:
+      command: cd /dubhe_data_process && python main.py %s %s %s,%s,%s,%s    
+
+
+# 可匿名访问路径
+security:
+  permitAll:
+    matchers: /api/k8s/callback/deployment/data  
