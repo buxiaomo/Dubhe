@@ -31,7 +31,8 @@ import {
 } from 'lodash';
 import { nanoid } from 'nanoid';
 
-const chroma = require('chroma-js');
+// const chroma = require('chroma-js');
+import chroma from 'chroma-js'
 const assert = require('assert');
 
 export const duplicate = (arr, callback) => {
