@@ -6,7 +6,7 @@
 
 
 -- DML 脚本
-use `dubhe-cloud-prod`;
+use `dubhe`;
 
 SET SQL_SAFE_UPDATES = 0;
 DELIMITER //

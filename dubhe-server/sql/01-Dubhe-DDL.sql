@@ -1,5 +1,5 @@
 -- DML 脚本
-use `dubhe-cloud-prod`;
+use `dubhe`;
 
 -- 原boot单体项目 DDL 脚本内容
 CREATE TABLE IF NOT EXISTS `data_dataset` (

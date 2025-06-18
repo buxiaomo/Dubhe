@@ -1,5 +1,5 @@
 -- DML 脚本
-use `dubhe-cloud-prod`;
+use `dubhe`;
 
 -- 上传炼知模型新增字段
 ALTER TABLE pt_model_info ADD model_size INT COMMENT '模型尺寸';

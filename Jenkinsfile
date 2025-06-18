@@ -4,7 +4,7 @@ pipeline {
     }
 
     environment {
-        PROJECT_NAME = "dubhe"
+        PROJECT_NAME = "zhijiangtianshu"
         PROJECT_ENV = "system"
 
         REPOSITORY_URL = "https://gitee.com/buxiaomo/Dubhe.git"
