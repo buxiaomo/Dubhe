@@ -1,0 +1,52 @@
+# Gateway Application Configuration
+spring:
+  webflux:
+    # WebFlux配置
+    base-path: /
+  cloud:
+    gateway:
+      # 网关配置
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      # 跨域配置
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: "*"
+            allowed-methods: "*"
+            allowed-headers: "*"
+            allow-credentials: true
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+  health:
+    defaults:
+      enabled: true
+
+# 日志配置
+logging:
+  level:
+    org.dubhe.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO
+    reactor.netty: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# 自定义健康检查配置
+dubhe:
+  gateway:
+    health:
+      enabled: true
+      detailed-enabled: true
+      system-info-enabled: true
