@@ -1,4 +1,4 @@
-FROM openjdk:8-jre
+FROM openjdk:8-jdk
 WORKDIR /app
 COPY ./target/admin-0.0.1-SNAPSHOT-exec.jar /app
 ENV JAVA_OPTION="-Xms1024m -Xmx1024m"
