@@ -1,5 +1,5 @@
 FROM docker.io/library/alpine:3.22.0
 RUN apk add --no-cache rsync git \
-    && git clone https://gitee.com/zhijiangtianshu/Dubhe.git /dubhe-code
+    && git clone https://gitee.com/zhijiangtianshu/Dubhe.git /dubhe-code/Dubhe
 COPY init_storage.sh /init_storage.sh
 CMD ["/bin/sh", "/init_storage.sh"]
