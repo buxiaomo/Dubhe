@@ -1,10 +1,15 @@
-deb http://mirrors.cloud.tencent.com/ubuntu/ xenial main restricted universe multiverse
-deb http://mirrors.cloud.tencent.com/ubuntu/ xenial-security main restricted universe multiverse
-deb http://mirrors.cloud.tencent.com/ubuntu/ xenial-updates main restricted universe multiverse
-#deb http://mirrors.cloud.tencent.com/ubuntu/ xenial-proposed main restricted universe multiverse
-#deb http://mirrors.cloud.tencent.com/ubuntu/ xenial-backports main restricted universe multiverse
-deb-src http://mirrors.cloud.tencent.com/ubuntu/ xenial main restricted universe multiverse
-deb-src http://mirrors.cloud.tencent.com/ubuntu/ xenial-security main restricted universe multiverse
-deb-src http://mirrors.cloud.tencent.com/ubuntu/ xenial-updates main restricted universe multiverse
-#deb-src http://mirrors.cloud.tencent.com/ubuntu/ xenial-proposed main restricted universe multiverse
-#deb-src http://mirrors.cloud.tencent.com/ubuntu/ xenial-backports main restricted universe multiverse
+deb https://mirrors.aliyun.com/ubuntu/ xenial main
+deb-src https://mirrors.aliyun.com/ubuntu/ xenial main
+
+deb https://mirrors.aliyun.com/ubuntu/ xenial-updates main
+deb-src https://mirrors.aliyun.com/ubuntu/ xenial-updates main
+
+deb https://mirrors.aliyun.com/ubuntu/ xenial universe
+deb-src https://mirrors.aliyun.com/ubuntu/ xenial universe
+deb https://mirrors.aliyun.com/ubuntu/ xenial-updates universe
+deb-src https://mirrors.aliyun.com/ubuntu/ xenial-updates universe
+
+deb https://mirrors.aliyun.com/ubuntu/ xenial-security main
+deb-src https://mirrors.aliyun.com/ubuntu/ xenial-security main
+deb https://mirrors.aliyun.com/ubuntu/ xenial-security universe
+deb-src https://mirrors.aliyun.com/ubuntu/ xenial-security universe
