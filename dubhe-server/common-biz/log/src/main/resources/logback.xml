@@ -5,7 +5,7 @@
     <springProperty scope="context" name="app.name" source="spring.application.name"/>
     <property name="log.path" value="${app.name}-${app.active}" />
     <property name="log.pattern"
-              value="%black(${app.name}) %red(%d{yyyy-MM-dd HH:mm:ss}) %highlight(%-5level) %boldMagenta(%logger{36}) [%X{traceId}] - %gray(%msg%n)" />
+              value="${app.name} %d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} [%X{traceId}] - %msg%n" />
 
     <!-- 控制台日志：输出全部日志到控制台 -->
     <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
