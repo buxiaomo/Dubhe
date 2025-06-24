@@ -1,3 +1,5 @@
+Use dubhe;
+
 -- DML 脚本
 SET SQL_SAFE_UPDATES = 0;
 -- 原boot单体项目 DML 脚本内容

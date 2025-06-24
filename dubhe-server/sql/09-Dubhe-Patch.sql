@@ -1,5 +1,4 @@
--- DML 脚本
-use `dubhe`;
+Use dubhe;
 
 ALTER TABLE `pt_train_param`
     ADD COLUMN algorithm_usage varchar(255) NULL DEFAULT '' COMMENT '算法用途',

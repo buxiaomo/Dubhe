@@ -1,3 +1,5 @@
+Use dubhe;
+
 -- 原boot单体项目 DDL 脚本内容
 CREATE TABLE IF NOT EXISTS `data_dataset` (
     `id` bigint(20) NOT NULL AUTO_INCREMENT,

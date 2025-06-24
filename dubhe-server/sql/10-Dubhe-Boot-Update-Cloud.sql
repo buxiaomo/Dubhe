@@ -1,12 +1,10 @@
+Use dubhe;
+
 /**
   注意一下三张表可能有分表
   data_dataset_version、data_file、data_file_annotation
   在分表上同样执行表结构的修改语句
  */
-
-
--- DML 脚本
-use `dubhe`;
 
 SET SQL_SAFE_UPDATES = 0;
 DELIMITER //
