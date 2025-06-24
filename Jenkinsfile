@@ -256,7 +256,20 @@ pipeline {
                     }
                     if (proceed) {
                         checkout scmGit(branches: [[name: '*/main']], extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'dubhe-chart']], userRemoteConfigs: [[url: "https://github.com/buxiaomo/dubhe-chart.git"]])
-                        sh "helm upgrade -i dubhe ./dubhe-chart -n ${env.PROJECT_NAME}-${env.PROJECT_ENV} --create-namespace --set global.storageClassName=${params.storageClassName} --set dubhe.cicd.enabled=false --set dubhe.image.host=${env.REGISTRY_HOST} --set dubhe.image.repository=${env.JOB_NAME} --set dubhe.image.tag=${BUILD_NUMBER} --wait --timeout 1h0s"
+
+                        // 检查release是否已存在
+                        def releaseExists = sh(
+                            script: "helm list -n ${env.PROJECT_NAME}-${env.PROJECT_ENV} | grep -q '^dubhe\\s'",
+                            returnStatus: true
+                        ) == 0
+                        
+                        if (releaseExists) {
+                            echo "Release 'dubhe' already exists, using helm upgrade"
+                            sh "helm upgrade dubhe ./dubhe-chart -n ${env.PROJECT_NAME}-${env.PROJECT_ENV} --set global.storageClassName=${params.storageClassName} --set dubhe.cicd.enabled=false --set dubhe.image.host=${env.REGISTRY_HOST} --set dubhe.image.repository=${env.JOB_NAME} --set dubhe.image.tag=${BUILD_NUMBER} --wait --timeout 1h0s"
+                        } else {
+                            echo "Release 'dubhe' does not exist, using helm install"
+                            sh "helm install dubhe ./dubhe-chart -n ${env.PROJECT_NAME}-${env.PROJECT_ENV} --create-namespace --set global.storageClassName=${params.storageClassName} --set dubhe.cicd.enabled=false --set dubhe.image.host=${env.REGISTRY_HOST} --set dubhe.image.repository=${env.JOB_NAME} --set dubhe.image.tag=${BUILD_NUMBER} --wait --timeout 1h0s"
+                        }
                     }
                 }
             }
