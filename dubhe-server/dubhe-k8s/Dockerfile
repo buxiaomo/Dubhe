@@ -1,4 +1,7 @@
 FROM openjdk:8-jre
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY ./target/dubhe-k8s-0.0.1-SNAPSHOT-exec.jar /app/app.jar
 ENV SPRING_PROFILES_ACTIVE="prod"
