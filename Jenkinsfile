@@ -4,7 +4,7 @@ pipeline {
     }
 
     parameters {
-        string defaultValue: '101.32.11.146', name: 'baseUrl', trim: true
+        string defaultValue: '192.168.2.228', name: 'baseUrl', trim: true
         choice choices: ['amd64', 'arm64', 'amd64,arm64'], name: 'platform'
         choice choices: ['local-path', 'nfs-client'], name: 'storageClassName'
     }
@@ -13,9 +13,9 @@ pipeline {
         PROJECT_NAME = "dubhe"
         PROJECT_ENV = "system"
 
-        REPOSITORY_URL = "https://gitee.com/buxiaomo/Dubhe.git"
+        REPOSITORY_URL = "https://github.com/buxiaomo/Dubhe.git"
 
-        REGISTRY_HOST = "192.168.1.2:5000"
+        REGISTRY_HOST = "192.168.2.228:30002"
     }
 
     options {
@@ -26,7 +26,10 @@ pipeline {
     stages {
         stage('checkout') {
             steps {
-                checkout scmGit(branches: [[name: '*/add-health-check']], extensions: [], userRemoteConfigs: [[url: "${env.REPOSITORY_URL}"]])
+                checkout scmGit(branches: [[name: '*/add-health-check']], extensions: [lfs()], userRemoteConfigs: [[url: "${env.REPOSITORY_URL}"]])
+                withCredentials([usernamePassword(credentialsId: 'harbor', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
+                    sh "echo ${PASSWORD} | docker login ${env.REGISTRY_HOST} -u ${USERNAME} --password-stdin"
+                }
             }
         }
 
@@ -83,6 +86,13 @@ pipeline {
                     steps {
                         dir('dubhe_data_process') {
                             sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-data-process:${BUILD_NUMBER} --push ."
+                        }
+                    }
+                }
+                stage('ofrecord') {
+                    steps {
+                        dir('dubhe_data_process/docker-image/ofrecord') {
+                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/algorithm-ofrecord:${BUILD_NUMBER} --push ."
                         }
                     }
                 }
@@ -256,20 +266,7 @@ pipeline {
                     }
                     if (proceed) {
                         checkout scmGit(branches: [[name: '*/main']], extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'dubhe-chart']], userRemoteConfigs: [[url: "https://github.com/buxiaomo/dubhe-chart.git"]])
-
-                        // 检查release是否已存在
-                        def releaseExists = sh(
-                            script: "helm list -n ${env.PROJECT_NAME}-${env.PROJECT_ENV} | grep -q '^dubhe\\s'",
-                            returnStatus: true
-                        ) == 0
-                        
-                        if (releaseExists) {
-                            echo "Release 'dubhe' already exists, using helm upgrade"
-                            sh "helm upgrade dubhe ./dubhe-chart -n ${env.PROJECT_NAME}-${env.PROJECT_ENV} --set global.storageClassName=${params.storageClassName} --set dubhe.cicd.enabled=false --set dubhe.image.host=${env.REGISTRY_HOST} --set dubhe.image.repository=${env.JOB_NAME} --set dubhe.image.tag=${BUILD_NUMBER} --wait --timeout 1h0s"
-                        } else {
-                            echo "Release 'dubhe' does not exist, using helm install"
-                            sh "helm install dubhe ./dubhe-chart -n ${env.PROJECT_NAME}-${env.PROJECT_ENV} --create-namespace --set global.storageClassName=${params.storageClassName} --set dubhe.cicd.enabled=false --set dubhe.image.host=${env.REGISTRY_HOST} --set dubhe.image.repository=${env.JOB_NAME} --set dubhe.image.tag=${BUILD_NUMBER} --wait --timeout 1h0s"
-                        }
+                        sh "helm upgrade -i dubhe ./dubhe-chart -n ${env.PROJECT_NAME}-${env.PROJECT_ENV} --set global.storageClassName=${params.storageClassName} --set dubhe.cicd.enabled=false --set dubhe.image.host=${env.REGISTRY_HOST} --set dubhe.image.repository=${env.JOB_NAME} --set dubhe.image.tag=${BUILD_NUMBER} --wait --timeout 1h0s"
                     }
                 }
             }
