@@ -17,12 +17,12 @@ ENV LD_LIBRARY_PATH=/tmp/darknet_dependencies/:$LD_LIBRARY_PATH
 RUN wget -q https://media.githubusercontent.com/media/buxiaomo/Dubhe/refs/heads/add-health-check/dubhe_data_process/docker-image/ofrecord/oneflow.zip?download=true -O /tmp/oneflow.zip \
     && unzip /tmp/oneflow.zip -d /tmp \
     && rm -rf /tmp/oneflow.zip \
-    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --upgrade pip \
-    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ /tmp/oneflow_cu102-0.3.4-cp37-cp37m-manylinux2014_x86_64.whl \
-    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ /tmp/oneflow_yolov3-0.0.0-py3-none-any.whl \
-    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ opencv-python \
-    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ numpy \
-    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ redis \
-    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ nvidia-ml-py3 \
-    && TMPDIR=/tmp/pip pip install protobuf==3.17.0 --user -i http://mirrors.aliyun.com/pypi/simple/ \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com --upgrade pip \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com /tmp/oneflow_cu102-0.3.4-cp37-cp37m-manylinux2014_x86_64.whl \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com /tmp/oneflow_yolov3-0.0.0-py3-none-any.whl \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com opencv-python \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com numpy \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com redis \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com nvidia-ml-py3 \
+    && TMPDIR=/tmp/pip pip install protobuf==3.17.0 --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com \
     && rm -rf /tmp/pip /tmp/*.whl /tmp/oneflow.zip
