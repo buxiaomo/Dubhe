@@ -16,12 +16,12 @@ ENV LD_LIBRARY_PATH=/tmp/darknet_dependencies/:$LD_LIBRARY_PATH
 RUN wget https://media.githubusercontent.com/media/buxiaomo/Dubhe/refs/heads/add-health-check/dubhe_data_process/docker-image/ofrecord/oneflow.zip?download=true -O /tmp/oneflow.zip \
     && unzip /tmp/oneflow.zip -d /tmp \
     && rm -rf /tmp/oneflow.zip \
-    && pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ --upgrade pip \
-    && pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ /tmp/oneflow_cu102-0.3.4-cp37-cp37m-manylinux2014_x86_64.whl \
-    && pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ /tmp/oneflow_yolov3-0.0.0-py3-none-any.whl \
-    && pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ opencv-python \
-    && pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ numpy \
-    && pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ redis \
-    && pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ nvidia-ml-py3 \
-    && pip install protobuf==3.17.0 --user -i https://mirrors.cloud.tencent.com/pypi/simple/ \
-    && rm -rf /tmp/*.whl /tmp/oneflow.zip
+    && TMPDIR=/usr/local/src/pip pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ --upgrade pip \
+    && TMPDIR=/usr/local/src/pip pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ /tmp/oneflow_cu102-0.3.4-cp37-cp37m-manylinux2014_x86_64.whl \
+    && TMPDIR=/usr/local/src/pip pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ /tmp/oneflow_yolov3-0.0.0-py3-none-any.whl \
+    && TMPDIR=/usr/local/src/pip pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ opencv-python \
+    && TMPDIR=/usr/local/src/pip pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ numpy \
+    && TMPDIR=/usr/local/src/pip pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ redis \
+    && TMPDIR=/usr/local/src/pip pip install --user -i https://mirrors.cloud.tencent.com/pypi/simple/ nvidia-ml-py3 \
+    && TMPDIR=/usr/local/src/pip pip install protobuf==3.17.0 --user -i https://mirrors.cloud.tencent.com/pypi/simple/ \
+    && rm -rf /usr/local/src/pip /tmp/*.whl /tmp/oneflow.zip
