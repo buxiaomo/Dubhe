@@ -1,5 +1,7 @@
 FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu20.04
 
+COPY sources.list /etc/apt/sources.list
+
 ENV LANG=C.UTF-8
 RUN apt-get update \
     && apt-get install -y --no-install-recommends wget unzip zlib1g-dev zlibc libffi-dev \
