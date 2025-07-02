@@ -4,7 +4,7 @@ COPY sources.list /etc/apt/sources.list
 
 ENV LANG=C.UTF-8
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends wget unzip zlib1g-dev zlibc libffi-dev \
+    && apt-get install -y --no-install-recommends wget unzip zlib1g-dev zlibc libffi-dev libssl-dev \
     && wget -q https://www.python.org/ftp/python/3.7.4/Python-3.7.4.tgz -O /tmp/Python-3.7.4.tgz \
     && tar -zxf /tmp/Python-3.7.4.tgz -C /usr/local/src/ \
     && cd /usr/local/src/Python-3.7.4 \
