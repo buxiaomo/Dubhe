@@ -28,4 +28,5 @@ RUN apt-get update \
     && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com redis==4.3.3 \
     && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com nvidia-ml-py3==7.352.0 \
     && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com protobuf==3.20.3 \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com six==1.16.0 \
     && rm -rf /tmp/pip /tmp/*.whl /tmp/oneflow.zip /var/lib/apt/lists/*
