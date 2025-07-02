@@ -3,7 +3,7 @@ FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu20.04
 ENV LANG=C.UTF-8
 RUN apt-get update \
     && apt-get install -y --no-install-recommends wget unzip zlib1g-dev zlibc libffi-dev \
-    && wget https://www.python.org/ftp/python/3.7.4/Python-3.7.4.tgz -O /tmp/Python-3.7.4.tgz \
+    && wget -q https://www.python.org/ftp/python/3.7.4/Python-3.7.4.tgz -O /tmp/Python-3.7.4.tgz \
     && tar -zxf /tmp/Python-3.7.4.tgz -C /usr/local/src/ \
     && cd /usr/local/src/Python-3.7.4 \
     && ./configure --enable-optimizations --with-lto \
@@ -27,5 +27,5 @@ RUN apt-get update \
     && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com numpy==1.21.6 \
     && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com redis==4.3.3 \
     && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com nvidia-ml-py3==7.352.0 \
-    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com protobuf==3.17.0 \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com protobuf==3.20.3 \
     && rm -rf /tmp/pip /tmp/*.whl /tmp/oneflow.zip /var/lib/apt/lists/*
