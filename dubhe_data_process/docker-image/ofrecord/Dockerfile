@@ -16,7 +16,7 @@ RUN apt-get update \
 # 安装 oneflow yolov3 依赖
 ENV LD_LIBRARY_PATH=/tmp/darknet_dependencies/:$LD_LIBRARY_PATH
 RUN apt-get update \
-    && apt-get install --no-install-recommends libgl1-mesa-glx -y \
+    && apt-get install --no-install-recommends libgl1-mesa-glx libglib2.0-0 -y \
     && wget -q https://media.githubusercontent.com/media/buxiaomo/Dubhe/refs/heads/add-health-check/dubhe_data_process/docker-image/ofrecord/oneflow.zip?download=true -O /tmp/oneflow.zip \
     && unzip /tmp/oneflow.zip -d /tmp \
     && rm -rf /tmp/oneflow.zip \
