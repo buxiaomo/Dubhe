@@ -23,9 +23,9 @@ RUN apt-get update \
     && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com --upgrade pip \
     && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com /tmp/oneflow_cu102-0.3.4-cp37-cp37m-manylinux2014_x86_64.whl \
     && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com /tmp/oneflow_yolov3-0.0.0-py3-none-any.whl \
-    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com opencv-python \
-    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com numpy \
-    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com redis \
-    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com nvidia-ml-py3 \
-    && TMPDIR=/tmp/pip pip install protobuf==3.17.0 --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com opencv-python==4.6.0.66 \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com numpy==1.21.6 \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com redis==4.3.3 \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com nvidia-ml-py3==7.352.0 \
+    && TMPDIR=/tmp/pip pip install --user -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com protobuf==3.17.0 \
     && rm -rf /tmp/pip /tmp/*.whl /tmp/oneflow.zip /var/lib/apt/lists/*
