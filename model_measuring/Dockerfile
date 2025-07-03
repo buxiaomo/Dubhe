@@ -20,6 +20,6 @@ COPY . /model_measuring
 RUN conda env create --file=/model_measuring/pytorch.yaml --yes \
     && /opt/conda/bin/conda clean --all -y && rm -rf /root/.cache/*
 
-RUN conda activate pytorch
+# RUN conda activate pytorch
 
-CMD [ "python", "/model_measuring/app.py" ]
+# CMD [ "python", "/model_measuring/app.py" ]
