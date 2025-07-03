@@ -9,7 +9,7 @@ RUN apt-get update \
     && tar -zxf /tmp/Python-3.7.4.tgz -C /usr/local/src/ \
     && cd /usr/local/src/Python-3.7.4 \
     && ./configure --enable-optimizations --with-lto \
-    && make -j$(nproc) && make install \
+    && make profile-opt PROFILE_TASK="" && make install \
     && rm -rf /tmp/Python-3.7.4.tgz /usr/local/src/Python-3.7.4 /var/lib/apt/lists/* \
     && ln -s /usr/local/bin/python3.7 /usr/bin/python \
     && ln -s /usr/local/bin/pip3.7 /usr/bin/pip \
