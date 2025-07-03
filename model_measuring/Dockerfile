@@ -21,8 +21,7 @@ COPY . /model_measuring
 RUN conda config --add channels https://mirrors.ustc.edu.cn/anaconda/pkgs/main/ \
     && conda config --set show_channel_urls yes \
     && conda env create --file=/model_measuring/pytorch.yaml --yes \
-    && /opt/conda/bin/conda clean --all -y && rm -rf /root/.cache/*
+    && /opt/conda/bin/conda clean --all -y && rm -rf /root/.cache/* \
+    && bash -c "source /opt/conda/bin/activate pytorch"
 
-# RUN conda activate pytorch
-
-# CMD [ "python", "/model_measuring/app.py" ]
+CMD [ "python", "/model_measuring/app.py" ]

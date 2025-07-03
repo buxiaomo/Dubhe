@@ -66,3 +66,4 @@ dependencies:
     - tornado==6.0.4
     - tqdm==4.53.0
     - urllib3==1.25.9
+    - web-py==0.62
