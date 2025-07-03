@@ -24,4 +24,4 @@ RUN conda config --add channels https://mirrors.ustc.edu.cn/anaconda/pkgs/main/ 
     && /opt/conda/bin/conda clean --all -y && rm -rf /root/.cache/* \
     && bash -c "source /opt/conda/bin/activate pytorch"
 
-CMD [ "python", "/model_measuring/app.py" ]
+CMD ["conda", "run", "-n", "pytorch", "python", "/model_measuring/app.py"]
