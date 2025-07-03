@@ -15,6 +15,7 @@ RUN apt-get update \
     && apt-get clean all \
     && rm -rf /var/lib/apt/lists/*
 
+ENV PIP_NO_REQUIRE_HASHES=1
 ENV PATH=/opt/conda/bin:$PATH
 COPY . /model_measuring
 RUN conda config --add channels https://mirrors.ustc.edu.cn/anaconda/pkgs/main/ \
