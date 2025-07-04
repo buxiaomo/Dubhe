@@ -28,4 +28,4 @@ dependencies:
     - tsne-mp==0.1.13
     - typing-extensions==4.0.0
     - watchdog==0.10.3
-prefix: /root/anaconda3/envs/dubhe_visual
+prefix: /opt/conda/envs/visual
