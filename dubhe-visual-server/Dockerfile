@@ -24,3 +24,11 @@ ENV PIP_NO_REQUIRE_HASHES=1
 COPY . /dubhe-visual-server
 RUN conda env create --file=/dubhe-visual-server/dubhe_visual.yaml \
     && /opt/conda/bin/conda clean --all && rm -rf /root/.cache/*
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y supervisor \
+    && apt-get clean all \
+    && rm -rf /var/lib/apt/lists/*
+COPY supervisord.conf /etc/supervisor/supervisord.conf
+COPY app.conf /etc/supervisor/conf.d/
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
