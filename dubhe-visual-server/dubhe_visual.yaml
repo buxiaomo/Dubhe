@@ -5,7 +5,7 @@ dependencies:
   - ca-certificates
   - openssl
   - pip
-  - python=3.7
+  - python=3.9
   - python_abi
   - setuptools
   - sqlite
