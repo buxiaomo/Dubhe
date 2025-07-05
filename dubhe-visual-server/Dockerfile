@@ -6,10 +6,10 @@ RUN apt-get update \
 
 RUN apt-get update \
     && apt-get install --no-install-recommends vim git curl -y \
-    && curl https://repo.anaconda.com/miniconda/Miniconda3-py310_24.9.2-0-Linux-$(uname -m).sh -o /tmp/miniconda3.sh \
-    && chmod +x /tmp/miniconda3.sh \
-    && /tmp/miniconda3.sh -b -p /opt/conda \
-    && rm /tmp/miniconda3.sh \
+    && curl https://repo.anaconda.com/archive/Anaconda3-2020.11-Linux-$(uname -m).sh  -o /tmp/anaconda3.sh \
+    && chmod +x /tmp/anaconda3.sh \
+    && /tmp/anaconda3.sh -b -p /opt/conda \
+    && rm /tmp/anaconda3.sh \
     && touch /opt/conda/bin/activate \
     && echo 'export PATH="/opt/conda/bin:$PATH"' >> /opt/conda/bin/activate \
     && echo 'export PATH="/opt/conda/bin:$PATH"' >> /etc/profile \
