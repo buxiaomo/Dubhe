@@ -1,11 +1,12 @@
 name: dubhe_visual
 channels:
   - defaults
+  - conda-forge
 dependencies:
   - ca-certificates
   - openssl
   - pip
-  - python=3.9
+  - python=3.7
   - python_abi
   - setuptools
   - sqlite
