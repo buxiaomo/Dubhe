@@ -19,11 +19,11 @@ RUN apt-get update \
     && apt-get clean all \
     && rm -rf /var/lib/apt/lists/*
 
-ENV PIP_NO_REQUIRE_HASHES=1
-ENV PATH=/opt/conda/bin:$PATH
-COPY . /dubhe-visual-server
-RUN conda config --add channels https://mirrors.ustc.edu.cn/anaconda/pkgs/main/ \
-    && conda config --set show_channel_urls yes \
-    && conda env create --file=/dubhe-visual-server/dubhe_visual.yaml --yes \
-    && /opt/conda/bin/conda clean --all -y && rm -rf /root/.cache/* \
-    && bash -c "source /opt/conda/bin/activate visual"
+# ENV PIP_NO_REQUIRE_HASHES=1
+# ENV PATH=/opt/conda/bin:$PATH
+# COPY . /dubhe-visual-server
+# RUN conda config --add channels https://mirrors.ustc.edu.cn/anaconda/pkgs/main/ \
+#     && conda config --set show_channel_urls yes \
+#     && conda env create --file=/dubhe-visual-server/dubhe_visual.yaml --yes \
+#     && /opt/conda/bin/conda clean --all -y && rm -rf /root/.cache/* \
+#     && bash -c "source /opt/conda/bin/activate visual"
