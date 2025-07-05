@@ -20,7 +20,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 ENV PATH=/opt/conda/bin:$PATH
 
-ENV PIP_NO_REQUIRE_HASHES=1
+# ENV PIP_NO_REQUIRE_HASHES=1
 COPY . /dubhe-visual-server
 RUN conda env create --file=/dubhe-visual-server/dubhe_visual.yaml \
     && /opt/conda/bin/conda clean --all && rm -rf /root/.cache/*
