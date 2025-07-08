@@ -1,0 +1,180 @@
+{{- if .Values.dubhe.cicd.enabled }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jenkins-swarm-auth
+type: kubernetes.io/basic-auth
+stringData:
+  username: {{ .Values.dubhe.cicd.username }}
+  password: {{ .Values.dubhe.cicd.password }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: buildkitd
+data:
+  buildkitd.toml: |-
+    debug = false
+    [log]
+      format = "json"
+    {{- range index .Values.dubhe.cicd.docker "insecure-registry" }}
+    [registry."{{ . }}"]
+      http = true
+    {{- end }}
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: jenkins-swarm
+  labels:
+    app: jenkins-swarm
+spec:
+  selector:
+    matchLabels:
+      app: jenkins-swarm
+  template:
+    metadata:
+      labels:
+        app: jenkins-swarm
+    spec:
+      restartPolicy: Always
+      volumes:
+        - name: buildkitd
+          configMap:
+            defaultMode: 0755
+            name: buildkitd
+        - name: var-run
+          emptyDir: {}
+        - name: run-containerd
+          emptyDir: {}
+        # - name: run-buildkit
+        #   emptyDir: {}
+        - name: dockerd-vol
+          hostPath:
+            path: {{ .Values.dubhe.cicd.docker.hostPath }}
+            type: DirectoryOrCreate
+        - name: jenkins-swarm-vol
+          hostPath:
+            path: {{ .Values.dubhe.cicd.swarm.hostPath }}
+            type: DirectoryOrCreate
+        - name: buildkitd-vol
+          hostPath:
+            path: /data/buildkitd
+            type: DirectoryOrCreate
+      nodeSelector:
+        jenkins: "true"
+      containers:
+        - name: dockerd
+          image: "{{ .Values.dubhe.cicd.docker.repository }}:{{ .Values.dubhe.cicd.docker.tag }}"
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /var/run/docker.sock"]
+          args:
+    {{- range index .Values.dubhe.cicd.docker "insecure-registry" }}
+            - "--insecure-registry"
+            - "{{ . }}"
+    {{- end }}
+            - "--log-level"
+            - "error"
+            - "--log-format"
+            - "json"
+          tty: true
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+          ports:
+            - name: dind-con-port
+              containerPort: 2376
+              protocol: TCP
+          volumeMounts:
+            - name: dockerd-vol
+              mountPath: /var/lib/docker
+            - name: jenkins-swarm-vol
+              mountPath: /data/jenkins-swarm
+            - name: var-run
+              mountPath: /var/run
+            - name: run-containerd
+              mountPath: /var/run/docker/containerd
+            - name: buildkitd
+              mountPath: /etc/buildkit/buildkitd.toml
+              subPath: buildkitd.toml
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            exec:
+              command:
+                - "docker"
+                - "-H"
+                - "unix:///var/run/docker.sock"
+                - "ps"
+          livenessProbe:
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            exec:
+              command:
+                - "docker"
+                - "-H"
+                - "unix:///var/run/docker.sock"
+                - "ps"
+        - name: jenkins-swarm
+          image: "{{ .Values.dubhe.cicd.swarm.repository }}:{{ .Values.dubhe.cicd.swarm.tag }}"
+          imagePullPolicy: Always
+          # lifecycle:
+          #   postStart:
+          #     exec:
+          #       command: ["/bin/sh", "-c", "docker ps && nerdctl ps"]
+          volumeMounts:
+            - name: jenkins-swarm-vol
+              mountPath: /data/jenkins-swarm
+            - name: var-run
+              mountPath: /var/run
+            - name: run-containerd
+              mountPath: /run/containerd
+            - name: buildkitd
+              mountPath: /etc/buildkit/buildkitd.toml
+              subPath: buildkitd.toml
+          livenessProbe:
+            httpGet:
+              path: /prometheus
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /prometheus
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            failureThreshold: 10
+          env:
+            - name: AGENT_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: JENKINS_USER
+              valueFrom:
+                secretKeyRef:
+                  key: username
+                  name: jenkins-swarm-auth
+            - name: JENKINS_PASS
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: jenkins-swarm-auth
+            - name: JENKINS_MASTER
+              value: http://jenkins:8080/jenkins
+            - name: JENKINS_OPTS
+              value: "-prometheusPort 8080 -disableSslVerification -noRetryAfterConnected"
+            - name: JENKINS_EXECUTORS
+              value: "{{ .Values.dubhe.cicd.swarm.executors }}"
+            - name: GIT_SSL_NO_VERIFY
+              value: "true"
+            - name: JAVA_OPTS
+              value: "-Duser.timezone=Asia/Shanghai"
+{{- end }}

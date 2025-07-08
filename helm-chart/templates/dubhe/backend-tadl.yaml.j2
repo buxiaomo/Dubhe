@@ -1,0 +1,99 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-tadl
+spec:
+  selector:
+    app: backend-tadl
+  ports:
+    - name: http
+      port: 8864
+      targetPort: 8864
+      protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-tadl
+  labels:
+    app: backend-tadl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-tadl
+  template:
+    metadata:
+      labels:
+        app: backend-tadl
+    spec:
+      volumes:
+        - name: dubhe-vol
+          hostPath:
+            path: {{ .Values.dubhe.hostPath }}
+        - name: dubhe
+          configMap:
+            defaultMode: 0755
+            name: dubhe
+      initContainers:
+        - name: wait-for-mysql
+          image: "{{ .Values.dubhe.initContainers.infra.image.repository }}"
+          command: 
+          - 'sh'
+          - '-c'
+          - |
+            set -x
+            until nc -z dubhe-mysql 3306; do
+              echo "Waiting for service to be ready..."
+              sleep 5
+            done
+            echo "Service is ready."
+        - name: wait-for-nacos
+          image: "{{ .Values.dubhe.initContainers.infra.image.repository }}"
+          command: 
+          - 'sh'
+          - '-c'
+          - |
+            set -x
+            until  wget -q http://nacos:8848/nacos -O /dev/null; do
+              echo "Waiting for service to be ready..."
+              sleep 5
+            done
+            echo "Service is ready."
+      containers:
+        - name: backend-tadl
+          image: "{{ .Values.dubhe.image.host }}/{{ .Values.dubhe.image.repository }}/dubhe-tadl:{{ .Values.dubhe.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: dubhe-vol
+              mountPath: /nfs
+            - name: dubhe
+              mountPath: /app/bootstrap-prod.yml
+              subPath: bootstrap-prod.yml
+          ports:
+            - name: http
+              containerPort: 8864
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 60
+            failureThreshold: 5
+            successThreshold: 1
+            periodSeconds: 10
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 8864
+          readinessProbe:
+            initialDelaySeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 8864
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"

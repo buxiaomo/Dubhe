@@ -1,0 +1,44 @@
+# kind: Ingress
+# apiVersion: extensions/v1beta1
+# metadata:
+#   name: dubhe
+#   annotations:
+#     kubernetes.io/ingress.class: traefik
+# spec:
+#   rules:
+#     - host: dcm.xiaomo.site
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               serviceName: backend-dcm4chee
+#               servicePort: 11112
+#     - host: {{ .Values.external_url.web }}
+#       http:
+#         paths:
+#           - path: /model_measure
+#             pathType: Prefix
+#             backend:
+#               serviceName: backend-model-measure
+#               servicePort: 8821
+#           - path: /nacos
+#             pathType: Prefix
+#             backend:
+#               serviceName: nacos
+#               servicePort: 8848
+#           - path: /minio
+#             pathType: Prefix
+#             backend:
+#               serviceName: minio
+#               servicePort: 9000
+#           - path: /ws
+#             pathType: Prefix
+#             backend:
+#               serviceName: backend-k8s
+#               servicePort: 8960
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               serviceName: web
+#               servicePort: 80

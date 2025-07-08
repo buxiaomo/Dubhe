@@ -1,0 +1,1306 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dubhe-config
+data:
+  kubeconfig.yaml: |-
+{{ .Files.Get "files/remote-access.kubeconfig" | indent 4 }}
+
+  admin.yaml: |
+    #密码加密传输，前端公钥加密，后端私钥解密
+    rsa:
+      private_key: MIIBUwIBADANBgkqhkiG9w0BAQEFAASCAT0wggE5AgEAAkEA0vfvyTdGJkdbHkB8mp0f3FE0GYP3AYPaJF7jUd1M0XxFSE2ceK3k2kw20YvQ09NJKk%2BOMjWQl9WitG9pB6tSCQIDAQABAkA2SimBrWC2%2FwvauBuYqjCFwLvYiRYqZKThUS3MZlebXJiLB%2BUe%2FgUifAAKIg1avttUZsHBHrop4qfJCwAI0%2BYRAiEA%2BW3NK%2FRaXtnRqmoUUkb59zsZUBLpvZgQPfj1MhyHDz0CIQDYhsAhPJ3mgS64NbUZmGWuuNKp5coY2GIj%2FzYDMJp6vQIgUueLFXv%2FeZ1ekgz2Oi67MNCk5jeTF2BurZqNLR3MSmUCIFT3Q6uHMtsB9Eha4u7hS31tj1UWE%2BD%2BADzp59MGnoftAiBeHT7gDMuqeJHPL4b%2BkC%2BgzV4FGTfhR9q3tTbklZkD2A%3D%3D%0A
+      public_key: MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBANL378k3RiZHWx5AfJqdH9xRNBmD9wGD2iRe41HdTNF8RUhNnHit5NpMNtGL0NPTSSpPjjI1kJfVorRvaQerUgkCAwEAAQ%3D%3D%0A%0A
+
+    # 后台添加用户的初始密码
+    initial_password: "123456"
+
+    # 登录图形验证码有效时间/分钟
+    loginCode:
+      expiration: 2
+      codeKey: "validate_code"
+      width: 108
+      height: 28
+      length: 4
+    
+    # hystrix的超时时间
+    hystrix:
+      command:
+        default:
+          execution:
+            timeout:
+              enabled: true
+            isolation:
+              thread:
+                timeoutInMilliseconds: 30000
+    
+    # ribbon的超时时间
+    ribbon:
+      ReadTimeout: 30000
+      ConnectTimeout: 30000
+    
+    # 配置转发
+    dubhe-proxy:
+      visual:
+        keyword: visual
+        server: backend-visual.{{.Release.Namespace}}.svc.cluster.local
+        port: 9898
+      refine:
+        keyword: refine
+        server: backend-visual.{{.Release.Namespace}}.svc.cluster.local
+        port: 9797
+
+    ## 测试标识
+    debug:
+       flag: false
+    
+    # 可匿名访问路径
+    security:
+      permitAll:
+        matchers: /resourceSpecs/queryTadlResourceSpecs
+    
+    # 见微-公钥（自行生成）
+    vis:
+      public_key: 123456
+
+  auth.yaml: |
+    #jwt
+    jwt:
+      # 在线用户key
+      online-key: online-token
+
+  common-biz-test.yaml: |
+    #配置数据源
+    spring:
+        # 邮箱配置
+      mail:
+        host: smtp.163.com
+        # 邮件的发送者 163邮箱(开发测试时使用 发送延时 20秒，每天发送量限制 50)
+        username: dubhe_ai@163.com
+        # SMTP授权密码
+        password: DOZXSADOUDXWGVUW
+        protocol: smtp
+        properties.mail.smtp.auth: true
+        properties.mail.smtp.port: 465 #465或者994
+        properties.mail.smtp.starttls.enable: true
+        properties.mail.smtp.starttls.required: true
+        properties.mail.smtp.ssl.enable: true
+        default-encoding: utf-8
+      redis:
+        #数据库索引
+        database: 0
+        host: 10.5.24.134
+        port: 6379
+        password: 
+        #连接超时时间
+        timeout: 5000
+      datasource:
+        druid:
+          removeAbandoned: true
+          removeAbandonedTimeout: 180
+          logAbandoned: false
+          db-type: com.alibaba.druid.pool.DruidDataSource
+          driverClassName: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+          url: jdbc:log4jdbc:mysql://10.101.12.29:3306/open-dev?serverTimezone=Asia/Shanghai&characterEncoding=utf8&useSSL=false&allowMultiQueries=true&useInformationSchema=true&rewriteBatchedStatements=true
+          username: tianshu-dev
+          password: Zjlab@2022
+    
+          # 初始化配置
+          initial-size: 3
+          # 最小连接数
+          min-idle: 3
+          # 最大连接数
+          max-active: 15
+          # 获取连接超时时间
+          max-wait: 5000
+          # 连接有效性检测时间
+          time-between-eviction-runs-millis: 90000
+          # 最大空闲时间
+          min-evictable-idle-time-millis: 1800000
+          test-while-idle: true
+          test-on-borrow: false
+          test-on-return: false
+    
+          validation-query: select 1
+          # 配置监控统计拦截的filters
+          filters: stat
+          stat-view-servlet:
+            url-pattern: /druid/*
+            reset-enable: false
+    
+          web-stat-filter:
+            url-pattern: /*
+            exclusions: "*.js,*.gif,*.jpg,*.bmp,*.png,*.css,*.ico,/druid/*"
+      # 配置允许后面的Bean覆盖前面名称重复的Bean
+      main:
+        allow-bean-definition-overriding: true
+    
+    #logback
+    logging.config:
+      classpath:logback.xml
+    
+    # 文件存储服务配置
+    storage:
+      # 文件存储服务暴露的IP地址 如需测试需修改为合适的地址
+      file-store: 10.101.12.29
+      # 文件存储服务端 共享目录
+      file-store-root-path: /nfs/
+      file-store-root-windows-path: "Z:"
+    
+    # minio配置
+    minio:
+      url: http://10.105.0.6:9000/
+      accessKey: admin
+      secretKey: 123@abc.com
+      bucketName: dubhe-open-dev
+      presignedUrlExpiryTime: 300
+      annotation: /annotation/
+    
+    minioweb:
+      GetToken:
+        url: minio/webrpc
+        param:
+          id: 2
+          jsonrpc: 2.0
+          method: Web.Login
+      zip:
+        url: minio/zip?token=
+        
+    #是否开启 swagger-ui
+    swagger:
+      enabled: true
+      
+    # 配置slq打印日志
+    logging:
+      level:
+        com:
+          lawt:
+            repository:
+              mapper: debug
+    
+    #jwt
+    jwt:
+      # 在线用户key
+      online-key: online-token
+    
+    # data模块配置
+    data:
+      server:
+        # 文件存储服务器用户名
+        userName: root
+    
+    feign: 
+    # 开启httpclient
+      httpclient:
+        enabled: true
+      okhttp:
+        enabled: false
+    
+    #配置harbor
+    harbor:
+      address: harbor.dubhe.ai
+      username: admin
+      password: Harbor12345
+      model-name: train
+    
+    #配置dev环境单元测试用户名与密码
+    unittest:
+      username: admin
+      password: admin
+    
+    
+    model:
+      measuring:
+        url:
+          package: http://10.105.0.6:32739/model_measure/package
+          json: http://10.105.0.6:32739/model_measure/measure
+      converter:
+        url: http://10.105.0.6:32230/model_convert    
+    
+    user:
+      config:
+        notebook-delay-delete-time: 8
+        cpu-limit: 10
+        memory-limit: 32
+        gpu-limit: 2
+
+  common-biz.yaml: |
+    # 配置数据源
+    spring:
+        # 邮箱配置
+      mail:
+        host: smtp.163.com
+        # 邮件的发送者 163邮箱(开发测试时使用 发送延时 20秒，每天发送量限制 50)
+        username: dubhe_ai@163.com
+        # SMTP授权密码
+        password: DOZXSADOUDXWGVUW
+        protocol: smtp
+        properties.mail.smtp.auth: true
+        properties.mail.smtp.port: 465 #465或者994
+        properties.mail.smtp.starttls.enable: true
+        properties.mail.smtp.starttls.required: true
+        properties.mail.smtp.ssl.enable: true
+        default-encoding: utf-8
+      redis:
+        # 数据库索引
+        database: 10
+        host: {{ .Values.dubhe.redis.host }}
+        port: {{ .Values.dubhe.redis.port }}
+        password: {{ .Values.dubhe.redis.password }}
+        # 连接超时时间
+        timeout: 5000
+      datasource:
+        druid:
+          removeAbandoned: true
+          removeAbandonedTimeout: 180
+          logAbandoned: false
+          db-type: com.alibaba.druid.pool.DruidDataSource
+          driverClassName: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+          url: jdbc:log4jdbc:mysql://{{ .Values.dubhe.mysql.host }}:{{ .Values.dubhe.mysql.port }}/{{ .Values.dubhe.mysql.database }}?serverTimezone=Asia/Shanghai%26characterEncoding=utf8%26useSSL=false%26allowMultiQueries=true%26useInformationSchema=true%26rewriteBatchedStatements=true
+          username: {{ .Values.dubhe.mysql.username }}
+          password: {{ .Values.dubhe.mysql.password }}
+    
+          # 初始化配置
+          initial-size: 3
+          # 最小连接数
+          min-idle: 3
+          # 最大连接数
+          max-active: 15
+          # 获取连接超时时间
+          max-wait: 5000
+          # 连接有效性检测时间
+          time-between-eviction-runs-millis: 90000
+          # 最大空闲时间
+          min-evictable-idle-time-millis: 1800000
+          test-while-idle: true
+          test-on-borrow: false
+          test-on-return: false
+    
+          validation-query: select 1
+          # 配置监控统计拦截的filters
+          filters: stat
+          stat-view-servlet:
+            url-pattern: /druid/*
+            reset-enable: false
+    
+          web-stat-filter:
+            url-pattern: /*
+            exclusions: "*.js,*.gif,*.jpg,*.bmp,*.png,*.css,*.ico,/druid/*"
+      # 配置允许后面的Bean覆盖前面名称重复的Bean
+      main:
+        allow-bean-definition-overriding: true
+    
+    # logback
+    logging.config:
+      classpath:logback.xml
+    
+    # 文件存储服务配置
+    storage:
+      # 文件存储服务暴露的IP地址 如需测试需修改为合适的地址
+      file-store: 127.0.0.1
+      # 文件存储服务端 共享目录
+      file-store-root-path: /nfs/
+      file-store-root-windows-path: "Z:"
+    
+    # minio配置
+    minio:
+      url: "http://{{ .Values.external_url.web }}/minio"
+      accessKey: {{ .Values.minio.accesskey }}
+      secretKey: {{ .Values.minio.secretkey }}
+      bucketName: dubhe-prod
+      presignedUrlExpiryTime: 300
+      annotation: /annotation/
+    
+    minioweb:
+      GetToken:
+        url: minio/webrpc
+        param:
+          id: 2
+          jsonrpc: 2.0
+          method: Web.Login
+      zip:
+        url: minio/zip?token=
+        
+    # 是否开启 swagger-ui
+    swagger:
+      enabled: true
+      
+    # 配置slq打印日志
+    logging:
+      level:
+        com:
+          lawt:
+            repository:
+              mapper: debug
+    
+    # jwt
+    jwt:
+      # 在线用户key
+      online-key: online-token
+    
+    # data模块配置
+    data:
+      server:
+        # 文件存储服务器用户名
+        userName: root
+    
+    feign: 
+    # 开启httpclient
+      httpclient:
+        enabled: true
+      okhttp:
+        enabled: false
+    
+    # 配置harbor
+    harbor:
+      address: {{ .Values.dubhe.harbor.address }}
+      username: {{ .Values.dubhe.harbor.username }}
+      password: {{ .Values.dubhe.harbor.password }}
+      model-name: train
+    
+    # 配置dev环境单元测试用户名与密码
+    unittest:
+      username: admin
+      password: admin
+
+
+    model:
+      measuring:
+        url:
+          package: "http://{{ .Values.external_url.web }}/model_measure/package"
+          json: "http://{{ .Values.external_url.web }}/model_measure/measure"
+      converter:
+        url: "http://backend-model-converter.{{.Release.Namespace}}.svc.cluster.local:8080/model_convert"    
+
+    user:
+      config:
+        notebook-delay-delete-time: 8
+        cpu-limit: 10
+        memory-limit: 32
+        gpu-limit: 2
+
+  common-k8s.yaml: |
+    train-job:
+      docker-dataset-path: "/dataset"
+      
+    k8s:
+      # k8s集群配置文件
+      kubeconfig: kubeconfig
+      # nfs服务暴露的IP地址 如需测试需修改为合适的地址
+      nfs: 127.0.0.1
+      #nfs服务端 共享目录
+      nfs-root-path: /nfs/
+      nfs-root-windows-path: "Z:"
+      # 文件存储服务暴露的IP地址 如需测试需修改为合适的地址
+      file-store: 127.0.0.1
+      #文件存储服务端 共享目录
+      file-store-root-path: /nfs/
+      file-store-root-windows-path: "Z:"
+      # 命名空间关键字
+      namespace: namespace
+      # elasticsearch暴露的服务地址
+      elasticsearch:
+        hostlist: ${eshostlist:elasticsearch.{{.Release.Namespace}}.svc.cluster.local:9200}
+        # 日志采集配置信息
+        log:
+          type: _doc
+          # 过滤源字段
+          source_field: log,@timestamp,kubernetes.pod_name
+      # 异步回调
+      callback:
+        # boot 单机部署即回调本机实例
+        url: localhost:${server.port}
+        token:
+          # 秘钥
+          secret-key: 1qaz2wsx
+          # 过期时间（秒）
+          expire-seconds: 300
+      # 展示Pod的CPU使用率,Memory使用量,GPU使用率的grafana地址
+      pod:
+        metrics:
+          grafanaUrl: http://grafana.{{.Release.Namespace}}.svc.cluster.local/d/job/monitor?orgId=1%26refresh=5s%26kiosk%26var-pod=
+      prometheus:
+        url: http://prometheus.{{.Release.Namespace}}.svc.cluster.local/
+        query: api/v1/query
+        query-range: api/v1/query_range
+        gpu-query-param: sum(container_accelerator_duty_cycle{pod="pod-name-placeholder"})by(pod,acc_id)
+        gpu-mem-total-query-param: sum(container_accelerator_memory_total_bytes{pod="pod-name-placeholder"})by(pod,acc_id)
+        gpu-mem-use-query-param: sum(container_accelerator_memory_used_bytes{pod="pod-name-placeholder"})by(pod,acc_id)
+        cpu-range-query-param: sum(rate(container_cpu_usage_seconds_total{image!="",pod="pod-name-placeholder"}[1m])) by (pod) / (sum(container_spec_cpu_quota{image!=""}/100000) by (pod)) * 100
+        mem-range-query-param: sum(container_memory_rss{image!="",pod="pod-name-placeholder"})
+        gpu-usage-query-param: sum by(Hostname,gpu)(DCGM_FI_PROF_GR_ENGINE_ACTIVE{Hostname="node-name-placeholder",pod!=""})
+        gpu-range-query-param: sum(container_accelerator_duty_cycle{pod="pod-name-placeholder"}) by (pod,acc_id)
+        gpu-mem-total-range-query-param: sum(container_accelerator_memory_total_bytes{pod="pod-name-placeholder"}) by (pod,acc_id)
+        gpu-mem-use-range-query-param: sum(container_accelerator_memory_used_bytes{pod="pod-name-placeholder"}) by (pod,acc_id)
+        gpu-usage-rate-query-param: topk(10,sort_desc(max_over_time(namespace:DCGM_FI_PROF_GR_ENGINE_ACTIVE:sumn[usage-rate-day])))
+        cpu-usage-rate-query-param: topk(10,sort_desc(max_over_time(namespace:container_cpu_user_seconds_total_sumn:raten[usage-rate-day])))
+        mem-usage-rate-query-param: topk(10,sort_desc(max_over_time(namespace:CONTAINER_MEMERY_USAGE_BYTES:sumn{namespace=~"namespace.*"}[usage-rate-day])))
+        gpu-usage-namespace-query-param: max_over_time(namespace:DCGM_FI_PROF_GR_ENGINE_ACTIVE:sumn{namespace=~"namespace-placeholder"}[usage-rate-day])
+        cpu-usage-namespace-query-param: max_over_time(namespace:container_cpu_user_seconds_total_sumn:raten{namespace=~"namespace-placeholder"}[usage-rate-day])
+        mem-usage-namespace-query-param: max_over_time(namespace:CONTAINER_MEMERY_USAGE_BYTES:sumn{namespace=~"namespace-placeholder"}[usage-rate-day])
+      nfs-storage-class-name: zjlab-nfs-storage
+      namespace-limits:
+        cpu: 10
+        memory: 32
+        gpu: 2
+    #配置harbor
+    harbor:
+      address: {{ .Values.dubhe.harbor.address }}
+      username: {{ .Values.dubhe.harbor.username }}
+      password: {{ .Values.dubhe.harbor.password }}
+      model-name: train
+    
+    # minio配置
+    minio:
+      url: http://{{ .Values.external_url.web }}/minio
+      accessKey: {{ .Values.minio.accesskey }}
+      secretKey: {{ .Values.minio.secretkey }}
+      bucketName: dubhe-prod
+      presignedUrlExpiryTime: 300
+      annotation: /annotation/
+    
+    docker:
+      remoteApiPort: 2375
+    
+    rdma:
+      enable: true
+
+  common-recycle.yaml: |
+    #垃圾回收默认配置
+    recycle:
+      #过期时间设置
+      timeout:
+        #用户上传文件至临时路径下后文件最大有效时长，以小时为单位
+        file-valid: 24
+        #用户删除数据后，默认其文件最大有效时长，以天为单位
+        date: 7
+        #用户删除某一算法后，其算法文件最大有效时长，以天为单位
+        algorithm-valid: 3
+        #用户删除某一模型后，其模型文件最大有效时长，以天为单位
+        model-valid: 3
+        #用户删除训练任务后，其训练管理文件最大有效时长，以天为单位
+        train-valid: 3
+        #用户删除度量文件后，其度量文件最大有效时长，以天为单位
+        measure-valid: 3
+        #用户删除镜像后，其镜像最大有效时长，以天为单位
+        image-valid: 3
+        #回收serving相关文件后，回收文件最大有效时长，以天为单位
+        serving-valid: 3
+        #用户删除tadl算法版本文件后，文件最大有效时长，以天为单位
+        tadl-valid: 3
+        #用户删除点云数据集文件后，文件最大有效时长，以天为单位
+        point-cloud-valid: 1
+      # 任务配置
+      task:
+       # 资源回收单次执行任务数量限制（默认10000）
+        execute-limits: 1000
+      # 远程掉用配置
+      call:
+        token:
+          # 秘钥
+          secret-key: recycle
+          # 过期时间（秒）
+          expire-seconds: 300
+    
+    data:
+      server:
+        # 文件存储服务器用户名
+        userName: root
+
+  common-shardingjdbc.yaml: |
+    # 配置Sharding-JDBC数据源名称，可配置多个
+    spring:
+      shardingsphere:
+        datasource:
+          name: master
+          master:
+            type: com.alibaba.druid.pool.DruidDataSource
+            driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+            url: jdbc:log4jdbc:mysql://{{ .Values.dubhe.mysql.host }}:{{ .Values.dubhe.mysql.port }}/{{ .Values.dubhe.mysql.database }}?serverTimezone=Asia/Shanghai%26characterEncoding=utf8%26useSSL=false%26allowMultiQueries=true%26useInformationSchema=true%26rewriteBatchedStatements=true
+            username: {{ .Values.dubhe.mysql.username }}
+            password: {{ .Values.dubhe.mysql.password }}
+          props:
+            sql:
+              show: true
+     
+    management:
+      health:
+        db:
+          enabled: false
+
+  dubhe-algorithm.yaml: |
+    train-algorithm:
+      #是否输出训练结果
+      is-train-out: true
+      #是否输出训练日志
+      is-train-log: true
+      #是否输出可视化日志
+      is-visualized-log: false
+      #设置默认算法来源(1为我的算法，2为预置算法)
+      algorithm-source: 1
+      #设置fork默认值（fork:创建算法来源）
+      fork: false
+      #设置inference默认值(inference:上传算法是否支持推理)
+      inference: false
+    
+    #关闭熔断机制
+    feign:
+      hystrix:
+        enabled: false
+
+  dubhe-data-dcm.yaml: |
+    server:
+      # rest API 版本号
+      rest-version: v1
+    
+    # data模块配置
+    data:
+      annotation:
+        task:
+          # 自动标注任务分割的文件split size
+          splitSize: 16
+          # 单位ms
+          retryInterval: 5000
+          # 任务不更新置为失败的时间单位秒
+          failTime: 43200
+      server:
+        # 文件存储服务器用户名
+        userName: root
+      #数据集训练配置
+      ptversion: http://backend-data.{{.Release.Namespace}}.svc.cluster.local:8000/
+    
+    
+    # 数据处理医学影像数据集dcm服务器配置，查看影像功能需要使用该服务
+    dcm:
+      host: "{{ .Values.external_url.dcm }}"
+      port: 31112
+      
+    # 资源回收
+    recycle:
+      # 超时时间
+      over-second:
+        # 数据集文件 5小时
+        file: 18000
+        # 数据集版本文件 5小时
+        version-file: 18000
+
+  dubhe-data-task.yaml: |
+    server:
+      # rest API 版本号
+      rest-version: v1
+    
+    # data模块配置
+    data:
+      annotation:
+        task:
+          # 自动标注任务分割的文件split size
+          splitSize: 16
+          # 单位ms
+          retryInterval: 5000
+          # 任务不更新置为失败的时间单位秒
+          failTime: 43200
+      server:
+        # 文件存储服务器用户名
+        userName: root
+      #数据集训练配置
+      ptversion: "http://backend-data.{{.Release.Namespace}}.svc.cluster.local:8000/"
+    
+    # 资源回收
+    recycle:
+      # 超时时间
+      over-second:
+        # 数据集文件 5小时
+        file: 18000
+        # 数据集版本文件 5小时
+        version-file: 18000
+    
+    # 数据处理医学影像数据集dcm服务器配置，查看影像功能需要使用该服务
+    dcm:
+      host: {{ .Values.external_url.dcm }}
+      port: 31112
+    
+    # ES服务地址及端口
+    es:
+      host: elasticsearch.{{.Release.Namespace}}.svc.cluster.local
+      serverPort: 9200
+      transportPort: 9200
+      clusterName: kubernetes-logging
+      index: dataset_open_text
+
+  dubhe-data.yaml: |
+    # serving预测上传文件大小限制
+    spring:
+      servlet:
+        multipart:
+          # 设置单个文件的大小
+          max-file-size: 10MB
+          # 设置单次请求的文件的总大小
+          max-request-size: 100MB
+    
+    k8s:
+      # nfs服务暴露的IP地址 如需测试需修改为合适的地址
+      nfs: 127.0.0.1
+      #nfs服务端 共享目录
+      nfs-root-path: /nfs/
+      nfs-root-windows-path: "Z:"
+      file-store: 127.0.0.1
+      #文件存储服务端 共享目录
+      file-store-root-path: /nfs/
+      file-store-root-windows-path: "Z:"
+    
+    # data模块配置
+    data:
+      annotation:
+        task:
+          # 自动标注任务分割的文件split size
+          splitSize: 16
+          # 单位ms
+          retryInterval: 5000
+          # 任务不更新置为失败的时间单位秒
+          failTime: 43200
+      server:
+        # 文件存储服务器用户名
+        userName: root
+      #数据集训练配置
+      ptversion: http://backend-data.{{.Release.Namespace}}.svc.cluster.local:8000/
+    
+    minioweb:
+      GetToken:
+        url: minio/webrpc
+        param:
+          id: 2
+          jsonrpc: 2.0
+          method: Web.Login
+      zip:
+        url: minio/zip?token=  
+    
+    logging.config:
+      classpath:logback.xml 
+    
+    # 资源回收
+    recycle:
+      # 超时时间
+      over-second:
+        # 数据集文件 5小时
+        file: 18000
+        # 数据集版本文件 5小时
+        version-file: 18000
+      
+    # ES服务地址及端口
+    es:
+      host: elasticsearch.{{.Release.Namespace}}.svc.cluster.local
+      serverPort: 9200
+      transportPort: 9200
+      clusterName: kubernetes-logging
+      index: dataset_open_text
+    
+    logging:
+      level:
+        root: DEBUG
+    
+    dataset:
+      model:
+        service:
+          command: cd /dubhe_data_process && python main.py %s %s %s,%s,%s,%s 
+    
+    
+    # 可匿名访问路径
+    security:
+      permitAll:
+        matchers: /api/k8s/callback/deployment/data
+    #mybatis-plus:
+    #  configuration:
+    #    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+  dubhe-model.yaml: |
+    #jwt
+    jwt:
+      header: Authorization
+      # 令牌前缀
+      token-start-with: Bearer
+      # 必须使用最少88位的Base64对该令牌进行编码
+      base64-secret: ZmQ0ZGI5NjQ0MDQwY2I4MjMxY2Y3ZmI3MjdhN2ZmMjNhODViOTg1ZGE0NTBjMGM4NDA5NzYxMjdjOWMwYWRmZTBlZjlhNGY3ZTg4Y2U3YTE1ODVkZDU5Y2Y3OGYwZWE1NzUzNWQ2YjFjZDc0NGMxZWU2MmQ3MjY1NzJmNTE0MzI=
+      # 令牌过期时间 此处单位/毫秒 ，默认24小时，可在此网站生成 https://www.convertworld.com/zh-hans/time/milliseconds.html
+      token-validity-in-seconds: 86400000
+      # 在线用户key
+      online-key: online-token
+      # 验证码
+      code-key: code-key
+    
+    model:
+      measuring:
+        url:
+          package: http://{{ .Values.external_url.web }}/model_measure/package
+          json: http://{{ .Values.external_url.web }}/model_measure/measure
+      converter:
+        url: http://backend-model-converter.{{.Release.Namespace}}.svc.cluster.local:8080/model_convert
+
+  dubhe-notebook.yaml: |
+    # 第三方创建的notebook初始化资源配置
+    notebook-specs:
+      # cpu数量（核）
+      cpu-num: 1
+      # gpu数量（核）
+      gpu-num: 0
+      # 内存大小（M）
+      mem-num: 1024
+      # 工作空间配额（m）
+      disk-mem-num: 1024
+    # 延时全局配置
+    delay:
+      notebook:
+        #模型开发延时关闭时间
+        delete: 240
+    
+    # 可匿名访问路径
+    security:
+      permitAll:
+        matchers: /api/k8s/callback/pod/notebook
+
+  dubhe-optimize.yaml: |
+    # 模型优化容器镜像配置
+    optimize:
+      image: {{ .Values.dubhe.optimize.image }}
+    
+    #关闭熔断机制
+    feign:
+      hystrix:
+        enabled: false
+    
+    # 可匿名访问路径
+    security:
+      permitAll:
+        matchers: /api/k8s/callback/pod/modelopt
+
+  dubhe-point-cloud.yaml: |
+    # 配置Sharding-JDBC数据源名称，可配置多个
+    spring:
+      shardingsphere:
+        #指定pc_dataset_file的分表生成策略
+        sharding:
+          tables:
+            pc_dataset_file:
+              actual-data-nodes: master.pc_dataset_file_$->{1..200}
+              key-generator:
+                column: id
+                # SNOWFLAKE 雪花算法生成的id
+                type: SNOWFLAKE
+              table-strategy:
+                standard:
+                  sharding-column: dataset_id
+                  precise-algorithm-class-name: org.dubhe.pointcloud.util.PointCloudPreciseShardingAlgorithm
+      # 配置允许后面的Bean覆盖前面名称重复的Bean
+      main:
+        allow-bean-definition-overriding: true
+    # 可匿名访问路径
+    security:
+      permitAll:
+        matchers: /api/k8s/callback/pod/pointcloud
+  dubhe-serving-gateway.yaml: |
+    spring:
+      # serving预测上传文件大小限制
+      servlet:
+        multipart:
+          # 设置单个文件的大小
+          max-file-size: 10MB
+          # 设置单次请求的文件的总大小
+          max-request-size: 100MB
+      cloud:
+        gateway:
+          discovery:
+            locator:
+              enabled: false #开启从注册中心动态创建路由的功能，利用微服务名进行路由
+    
+    
+    #开启端点
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: '*'
+    
+    serving:
+      gateway:
+        # 在线服务http接口域名,解析地址为 serving 网关部署的服务器地址
+        postfixUrl: {{ .Values.external_url.serving }}:30081
+        token:
+          secret-key: 1n3512x
+          expire-seconds: 108000
+        corePoolSize: 10
+        httpclient:
+          connect-timeout: 1000
+          response-timeout: 1000
+    
+    #关闭熔断机制
+    feign:
+      hystrix:
+        enabled: false
+
+  dubhe-serving.yaml: |
+    #关闭熔断机制
+    feign:
+      hystrix:
+        enabled: false
+    
+    # serving模块配置
+    serving:
+      # 存储服务器中dubhe_serving源码路径
+      sourcePath: "serving/dubhe_serving"
+    
+    # 可匿名访问路径
+    security:
+      permitAll:
+        matchers: /api/k8s/callback/pod/batchserving,/api/k8s/callback/deployment/serving,/api/k8s/callback/pod/serving
+
+  dubhe-tadl.yaml: |
+    #关闭熔断机制
+    #feign:
+    #  hystrix:
+    #    enabled: false
+    #开启熔断机制，配置fegin超时时间
+    feign:
+      hystrix:
+        enabled: true	
+      client:
+        config:
+          default:
+            connectTimeout: 10000
+            readTimeout: 20000	
+    #tadl模块配置
+    tadl:
+      # tadl镜像配置
+      image: {{ .Values.dubhe.tadl.image }}
+      # docker中数据集路径
+      docker-dataset-path: "/dataset"
+    #  # docker中trial工作路径
+    #  docker-trial-path: "./trial"
+    #  # docker中算法路径
+      docker-algorithm-path: "/algorithm"
+    #  # docker中日志路径
+    #  docker-log-path: "./log"
+      # docker中实验路径
+      docker-experiment-path: "/experiment"
+      path:
+        experiment:
+          # bucketName experimentId
+          experimentPath: "%25s/TADL/experiment/%25s"
+          # bucketName experimentId
+          algorithm:
+            algorithm: "%25s/TADL/experiment/%25s/algorithm/TADL"
+            yaml: "%25s/TADL/experiment/%25s/algorithm/yaml/"
+          # bucketName experimentId
+          systemLogs: "%25s/TADL/experiment/%25s/systemLogs/"
+          stage:
+            trial:
+              # bucketName experimentId stageName trialId
+              selectSpace: "%25s/TADL/experiment/%25s/%25s/%25s/model_selected_space/"
+              # bucketName experimentId stageName trialId
+              result: "%25s/TADL/experiment/%25s/%25s/%25s/result/"
+              # bucketName experimentId stageName trialId
+              log: "%25s/TADL/experiment/%25s/%25s/%25s/log/"
+            # bucketName experimentId
+            searchSpace: "%25s/TADL/experiment/%25s/"
+            # bucketName experimentId
+            bestSelectedSpace: "%25s/TADL/experiment/%25s/"
+            # bucketName experimentId
+            bestCheckpoint: "%25s/TADL/experiment/%25s/best_checkpoint/"
+            # bucketName experimentId
+            experimentConfig: "%25s/TADL/experiment/%25s/"
+        # bucketName
+        algorithm:
+          # bucketName algorithmName
+          algorithmPath: "%25s/TADL/algorithm/%25s"
+          # bucketName algorithmName algorithmName
+          parentYaml: "%25s/TADL/algorithm/%25s/TADL/pytorch/%25s/yaml/"
+          # bucketName algorithmName versionName
+          yaml: "%25s/TADL/algorithm/%25s/yaml/%25s"
+        pytorch:
+          algorithm:
+            yaml: "TADL/pytorch/%25s/yaml/"
+    # 可匿名访问路径
+    security:
+      permitAll:
+        matchers: /api/k8s/callback/pod/tadl
+
+  dubhe-task.yaml: |
+    # serving预测上传文件大小限制
+    spring:
+      servlet:
+        multipart:
+          # 设置单个文件的大小
+          max-file-size: 10MB
+          # 设置单次请求的文件的总大小
+          max-request-size: 100MB
+    
+    k8s:
+      # nfs服务暴露的IP地址 如需测试需修改为合适的地址
+      nfs: 127.0.0.1
+      #nfs服务端 共享目录
+      nfs-root-path: /nfs/
+      nfs-root-windows-path: "Z:"
+    
+    # data模块配置
+    data:
+      annotation:
+        task:
+          # 自动标注任务分割的文件split size
+          splitSize: 16
+          # 单位ms
+          retryInterval: 5000
+          # 任务不更新置为失败的时间单位秒
+          failTime: 43200
+      server:
+        # 文件存储服务器用户名
+        userName: root
+      #数据集训练配置
+      ptversion: http://backend-data.{{.Release.Namespace}}.svc.cluster.local:8000/
+    
+    minioweb:
+      GetToken:
+        url: minio/webrpc
+        param:
+          id: 2
+          jsonrpc: 2.0
+          method: Web.Login
+      zip:
+        url: minio/zip?token=  
+    
+    #logback
+    logging.config:
+      classpath:logback-spring-dev.xml
+    
+    # ES服务地址及端口
+    es:
+      host: elasticsearch.{{.Release.Namespace}}.svc.cluster.local
+      serverPort: 9200
+      transportPort: 9200
+      index: dataset_open_text
+
+  dubhe-terminal.yaml: |
+    # 专业版终端配置
+    terminal:
+      # 专业版终端模块目录
+      terminal-dir: "terminal"
+      # 用户workspace目录
+      workspace-dir: "workspace"
+      # ssh主机
+      ssh-host: {{ .Values.external_url.terminal }}
+
+    # 可匿名访问路径
+    security:
+      permitAll:
+        matchers: /api/k8s/callback/pod/terminal,/api/docker/callback/push
+
+  dubhe-train.yaml: |
+    #训练常量
+    train-job:
+      namespace: "namespace-"
+      separator: "-"
+      version-label: "v"
+      pod-name: "platform/resource-name"
+      python-format: " --"
+      manage: "train-manage"
+      model-path: "model-out"
+      out-path: "out"
+      load-path: "load"
+      load-key: "model_load_dir"
+      load-val-dataset-key: "val_data_url"
+      visualized-log-path: "visualizedlog"
+      docker-dataset-path: "/dataset"
+      docker-train-path: "/workspace"
+      docker-model-path: "/modeldir"
+      docker-val-dataset-path: "/valdataset"
+      docker-pip-site-package-path: "/home/admin/.local/lib/python3.8/site-packages"
+      docker-train-model-path: "train_model_out=${train-job.docker-train-path}/${train-job.model-path}"
+      docker-train-out-path: "train_out=${train-job.docker-train-path}/${train-job.out-path}"
+      docker-visualized-log-path: "train_visualized_log=${train-job.docker-train-path}/${train-job.visualized-log-path}"
+      docker-dataset: "data_url=${train-job.docker-dataset-path}"
+      docker-teacher-model-key: "teacher_path_list"
+      docker-teacher-model-path: "/model/teacher"
+      docker-student-model-key: "student_path_list"
+      docker-student-model-path: "/model/student"
+      docker-atlas-dataset-key: "atlas_dataset_paths"
+      docker-atlas-val-dataset-key: "atlas_val_dataset_paths"
+      atlas-anaconda: "cd /root/miniconda3/bin %26%26 source activate base"
+      atlas-pythonioencoding: "PYTHONIOENCODING=utf-8 "
+      eight: "8"
+      plus-eight: "%2B8"
+      node-ips: "node_ips"
+      node-num: "num_nodes"
+      gpu-num-per-node: "gpu_num_per_node"
+      train-model-path-value: "${train-job.docker-train-path}/${train-job.model-path}"
+      train-out-path-value: "${train-job.docker-train-path}/${train-job.out-path}"
+      visualized-log-path-value: "${train-job.docker-train-path}/${train-job.visualized-log-path}"
+    #关闭熔断机制
+    feign:
+      hystrix:
+        enabled: false
+    
+    # 可匿名访问路径
+    security:
+      permitAll:
+        matchers: /api/k8s/callback/pod/algorithm
+
+  gateway.yaml: |
+    #网关路由转发相关实例
+    spring:
+      cloud:
+        gateway:
+          enabled: true
+          routes:
+          # id唯一表示 路由至admin服务
+          - id: admin-route
+          # uri=> lb://服务名称  
+            uri: lb://admin
+          # 路由规则
+            predicates:
+              - Path=/api/v1/admin/**
+            filters:
+              - StripPrefix=3
+          - id: visual-route
+          # uri=> lb://服务名称  
+            uri: lb://admin
+          # 路由规则
+            predicates:
+              - Path=/visual/api/**
+          # 路由至auth服务
+          - id: auth-route
+            uri: lb://auth
+            predicates:
+              - Path=/api/v1/auth/**
+            filters:
+              - StripPrefix=3
+          # 路由至notebook服务
+          - id: notebook-route
+            uri: lb://dubhe-notebook
+            predicates:
+              - Path=/api/v1/notebook/**
+            filters:
+              - StripPrefix=3
+           # 路由至镜像管理服务
+          - id: image-route
+            uri: lb://dubhe-image
+            predicates:
+              - Path=/api/v1/image/**
+            filters:
+              - StripPrefix=3
+          # 路由至度量管理服务
+          - id: measure-route
+            uri: lb://dubhe-measure
+            predicates:
+              - Path=/api/v1/measure/**
+            filters:
+              - StripPrefix=3
+          # 路由至dubhe-k8s服务
+          - id: dubhe-k8s
+            uri: lb://dubhe-k8s
+            predicates:
+              - Path=/api/v1/k8s/**
+            filters:
+              - StripPrefix=3
+          # 路由至dubhe-model(模型管理)服务
+          - id: dubhe-model
+            uri: lb://dubhe-model
+            predicates:
+              - Path=/api/v1/model/**
+            filters:
+              - StripPrefix=3
+          # 路由至dubhe-algorithm(算法管理)服务
+          - id: dubhe-algorithm
+            uri: lb://dubhe-algorithm
+            predicates:
+              - Path=/api/v1/algorithm/**
+            filters:
+              - StripPrefix=3
+          # 路由至dubhe-train(训练管理)服务
+          - id: dubhe-train
+            uri: lb://dubhe-train
+            predicates:
+              - Path=/api/v1/train/**
+            filters:
+              - StripPrefix=3
+          # id唯一表示 路由至data(数据集)服务
+          - id: dubhe-data
+          # uri=> lb://服务名称  
+            uri: lb://dubhe-data
+          # 路由规则
+            predicates:
+              - Path=/api/v1/data/**
+            filters: 
+              - StripPrefix=3
+          # 路由至dubhe-optimize(模型优化)服务
+          - id: dubhe-optimize
+            uri: lb://dubhe-optimize
+            predicates:
+              - Path=/api/v1/optimize/**
+            filters:
+              - StripPrefix=3
+          # 路由至dubhe-serving(云端Serving)服务
+          - id: dubhe-serving
+            uri: lb://dubhe-serving
+            predicates:
+              - Path=/api/v1/serving/**,/api/v1/batchServing/**
+            filters:
+              - StripPrefix=3
+          # 负载均衡样例
+          - id: weight-route1
+            uri: lb://demo-client
+            # 路由规则
+            predicates:
+              # 接口匹配前缀
+              - Path=/api/v1/w/**
+              # 权重组weight-group1，权重比例 1/4
+              - Weight=weight-group1, 1
+            filters:
+              # 根据接口匹配前缀截取
+              - StripPrefix=3
+          - id: weight-route2
+            uri: lb://demo-provider
+            # 路由规则
+            predicates:
+              - Path=/api/v1/w/**
+              # 权重组weight-group1，权重比例 3/4
+              - Weight=weight-group1, 3
+            filters:
+              - StripPrefix=3
+          # 路由至dubhe-data-dcm(医学数据集)服务
+          - id: dubhe-data-dcm
+            uri: lb://dubhe-data-dcm
+            predicates:
+              - Path=/api/v1/dcm/**
+            filters:
+              - StripPrefix=3
+          # 路由至dubhe-terminal 天枢专业版终端
+          - id: dubhe-terminal
+            uri: lb://dubhe-terminal
+            predicates:
+              - Path=/api/v1/terminal/**
+            filters:
+              - StripPrefix=3
+          # 路由至dubhe-tadl服务
+          - id: dubhe-tadl
+            uri: lb://dubhe-tadl
+            predicates:
+              - Path=/api/v1/tadl/**
+            filters:
+              - StripPrefix=3
+            # 路由至dubhe-point-cloud服务
+          - id: dubhe-point-cloud
+            uri: lb://dubhe-point-cloud
+            predicates:
+              - Path=/api/v1/pointCloud/**
+            filters:
+              - StripPrefix=3  
+    server:
+      maxPostSize: -1
+      maxHttpHeaderSize: 10240000
+
+  image.yaml: |
+    # 配置harbor
+    harbor:
+      address: {{ .Values.dubhe.harbor.address }}
+      username: {{ .Values.dubhe.harbor.username }}
+      password: {{ .Values.dubhe.harbor.password }}
+
+  measure.yaml: |
+    #配置数据源
+    spring:
+      redis:
+        #数据库索引
+        database: 10
+        host: "{{ .Values.dubhe.redis.host }}"
+        port: {{ .Values.dubhe.redis.port }}
+        password: {{ .Values.dubhe.redis.password }}
+        #连接超时时间
+        timeout: 5000
+
+      # 配置允许后面的Bean覆盖前面名称重复的Bean
+      main:
+        allow-bean-definition-overriding: true
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nacos-init
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      volumes:
+        - name: dubhe-config-volume
+          configMap:
+            name: dubhe-config
+        - name: k8scfg
+          hostPath:
+            path: /etc/kubernetes
+      initContainers:
+        - name: wait-for-service
+          image: docker.io/buxiaomo/curl:latest
+          imagePullPolicy: IfNotPresent
+          command: 
+          - 'sh'
+          - '-c'
+          - |
+            set -x
+            until curl -sf http://nacos:8848/nacos; do
+              echo "Waiting for service to be ready..."
+              sleep 5
+            done
+
+            echo "Service is ready."
+      containers:
+        - name: curl
+          image: docker.io/buxiaomo/curl:latest
+          imagePullPolicy: IfNotPresent
+          workingDir: /dubhe
+          command:
+          - /bin/sh
+          - -c
+          - |
+            set -xe
+            # Check env and set default value if needed
+            NACOS_SERVER_PORT=${NACOS_SERVER_PORT:-'8848'}
+
+            if [ -z "$NACOS_SERVER_HOST" ];then
+                echo "Env NACOS_SERVER_HOST is not defined"
+                exit 1
+            fi
+
+            if [ -z "$DUBHE_NACOS_NAMESPACE" ];then
+                echo "Env DUBHE_NACOS_NAMESPACE is not defined"
+                exit 1
+            fi
+
+            # Create namespace in nacos
+            curl -X POST "http://${NACOS_SERVER_HOST}:${NACOS_SERVER_PORT}/nacos/v1/console/namespaces" -d "customNamespaceId=${DUBHE_NACOS_NAMESPACE}&namespaceName=${DUBHE_NACOS_NAMESPACE}&namespaceDesc=\"namespace owned by Dubhe\""
+
+            for filename in `ls /dubhe`
+            do
+                echo $filename
+                STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://${NACOS_SERVER_HOST}:${NACOS_SERVER_PORT}/nacos/v1/cs/configs?tenant=${DUBHE_NACOS_NAMESPACE}&dataId=${filename}&group=dubhe")
+                if [ "$STATUS" -eq 200 ]; then
+                    echo "Config ${filename} already exists, skipping creation."
+                    continue
+                fi
+                curl -X POST "http://${NACOS_SERVER_HOST}:${NACOS_SERVER_PORT}/nacos/v1/cs/configs" --data "tenant=${DUBHE_NACOS_NAMESPACE}&&dataId=${filename}&group=dubhe&type=yaml&content=`cat /dubhe/${filename}`"
+            done
+
+            STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://${NACOS_SERVER_HOST}:${NACOS_SERVER_PORT}/nacos/v1/cs/configs?tenant=${DUBHE_NACOS_NAMESPACE}&dataId=kubeconfig.yaml&group=dubhe")
+            if [ "$STATUS" -eq 200 ]; then
+                echo "Config ${filename} already exists, skipping creation."
+            else
+                curl -s -X POST "http://${NACOS_SERVER_HOST}:${NACOS_SERVER_PORT}/nacos/v1/cs/configs" --data "tenant=${DUBHE_NACOS_NAMESPACE}&&dataId=kubeconfig.yaml&group=dubhe&type=yaml&content=`cat /dubhe/kubeconfig.yaml`"
+            fi
+          env:
+            - name: NACOS_SERVER_HOST
+              value: "nacos"
+            - name: DUBHE_NACOS_NAMESPACE
+              value: dubhe-prod
+          volumeMounts:
+          - name: dubhe-config-volume
+            mountPath: /dubhe
+            readOnly: true
+          - name: k8scfg
+            mountPath: /etc/kubernetes
+            readOnly: true

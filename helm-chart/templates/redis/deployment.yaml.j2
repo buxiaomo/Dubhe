@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      volumes:
+        - name: redis
+          configMap:
+            name: redis
+        - name: redis-vol
+          persistentVolumeClaim:
+            claimName: redis-vol
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          command: ["/bin/bash", "-c", "redis-server /etc/redis/redis.conf"]
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: tcp
+              containerPort: 6379
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 6379
+          readinessProbe:
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 6379
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+          volumeMounts:
+            - name: redis
+              mountPath: /etc/redis/redis.conf
+              subPath: redis.conf
+            - name: redis-vol
+              mountPath: /data

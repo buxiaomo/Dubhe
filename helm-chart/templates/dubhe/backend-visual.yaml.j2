@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-visual
+data:
+  config.ini: |-
+    # http服务相关 
+    [httpserver]
+    # True或False，表示是否启动django调试
+    DjangoDebug = False
+    # 日志解析服务相关
+    [parser]
+    # 可视化日志的根目录，解析服务会从该目录下查找某个用户的可视化日志，用户需根据实际情况进行替换
+    LogdirBase = /nfs/dubhe-prod/train-manage
+    [common]
+    RedisHost = {{ .Values.dubhe.redis.host }}
+    RedisPort = {{ .Values.dubhe.redis.port }}
+    RedisDB = 10
+    RedisPassword = {{ .Values.dubhe.redis.password }}
+    UserExpirationTime = 60
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-visual
+spec:
+  selector:
+    app: backend-visual
+  ports:
+    - port: 9898
+      targetPort: 9898
+      name: port-9898
+    - port: 9797
+      targetPort: 9797
+      name: port-9797
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-visual
+  labels:
+    app: backend-visual
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-visual
+  template:
+    metadata:
+      labels:
+        app: backend-visual
+    spec:
+      volumes:
+        - name: dubhe-vol
+          hostPath:
+            path: {{ .Values.dubhe.hostPath }}
+        - name: backend-visual
+          configMap:
+            defaultMode: 0755
+            name: backend-visual
+      containers:
+        - name: backend-visual
+          image: "{{ .Values.dubhe.image.host }}/{{ .Values.dubhe.image.repository }}/dubhe-visual-server:{{ .Values.dubhe.image.tag }}"
+          # image: registry.cn-hangzhou.aliyuncs.com/enlin/visual-server:v1
+          # command: ["/bin/bash", "-c", "/home/dubhe-visual-server-v2/start_server.sh"]
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: dubhe-vol
+              mountPath: /nfs
+            - name: backend-visual
+              mountPath: /dubhe-visual-server/config.ini
+              subPath: config.ini 
+          ports:
+            - name: http
+              containerPort: 9898
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 60
+            failureThreshold: 5
+            successThreshold: 1
+            periodSeconds: 10
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 9898
+          readinessProbe:
+            initialDelaySeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 9898
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"

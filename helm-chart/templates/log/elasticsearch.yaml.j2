@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+spec:
+  selector:
+    name: elasticsearch
+  ports:
+    - name: http
+      port: 9200
+      targetPort: 9200
+    - name: rest
+      port: 9300
+      targetPort: 9300
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: elasticsearch-vol
+  labels:
+    app: elasticsearch
+spec:
+  storageClassName: "{{ .Values.global.storageClassName }}"
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  labels:
+    name: elasticsearch
+spec:
+  replicas: 1
+  strategy: 
+    type: Recreate
+  selector:
+    matchLabels:
+      name: elasticsearch
+  template:
+    metadata:
+      name: elasticsearch
+      labels:
+        name: elasticsearch
+    spec:
+      volumes:
+        - name: elasticsearch-vol
+          persistentVolumeClaim:
+            claimName: elasticsearch-vol
+      initContainers:
+        - name: fix-permissions
+          image: "{{ .Values.log.initContainers.infra.image.repository }}"
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
+          volumeMounts:
+            - name: elasticsearch-vol
+              mountPath: /usr/share/elasticsearch/data
+          securityContext:
+            privileged: true
+        - name: increase-vm-max-map
+          image: "{{ .Values.log.initContainers.infra.image.repository }}"
+          imagePullPolicy: IfNotPresent
+          command: ["sysctl", "-w", "vm.max_map_count=262144"]
+          securityContext:
+            privileged: true
+        - name: increase-fd-ulimit
+          image: "{{ .Values.log.initContainers.infra.image.repository }}"
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "ulimit -n 65536"]
+          securityContext:
+            privileged: true
+      containers:
+        - name: elasticsearch
+          image: "{{ .Values.log.elasticsearch.image.repository }}"
+          ports:
+            - name: http
+              containerPort: 9200
+              protocol: TCP
+            - name: rest
+              containerPort: 9300
+              protocol: TCP
+          volumeMounts:
+            - name: elasticsearch-vol
+              mountPath: /usr/share/elasticsearch/data
+          env:
+            - name: discovery.type
+              value: "single-node"

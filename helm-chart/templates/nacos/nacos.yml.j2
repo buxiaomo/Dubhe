@@ -1,0 +1,92 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nacos
+  labels:
+    app: nacos
+spec:
+  replicas: 1
+  strategy: 
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nacos
+  template:
+    metadata:
+      labels:
+        app: nacos
+    spec:
+      volumes:
+        - name: nacos
+          configMap:
+            defaultMode: 0755
+            name: nacos
+      containers:
+        - name: nacos
+          image: "{{ .Values.nacos.image.repository }}:{{ .Values.nacos.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: tcp
+              containerPort: 8848
+              protocol: TCP
+          # livenessProbe:
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 5
+          #   timeoutSeconds: 5
+          #   tcpSocket:
+          #     port: 8848
+          # readinessProbe:
+          #   initialDelaySeconds: 5
+          #   periodSeconds: 5
+          #   timeoutSeconds: 5
+          #   tcpSocket:
+          #     port: 8848
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+            - name: MODE
+              value: "standalone"
+            - name: MYSQL_SERVICE_HOST
+              value: "mysql-nacos"
+            - name: MYSQL_SERVICE_DB_NAME
+              value: "{{ .Values.nacos.mysql.database }}"
+            - name: MYSQL_SERVICE_PORT
+              value: "3306"
+            - name: MYSQL_SERVICE_USER
+              value: "{{ .Values.nacos.mysql.username }}"
+            - name: MYSQL_SERVICE_PASSWORD
+              value: "{{ .Values.nacos.mysql.password }}"
+          resources:
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+            requests:
+              cpu: "1"
+              memory: "512Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos
+  annotations:
+    "helm.sh/hook-weight": "1"
+spec:
+  type: NodePort
+  selector:
+    app: nacos
+  ports:
+    - port: 8848
+      name: server
+      targetPort: 8848
+    - port: 9848
+      name: client-rpc
+      targetPort: 9848
+    - port: 9849
+      name: raft-rpc
+      targetPort: 9849
+    ## 兼容1.4.x版本的选举端口
+    - port: 7848
+      name: old-raft-rpc
+      targetPort: 7848

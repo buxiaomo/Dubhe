@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  labels:
+    app: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      volumes:
+        - name: minio-vol
+          persistentVolumeClaim:
+            claimName: minio-vol
+      containers:
+        - name: minio
+          image: "{{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          command: 
+            - "/bin/sh"
+            - "-ce"
+            - "/usr/bin/docker-entrypoint.sh minio server --json /data"
+          volumeMounts:
+            - name: minio-vol
+              mountPath: /data
+          ports:
+            - name: tcp
+              containerPort: 9000
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 5
+            httpGet:
+              scheme: HTTP
+              port: 9000
+              path: /minio/health/live
+          readinessProbe:
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 5
+            httpGet:
+              scheme: HTTP
+              port: 9000
+              path: /minio/health/live
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+            - name: MINIO_ACCESS_KEY
+              value: "{{ .Values.minio.accesskey }}"
+            - name: MINIO_SECRET_KEY
+              value: "{{ .Values.minio.secretkey }}"

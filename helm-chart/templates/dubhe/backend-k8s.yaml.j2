@@ -1,0 +1,104 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-k8s
+spec:
+  selector:
+    app: backend-k8s
+  type: NodePort
+  externalTrafficPolicy: Cluster
+  ports:
+    - name: http
+      port: 8960
+      targetPort: 8960
+      protocol: TCP
+      nodePort: 30960
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-k8s
+  labels:
+    app: backend-k8s
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-k8s
+  template:
+    metadata:
+      labels:
+        app: backend-k8s
+    spec:
+      volumes:
+        - name: dubhe-vol
+          hostPath:
+            path: {{ .Values.dubhe.hostPath }}
+        - name: dubhe
+          configMap:
+            defaultMode: 0755
+            name: dubhe
+      initContainers:
+        - name: wait-for-mysql
+          image: "{{ .Values.dubhe.initContainers.infra.image.repository }}"
+          command: 
+          - 'sh'
+          - '-c'
+          - |
+            set -x
+            until nc -z dubhe-mysql 3306; do
+              echo "Waiting for service to be ready..."
+              sleep 5
+            done
+            echo "Service is ready."
+        - name: wait-for-nacos
+          image: "{{ .Values.dubhe.initContainers.infra.image.repository }}"
+          command: 
+          - 'sh'
+          - '-c'
+          - |
+            set -x
+            until  wget -q http://nacos:8848/nacos -O /dev/null; do
+              echo "Waiting for service to be ready..."
+              sleep 5
+            done
+            echo "Service is ready."
+      containers:
+        - name: backend-k8s
+          image: "{{ .Values.dubhe.image.host }}/{{ .Values.dubhe.image.repository }}/dubhe-k8s:{{ .Values.dubhe.image.tag }}"
+          # image: "192.168.2.228:5000/enlin/dubhe-java:v1"
+          # command: ["/bin/bash", "-c", "cd /data/ && java -Xms1024m -Xmx1024m   -jar dubhe-k8s-0.0.1-SNAPSHOT-exec.jar --spring.profiles.active=prod"]
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: dubhe-vol
+              mountPath: /nfs
+            - name: dubhe
+              mountPath: /app/bootstrap-prod.yml
+              subPath: bootstrap-prod.yml
+          ports:
+            - name: http
+              containerPort: 8960
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 60
+            failureThreshold: 5
+            successThreshold: 1
+            periodSeconds: 10
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 8960
+          readinessProbe:
+            initialDelaySeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 8960
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"

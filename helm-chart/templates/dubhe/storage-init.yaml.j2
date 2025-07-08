@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: storage-init
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      volumes:
+        - name: dubhe-vol
+          hostPath:
+            path: "{{ .Values.dubhe.hostPath }}"
+            type: DirectoryOrCreate
+      containers:
+        - name: storage-init
+          image: "{{ .Values.dubhe.image.host }}/{{ .Values.dubhe.image.repository }}/storage-init:latest"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DUBHE_ENVIRONMENT
+              value: "dubhe-prod"
+          volumeMounts:
+          - name: dubhe-vol
+            mountPath: /nfs

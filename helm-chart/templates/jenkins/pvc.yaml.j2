@@ -1,0 +1,15 @@
+{{- if .Values.dubhe.cicd.enabled }}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: jenkins-vol
+  labels:
+    app: jenkins
+spec:
+  storageClassName: local-path
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: 1Gi
+{{- end }}

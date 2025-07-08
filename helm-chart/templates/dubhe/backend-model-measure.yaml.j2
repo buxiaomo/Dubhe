@@ -1,0 +1,89 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-model-measure
+spec:
+  type: NodePort
+  selector:
+    app: backend-model-measure
+  ports:
+    - name: http
+      port: 8821
+      targetPort: 8821
+      protocol: TCP
+      nodePort: 32760
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-model-measure
+  labels:
+    app: backend-model-measure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-model-measure
+  template:
+    metadata:
+      labels:
+        app: backend-model-measure
+    spec:
+      volumes:
+        - name: dubhe-vol
+          hostPath:
+            path: {{ .Values.dubhe.hostPath }}
+        - name: dubhe
+          configMap:
+            defaultMode: 0755
+            name: dubhe
+      nodeSelector:
+        gpu: "true"
+      containers:
+        - name: backend-model-measure
+          image: "{{ .Values.dubhe.image.host }}/{{ .Values.dubhe.image.repository }}/model-measuring:{{ .Values.dubhe.image.tag }}"
+          # image: "registry.cn-hangzhou.aliyuncs.com/enlin/model-measuring:v1"
+          imagePullPolicy: IfNotPresent
+          # command:
+          #   - /bin/bash
+          # args:
+          #   - -c
+          #   - "python /model_measuring/app.py"
+          #   # - "source /root/anaconda3/bin/activate pytorch_1_3 && pip install web.py -i https://pypi.tuna.tsinghua.edu.cn/simple/ &&  python /model_measuring/app.py"
+          volumeMounts:
+            - name: dubhe-vol
+              mountPath: /model
+              subPath: dubhe-prod/model
+            - name: dubhe-vol
+              mountPath: /dataset
+              subPath: dubhe-prod/dataset
+            - name: dubhe-vol
+              mountPath: /exported-metrics
+              subPath: dubhe-prod/exported-metrics
+            # - name: dubhe
+            #   mountPath: /app/bootstrap-prod.yml
+            #   subPath: bootstrap-prod.yml
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          # livenessProbe:
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          #   tcpSocket:
+          #     port: 8080
+          # readinessProbe:
+          #   initialDelaySeconds: 5
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          #   tcpSocket:
+          #     port: 8080
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+            # - name: SPRING_PROFILES_ACTIVE
+            #   value: "prod"

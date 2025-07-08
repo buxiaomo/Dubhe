@@ -1,0 +1,120 @@
+global:
+  storageClassName: "nfs-client"
+
+external_url: 
+  web: 101.32.11.146:30800
+  dcm: 101.32.11.146
+  serving: 101.32.11.146
+  terminal: 101.32.11.146
+
+redis:
+  image:
+    repository: "docker.io/library/redis"
+    tag: "5.0.7"
+  password: "Tianshu@123"
+
+minio:
+  image:
+    repository: "docker.io/minio/minio"
+    tag: "RELEASE.2020-04-28T23-56-56Z"
+  mc:
+    image:
+      repository: "docker.io/minio/mc"
+      tag: "RELEASE.2022-07-15T09-20-55Z"
+  accesskey: "admin"
+  secretkey: "abcdefg123456"
+
+nacos:
+  image: 
+    repository: "docker.io/nacos/nacos-server"
+    tag: "2.0.3"
+  mysql:
+    image: 
+      repository: "docker.io/nacos/nacos-mysql"
+      tag: "5.7"
+    database: "nacos"
+    username: "nacos"
+    password: "nacos"
+
+monitoring:
+  initContainers:
+    infra: 
+      image:
+        repository: "docker.io/library/alpine"
+        tag: "3.6"
+  nodexporter: 
+    image:
+      repository: "docker.io/prom/node-exporter"
+      tag: "v1.7.0"
+  prometheus: 
+    image:
+      repository: "docker.io/prom/prometheus"
+      tag: "v2.54.1"
+  grafana: 
+    image:
+      repository: "docker.io/grafana/grafana"
+      tag: "10.2.1"
+
+log:
+  initContainers:
+    infra: 
+      image:
+        repository: "docker.io/library/alpine:3.6"
+  elasticsearch: 
+    image:
+      repository: "docker.elastic.co/elasticsearch/elasticsearch:7.17.16"
+  fluentbit: 
+    image:
+      repository: "docker.io/fluent/fluent-bit:1.9.10"
+
+
+dubhe:
+  initContainers:
+    infra: 
+      image:
+        repository: "docker.io/library/busybox:1.37.0"
+  image:
+    host: "192.168.2.228:5000"
+    repository: "zhijiangtianshu"
+    tag: "v1"
+  hostPath: /data/dubhe
+  dcm4chee:
+    hostPath: /data/dcm4chee
+  cicd: 
+    enabled: false
+    username: admin
+    password: admin
+    email: user@example.com
+    jenkins:
+      repository: "docker.io/buxiaomo/jenkins"
+      tag: "2.504.2-alpine-jdk21"
+    swarm:
+      repository: "docker.io/buxiaomo/jenkins-swarm"
+      tag: "3.49.1"
+      executors: 3
+      hostPath: /data/jenkins/swarm
+    docker:
+      repository: "docker.io/library/docker"
+      tag: "26.1.4-dind"
+      insecure-registry:
+        - "192.168.2.228:5000"
+        - "192.168.2.228:30002"
+      hostPath: /data/jenkins/docker
+  mysql:
+    host: dubhe-mysql
+    port: 3306
+    database: "dubhe"
+    username: "dubhe"
+    password: "dubhe"
+  redis:
+    host: redis
+    port: 6379
+    password: "Tianshu@123"
+  harbor:
+    address: "192.168.2.228:30002"
+    username: "admin"
+    password: "Harbor12345"
+  optimize:
+    image: "192.168.2.228:5000/enlin/oneflow-gpu:base"
+  tadl:
+    image: "192.168.2.228:5000/enlin/automl-nas-pytorch17:v1"

@@ -1,0 +1,143 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-dcm4chee
+spec:
+  type: NodePort
+  externalTrafficPolicy: Cluster
+  selector:
+    app: backend-dcm4chee
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: dcm4chee-upload
+      nodePort: 31112
+      port: 11112
+      protocol: TCP
+      targetPort: 11112
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-dcm4chee
+  labels:
+    app: backend-dcm4chee
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-dcm4chee
+  template:
+    metadata:
+      labels:
+        app: backend-dcm4chee
+    spec:
+      volumes:
+        - name: dcm4chee-vol
+          hostPath:
+            path: {{ .Values.dubhe.dcm4chee.hostPath }}
+            type: DirectoryOrCreate
+        - name: dubhe
+          configMap:
+            defaultMode: 0755
+            name: dubhe
+        - name: time
+          hostPath:
+            path: /etc/localtime
+      hostAliases:
+        - ip: 127.0.0.1
+          hostnames:
+            - ldap
+            - db
+      containers:
+        - name: dubhe-backend-dcm4chee-ldap
+          image: "docker.io/dcm4che/slapd-dcm4chee:2.4.44-12.0"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: dcm4chee-vol
+              mountPath: /var/lib/ldap
+              subPath: ldap
+            - name: dcm4chee-vol
+              mountPath: /var/lib/slapd.d
+              subPath: slapd.d
+            - name: time
+              mountPath: /etc/localtime
+          ports:
+            - name: http
+              containerPort: 389
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 389
+          readinessProbe:
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 389
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+        - name: dubhe-backend-dcm4chee-db
+          image: "docker.io/dcm4che/postgres-dcm4chee:10.0-12"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: dcm4chee-vol
+              mountPath: /var/lib/postgresql/data
+              subPath: db
+            - name: time
+              mountPath: /etc/localtime
+          ports:
+            - name: http
+              containerPort: 5432
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 5432
+          readinessProbe:
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 5432
+          env:
+            - name: POSTGRES_DB
+              value: "pacsdb"
+            - name: POSTGRES_USER
+              value: "pacs"
+            - name: POSTGRES_PASSWORD
+              value: "pacs"
+        - name: dubhe-backend-dcm4chee-arc
+          image: "docker.io/dcm4che/dcm4chee-arc-psql:5.12.0"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: dcm4chee-vol
+              mountPath: /opt/wildfly/standalone
+              subPath: wildfly
+            - name: time
+              mountPath: /etc/localtime
+          ports:
+            - containerPort: 8080
+            - containerPort: 8443
+            - containerPort: 9990
+            - containerPort: 11112
+            - containerPort: 2575
+          env:
+            - name: POSTGRES_DB
+              value: "pacsdb"
+            - name: POSTGRES_USER
+              value: "pacs"
+            - name: POSTGRES_PASSWORD
+              value: "pacs"
+            - name: WILDFLY_WAIT_FOR
+              value: "ldap:389 db:5432"

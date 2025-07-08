@@ -1,0 +1,18 @@
+{{- if .Values.dubhe.cicd.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins
+spec:
+  selector:
+    app: jenkins
+  type: NodePort
+  ports:
+    - name: admin
+      port: 8080
+      targetPort: 8080
+    - name: agent
+      port: 32766
+      targetPort: 32766
+      nodePort: 32766
+{{- end }}

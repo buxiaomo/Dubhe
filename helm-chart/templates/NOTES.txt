@@ -1,0 +1,43 @@
+* 设置软连接: 
+
+ln -s {{ .Values.dubhe.hostPath }} /nfs
+
+1. 获取节点 IP
+
+export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+
+2. 服务访问地址
+
+| 服务名   | 端口                          | 默认账户                  |
+|----------|-------------------------------|---------------------------|
+| web      | http://${NODE_IP}:30800       | admin/admin               |
+| minio    | http://${NODE_IP}:30900       | admin/abcdefg123456       |
+| nacos    | http://${NODE_IP}:30848/nacos | nacos/nacos               |
+| harbor   | http://${NODE_IP}:30002       | admin/Harbor12345         |
+| mysql    | ${NODE_IP}:30678              | root/root                 |
+| grafana  | http://${NODE_IP}:30006       | admin/admin               |
+
+3. K8S 多节点
+
+3.1 部署 NFS
+
+```
+apt-get install nfs-kernel-server nfs-common -y
+```
+
+3.2 配置 NFS 挂载点
+
+```
+echo "{{ .Values.dubhe.hostPath }} *(rw,sync,insecure,no_subtree_check,no_root_squash)" >> /etc/exports
+echo "{{ .Values.dubhe.dcm4chee.hostPath }} *(rw,sync,insecure,no_subtree_check,no_root_squash)" >> /etc/exports
+systemctl restart nfs-kernel-server
+systemctl enable nfs-kernel-server
+```
+
+3.3 其他节点挂载
+
+```
+echo '${NODE_IP}:{{ .Values.dubhe.hostPath }} {{ .Values.dubhe.hostPath }} nfs defaults,_netdev 0 0' >> /etc/fstab
+echo '${NODE_IP}:{{ .Values.dubhe.dcm4chee.hostPath }} {{ .Values.dubhe.dcm4chee.hostPath }} nfs defaults,_netdev 0 0' >> /etc/fstab
+mount -a
+```

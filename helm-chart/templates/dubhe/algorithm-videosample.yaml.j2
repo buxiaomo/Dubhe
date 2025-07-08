@@ -1,0 +1,73 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: algorithm-videosample
+  labels:
+    app: algorithm-videosample
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: algorithm-videosample
+  template:
+    metadata:
+      labels:
+        app: algorithm-videosample
+    spec:
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: dubhe-vol
+          hostPath:
+            path: {{ .Values.dubhe.hostPath }}
+        - name: dubhe
+          configMap:
+            defaultMode: 0755
+            name: dubhe
+      initContainers:
+        - name: wait-for-mysql
+          image: "{{ .Values.dubhe.initContainers.infra.image.repository }}"
+          command: 
+          - 'sh'
+          - '-c'
+          - |
+            set -x
+            until nc -z redis 6379; do
+              echo "Waiting for service to be ready..."
+              sleep 5
+            done
+            echo "Service is ready."
+      containers:
+        - name: algorithm-videosample
+          image: "{{ .Values.dubhe.image.host }}/{{ .Values.dubhe.image.repository }}/dubhe-data-process:{{ .Values.dubhe.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command: ["test","-e","/root/.startup"]
+          command: ["/bin/bash","-c","cd /dubhe_data_process && python main.py videosample False {{ .Values.dubhe.redis.host }},{{ .Values.dubhe.redis.port }},10,'{{ .Values.dubhe.redis.password }}'"]
+          volumeMounts:
+            - name: dubhe-vol
+              mountPath: /nfs
+            - name: dubhe-vol
+              mountPath: /dubhe_data_process
+              subPath: dubhe_data_process
+          ports:
+            - name: http
+              containerPort: 9898
+              protocol: TCP
+          # livenessProbe:
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 5
+          #   timeoutSeconds: 5
+          #   tcpSocket:
+          #     port: 9898
+          # readinessProbe:
+          #   initialDelaySeconds: 5
+          #   periodSeconds: 5
+          #   timeoutSeconds: 5
+          #   tcpSocket:
+          #     port: 9898
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
