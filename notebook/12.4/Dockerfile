@@ -3,7 +3,7 @@ FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu20.04
 
 RUN apt-get update \
     && apt-get install --no-install-recommends vim git curl -y \
-    && curl https://repo.anaconda.com/miniconda/Miniconda3-py310_24.9.2-0-Linux-x86_64.sh -o /tmp/miniconda3.sh \
+    && curl https://repo.anaconda.com/miniconda/Miniconda3-py310_24.9.2-0-Linux-$(uname -m).sh -o /tmp/miniconda3.sh \
     && chmod +x /tmp/miniconda3.sh \
     && /tmp/miniconda3.sh -b -p /opt/conda \
     && rm /tmp/miniconda3.sh \
