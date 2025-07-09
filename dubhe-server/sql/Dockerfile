@@ -1,2 +1,2 @@
-FROM docker.io/library/mysql:5.7.40
+FROM docker.io/library/mysql:8.4.5
 COPY ./dubhe.sql /docker-entrypoint-initdb.d/dubhe.sql

@@ -12,6 +12,6 @@ ENV ROOT_PASSWORD=root
 
 EXPOSE 22
 
-WORKDIR /workspace
+WORKDIR ["/workspace", "/dataset"]
 
 CMD [ "/docker-entrypoint.sh" ]
