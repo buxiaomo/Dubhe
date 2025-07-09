@@ -22,6 +22,19 @@ spec:
           configMap:
             defaultMode: 0755
             name: nacos
+      initContainers:
+        - name: wait-for-mysql
+          image: "{{ .Values.dubhe.initContainers.infra.image.repository }}"
+          command: 
+          - 'sh'
+          - '-c'
+          - |
+            set -x
+            until nc -z nacos-mysql 3306; do
+              echo "Waiting for service to be ready..."
+              sleep 5
+            done
+            echo "Service is ready."
       containers:
         - name: nacos
           image: "{{ .Values.nacos.image.repository }}:{{ .Values.nacos.image.tag }}"
@@ -30,18 +43,18 @@ spec:
             - name: tcp
               containerPort: 8848
               protocol: TCP
-          # livenessProbe:
-          #   initialDelaySeconds: 10
-          #   periodSeconds: 5
-          #   timeoutSeconds: 5
-          #   tcpSocket:
-          #     port: 8848
-          # readinessProbe:
-          #   initialDelaySeconds: 5
-          #   periodSeconds: 5
-          #   timeoutSeconds: 5
-          #   tcpSocket:
-          #     port: 8848
+          livenessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 8848
+          readinessProbe:
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 8848
           env:
             - name: TZ
               value: "Asia/Shanghai"
