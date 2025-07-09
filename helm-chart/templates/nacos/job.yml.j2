@@ -256,7 +256,7 @@ data:
           logAbandoned: false
           db-type: com.alibaba.druid.pool.DruidDataSource
           driverClassName: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
-          url: jdbc:log4jdbc:mysql://{{ .Values.dubhe.mysql.host }}:{{ .Values.dubhe.mysql.port }}/{{ .Values.dubhe.mysql.database }}?serverTimezone=Asia/Shanghai%26characterEncoding=utf8%26useSSL=false%26allowMultiQueries=true%26useInformationSchema=true%26rewriteBatchedStatements=true
+          url: jdbc:log4jdbc:mysql://{{ .Values.dubhe.mysql.host }}:{{ .Values.dubhe.mysql.port }}/{{ .Values.dubhe.mysql.database }}?allowPublicKeyRetrieval=true%26serverTimezone=Asia/Shanghai%26characterEncoding=utf8%26useSSL=false%26allowMultiQueries=true%26useInformationSchema=true%26rewriteBatchedStatements=true
           username: {{ .Values.dubhe.mysql.username }}
           password: {{ .Values.dubhe.mysql.password }}
     
@@ -516,7 +516,7 @@ data:
           master:
             type: com.alibaba.druid.pool.DruidDataSource
             driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
-            url: jdbc:log4jdbc:mysql://{{ .Values.dubhe.mysql.host }}:{{ .Values.dubhe.mysql.port }}/{{ .Values.dubhe.mysql.database }}?serverTimezone=Asia/Shanghai%26characterEncoding=utf8%26useSSL=false%26allowMultiQueries=true%26useInformationSchema=true%26rewriteBatchedStatements=true
+            url: jdbc:log4jdbc:mysql://{{ .Values.dubhe.mysql.host }}:{{ .Values.dubhe.mysql.port }}/{{ .Values.dubhe.mysql.database }}?allowPublicKeyRetrieval=true%26serverTimezone=Asia/Shanghai%26characterEncoding=utf8%26useSSL=false%26allowMultiQueries=true%26useInformationSchema=true%26rewriteBatchedStatements=true
             username: {{ .Values.dubhe.mysql.username }}
             password: {{ .Values.dubhe.mysql.password }}
           props:
