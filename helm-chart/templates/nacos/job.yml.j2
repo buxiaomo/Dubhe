@@ -4,7 +4,7 @@ metadata:
   name: dubhe-config
 data:
   kubeconfig.yaml: |-
-{{ .Files.Get "files/remote-access.kubeconfig" | indent 4 }}
+{{ .Files.Get "files/admin.kubeconfig" | indent 4 }}
 
   admin.yaml: |
     #密码加密传输，前端公钥加密，后端私钥解密
