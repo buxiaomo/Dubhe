@@ -22,7 +22,12 @@ ENV PATH=/opt/conda/bin:$PATH
 
 ENV PIP_NO_REQUIRE_HASHES=1
 COPY . /model_measuring
-RUN conda env create --file=/model_measuring/pytorch.yaml --yes \
+
+RUN if [ `uname -m` = "x86_64" ] && [ `uname -o` = "GNU/Linux" ]; then \
+        conda env create --platform linux-64 --file=/model_measuring/pytorch.yaml --yes; \
+    else \
+        conda env create --platform linux-aarch64 --file=/model_measuring/pytorch.yaml --yes; \
+    fi \
     && /opt/conda/bin/conda clean --all -y && rm -rf /root/.cache/* \
     && bash -c "source /opt/conda/bin/activate pytorch"
 
