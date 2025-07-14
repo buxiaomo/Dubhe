@@ -1,6 +1,9 @@
 FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu20.04
 
-RUN apt-get update \
+COPY sources.list /etc/apt/sources.list
+
+RUN rm -rf /etc/apt/sources.list.d/* \
+    && apt-get update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
