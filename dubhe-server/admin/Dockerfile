@@ -1,5 +1,5 @@
-ARG BASE_IMAGE=docker.io/library/openjdk:8-jre
-FROM ${BASE_IMAGE}
+ARG REGISTRY_HOST=docker.io
+FROM ${REGISTRY_HOST}/library/openjdk:8-jre
 RUN apt-get update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
