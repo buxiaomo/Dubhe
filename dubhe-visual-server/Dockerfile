@@ -1,5 +1,7 @@
 FROM python:3.7.17
 
+COPY debian.sources /etc/apt/sources.list.d/debian.sources
+
 RUN apt-get update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
