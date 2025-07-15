@@ -40,6 +40,15 @@ spec:
           configMap:
             defaultMode: 0755
             name: dubhe
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
       nodeSelector:
         gpu: "true"
       containers:
