@@ -1,4 +1,5 @@
-FROM openjdk:8-jre
+ARG BASE_IMAGE=docker.io/library/openjdk:8-jre
+FROM ${BASE_IMAGE}
 RUN apt-get update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
