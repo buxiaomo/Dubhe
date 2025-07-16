@@ -1,5 +1,5 @@
-# docker build -t 192.168.1.2:5000/buxiaomo/sshd:latest .
-FROM alpine:3.22.0
+ARG REGISTRY_HOST=docker.io
+FROM ${REGISTRY_HOST}/library/alpine:3.22.0
 
 RUN apk add --no-cache openssh-server==10.0_p1-r7 openssh-client bash \
     && mkdir /var/run/sshd \

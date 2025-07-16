@@ -1,12 +1,14 @@
+@Library('jenkins-libraries@main') _
 pipeline {
-    agent { 
+    agent {
         label "swarm"
     }
 
     parameters {
         string defaultValue: '192.168.2.228', name: 'baseUrl', trim: true
-        choice choices: ['amd64', 'arm64', 'amd64,arm64'], name: 'platform'
-        choice choices: ['local-path', 'nfs-client'], name: 'storageClassName'
+        choice choices: ['linux/amd64', 'linux/arm64', 'linux/amd64,linux/arm64'], name: 'platform'
+        choice choices: ['nfs-client', 'local-path'], name: 'storageClassName'
+        booleanParam defaultValue: false, name: 'skipBuild'
     }
 
     environment {
@@ -16,17 +18,22 @@ pipeline {
         REPOSITORY_URL = "https://github.com/buxiaomo/Dubhe.git"
 
         REGISTRY_HOST = "192.168.2.228:30002"
+        REGISTRY_CREDENTIALS_ID = "harbor"
+
+        // linux/amd64, linux/arm64, linux/amd64,linux/arm64
+        IMAGE_platform = "linux/amd64,linux/arm64"
     }
 
     options {
         disableConcurrentBuilds abortPrevious: true
-        timeout(120)
+        timeout(150)
+        parallelsAlwaysFailFast()
     }
 
     stages {
         stage('checkout') {
             steps {
-                checkout scmGit(branches: [[name: '*/add-health-check']], extensions: [lfs()], userRemoteConfigs: [[url: "${env.REPOSITORY_URL}"]])
+                checkout scmGit(branches: [[name: '*/add-health-check']], extensions: [lfs()], userRemoteConfigs: [[credentialsId: 'github', url: "${env.REPOSITORY_URL}"]])
                 withCredentials([usernamePassword(credentialsId: 'harbor', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
                     sh "echo ${PASSWORD} | docker login ${env.REGISTRY_HOST} -u ${USERNAME} --password-stdin"
                 }
@@ -34,6 +41,9 @@ pipeline {
         }
 
         stage('compile') {
+            when {
+                expression { !params.skipBuild }
+            }
             parallel {
                 stage('webapp') {
                     steps {
@@ -53,6 +63,15 @@ pipeline {
                         }
                     }
                 }
+                stage('distribute-train-operator') {
+                    steps {
+                        dir('distribute-train-operator') {
+                            withDockerContainer(image: 'docker.io/library/maven:3.5-jdk-8', args: '--net host -v m2:/root/.m2') {
+                                sh "mvn clean compile package -Dmaven.test.skip=true -Dmaven.compile.fork=true"
+                            }
+                        }
+                    }
+                }
                 stage('dubhe-server') {
                     steps {
                         dir('dubhe-server') {
@@ -66,11 +85,23 @@ pipeline {
         }
 
         stage('build image') {
+            when {
+                expression { !params.skipBuild }
+            }
             parallel {
                 stage('webapp') {
                     steps {
                         dir('webapp') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/web:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'web'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
@@ -78,175 +109,466 @@ pipeline {
                 stage('dubhe-storage') {
                     steps {
                         dir('dubhe-storage') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/storage-init:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'storage-init'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-data-process') {
                     steps {
                         dir('dubhe_data_process') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-data-process:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-data-process'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('model-converter') {
+                    steps {
+                        dir('model-converter') {
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'model-converter'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('model-measuring') {
+                    steps {
+                        dir('model_measuring') {
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'model-measuring'
+                                    platform = "linux/amd64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('ofrecord') {
                     steps {
                         dir('dubhe_data_process/docker-image/ofrecord') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/algorithm-ofrecord:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'algorithm-ofrecord'
+                                    platform = "linux/amd64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('database') {
                     steps {
                         dir('dubhe-server/sql') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/mysql:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'mysql'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
-                // stage('model-converter') {
-                //     steps {
-                //         dir('model-converter') {
-                //             sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/model-converter:${BUILD_NUMBER} --push ."
-                //         }
-                //     }
-                // }
-                // stage('model-measuring') {
-                //     steps {
-                //         dir('model_measuring') {
-                //             sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/model-measuring:${BUILD_NUMBER} --push ."
-                //         }
-                //     }
-                // }
                 stage('admin') {
                     steps {
                         dir('dubhe-server/admin') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/admin:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'admin'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('auth') {
                     steps {
                         dir('dubhe-server/auth') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/auth:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'auth'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('gateway') {
                     steps {
                         dir('dubhe-server/gateway') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/gateway:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'gateway'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-train') {
                     steps {
                         dir('dubhe-server/dubhe-train') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-train:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-train'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-algorithm') {
                     steps {
                         dir('dubhe-server/dubhe-algorithm') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-algorithm:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-algorithm'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-data') {
                     steps {
                         dir('dubhe-server/dubhe-data') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-data:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-data'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-data-dcm') {
                     steps {
                         dir('dubhe-server/dubhe-data-dcm') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-data-dcm:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-data-dcm'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-data-task') {
                     steps {
                         dir('dubhe-server/dubhe-data-task') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-data-task:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-data-task'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]                                    
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-image') {
                     steps {
                         dir('dubhe-server/dubhe-image') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-image:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-image'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-k8s') {
                     steps {
                         dir('dubhe-server/dubhe-k8s') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-k8s:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-k8s'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-measure') {
                     steps {
                         dir('dubhe-server/dubhe-measure') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-measure:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-measure'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-model') {
                     steps {
                         dir('dubhe-server/dubhe-model') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-model:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-model'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-notebook') {
                     steps {
                         dir('dubhe-server/dubhe-notebook') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-notebook:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-notebook'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-optimize') {
                     steps {
                         dir('dubhe-server/dubhe-optimize') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-optimize:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-optimize'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('dubhe-visual-server') {
+                    steps {
+                        dir('dubhe-visual-server') {
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-visual-server'
+                                    platform = "linux/amd64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-point-cloud') {
                     steps {
                         dir('dubhe-server/dubhe-point-cloud') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-point-cloud:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-point-cloud'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-serving') {
                     steps {
                         dir('dubhe-server/dubhe-serving') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-serving:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-serving'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-serving-gateway') {
                     steps {
                         dir('dubhe-server/dubhe-serving-gateway') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-serving-gateway:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-serving-gateway'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-tadl') {
                     steps {
                         dir('dubhe-server/dubhe-tadl') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-tadl:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-tadl'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
                 stage('dubhe-terminal') {
                     steps {
                         dir('dubhe-server/dubhe-terminal') {
-                            sh label: 'build image', script: "docker buildx build --platform=${params.platform} -t ${env.REGISTRY_HOST}/${env.JOB_NAME}/dubhe-terminal:${BUILD_NUMBER} --push ."
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'dubhe-terminal'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('notebook') {
+                    steps {
+                        dir('notebook/12.6') {
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'notebook'
+                                    tag = '12.6.3-cudnn-devel-ubuntu20.04'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('sshd') {
+                    steps {
+                        dir('sshd') {
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'sshd'
+                                    tag = '10.0'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('distribute-train-operator') {
+                    steps {
+                        dir('distribute-train-operator') {
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'distribute-train-operator'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
                         }
                     }
                 }
@@ -265,8 +587,45 @@ pipeline {
                         currentBuild.result = 'ABORTED'
                     }
                     if (proceed) {
-                        checkout scmGit(branches: [[name: '*/main']], extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'dubhe-chart']], userRemoteConfigs: [[url: "https://github.com/buxiaomo/dubhe-chart.git"]])
-                        sh "helm upgrade -i dubhe ./dubhe-chart -n ${env.PROJECT_NAME}-${env.PROJECT_ENV} --set global.storageClassName=${params.storageClassName} --set dubhe.cicd.enabled=false --set dubhe.image.host=${env.REGISTRY_HOST} --set dubhe.image.repository=${env.JOB_NAME} --set dubhe.image.tag=${BUILD_NUMBER} --wait --timeout 1h0s"
+                        // checkout scmGit(branches: [[name: '*/main']], extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'dubhe-chart']], userRemoteConfigs: [[url: "https://github.com/buxiaomo/dubhe-chart.git"]])
+                        sh "cp /etc/kubernetes/remote-access.kubeconfig ./helm-chart/files/admin.kubeconfig"
+                        if (params.skipBuild) {
+                            def projectName = env.PROJECT_NAME
+                            def projectEnv = env.PROJECT_ENV
+                            def registryHost = env.REGISTRY_HOST
+                            def jobName = env.JOB_NAME
+                            def storageClassName  = params.storageClassName
+                            HelmDeploy(this) {
+                                name = 'dubhe'
+                                namespace = "${projectName}-${projectEnv}"
+                                path = './helm-chart'
+                                set = [
+                                    "global.storageClassName=${storageClassName}",
+                                    "dubhe.cicd.enabled=false",
+                                    "dubhe.image.host=${registryHost}",
+                                    "dubhe.image.repository=${jobName}",
+                                    "dubhe.image.tag=latest"
+                                ]
+                            }
+                        } else {
+                            def projectName = env.PROJECT_NAME
+                            def projectEnv = env.PROJECT_ENV
+                            def registryHost = env.REGISTRY_HOST
+                            def jobName = env.JOB_NAME
+                            def storageClassName  = params.storageClassName
+                            def tag = env.BUILD_NUMBER
+                            HelmDeploy(this) {
+                                name = 'dubhe'
+                                namespace = "${projectName}-${projectEnv}"
+                                path = './helm-chart'
+                                set = [
+                                    "global.storageClassName=${storageClassName}",
+                                    "dubhe.image.host=${registryHost}",
+                                    "dubhe.image.repository=${jobName}",
+                                    "dubhe.image.tag=${tag}"
+                                ]
+                            }
+                        }
                     }
                 }
             }

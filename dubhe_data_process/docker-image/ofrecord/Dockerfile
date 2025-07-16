@@ -1,4 +1,5 @@
-FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu20.04
+ARG REGISTRY_HOST=docker.io
+FROM ${REGISTRY_HOST}/nvidia/cuda:12.2.2-cudnn8-devel-ubuntu20.04
 
 # COPY sources.list /etc/apt/sources.list
 

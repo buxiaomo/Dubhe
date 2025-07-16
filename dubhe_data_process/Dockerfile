@@ -1,4 +1,5 @@
-FROM python:3.6.3
+ARG REGISTRY_HOST=docker.io
+FROM ${REGISTRY_HOST}/library/python:3.6.3
 
 RUN TMPDIR=/usr/local/src/pip pip install --no-cache-dir --user -i https://mirrors.cloud.tencent.com/pypi/simple/ --upgrade pip \
     && rm -rf /usr/local/src/pip

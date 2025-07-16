@@ -1,4 +1,5 @@
-FROM python:3.7.17
+ARG REGISTRY_HOST=docker.io
+FROM ${REGISTRY_HOST}/library/python:3.7.17
 
 COPY debian.sources /etc/apt/sources.list.d/debian.sources
 
