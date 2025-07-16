@@ -8,5 +8,6 @@ WORKDIR /app
 COPY ./target/distribute-train-operator-1.0.jar /app/app.jar
 ENV SPRING_PROFILES_ACTIVE="prod"
 ENV JAVA_OPTION="-Xms1024m -Xmx1024m"
+ENV JAR_BALL=""
 VOLUME [ "/data" ]
-CMD ["sh", "-c", "java ${JAVA_OPTS} -jar app.jar --spring.profiles.active=${SPRING_PROFILES_ACTIVE}"]
+CMD ["sh", "-c", "java ${JAVA_OPTS} -jar app.jar ${JAR_BALL}"]

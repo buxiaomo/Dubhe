@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: distribute-train-operator
+spec:
+  selector:
+    app: distribute-train-operator
+  ports:
+    - name: port-8080
+      port: 8080
+      targetPort: 8080
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: distribute-train-operator
+  labels:
+    app: distribute-train-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: distribute-train-operator
+  template:
+    metadata:
+      labels:
+        app: distribute-train-operator
+    spec:
+      volumes:
+        - name: dubhe
+          configMap:
+            defaultMode: 0755
+            name: dubhe
+      containers:
+        - name: distribute-train-operator
+          image: "{{ .Values.dubhe.image.host }}/{{ .Values.dubhe.image.repository }}/distribute-train-operator:{{ .Values.dubhe.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 9898
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 60
+            failureThreshold: 5
+            successThreshold: 1
+            periodSeconds: 10
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 9898
+          readinessProbe:
+            initialDelaySeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+            periodSeconds: 10
+            timeoutSeconds: 5
+            tcpSocket:
+              port: 9898
+          volumeMounts:
+            - name: dubhe
+              mountPath: /data/kubeconfig.yaml
+              subPath: kubeconfig.yaml
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+            - name: JAR_BALL
+              value: "--k8s.kubeconfig=/data/kubeconfig.yaml --spring.redis.host={{ .Values.dubhe.redis.host }} --spring.redis.password={{ .Values.dubhe.redis.password }} --spring.redis.port={{ .Values.dubhe.redis.port }}"

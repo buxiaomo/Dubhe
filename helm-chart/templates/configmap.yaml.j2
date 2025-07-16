@@ -16,3 +16,5 @@ data:
           discovery:
             namespace: dubhe-prod
             server-addr: nacos:8848
+  kubeconfig.yaml: |-
+{{ .Files.Get "files/admin.kubeconfig" | indent 4 }}
