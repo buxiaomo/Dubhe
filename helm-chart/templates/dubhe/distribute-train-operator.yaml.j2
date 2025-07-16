@@ -38,7 +38,7 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 9898
+              containerPort: 8080
               protocol: TCP
           livenessProbe:
             initialDelaySeconds: 60
@@ -47,7 +47,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             tcpSocket:
-              port: 9898
+              port: 8080
           readinessProbe:
             initialDelaySeconds: 10
             failureThreshold: 3
@@ -55,7 +55,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             tcpSocket:
-              port: 9898
+              port: 8080
           volumeMounts:
             - name: dubhe
               mountPath: /data/kubeconfig.yaml
