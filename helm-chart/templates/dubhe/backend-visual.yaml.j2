@@ -60,11 +60,18 @@ spec:
           configMap:
             defaultMode: 0755
             name: backend-visual
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
       containers:
         - name: backend-visual
           image: "{{ .Values.dubhe.image.host }}/{{ .Values.dubhe.image.repository }}/dubhe-visual-server:{{ .Values.dubhe.image.tag }}"
-          # image: registry.cn-hangzhou.aliyuncs.com/enlin/visual-server:v1
-          # command: ["/bin/bash", "-c", "/home/dubhe-visual-server-v2/start_server.sh"]
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: dubhe-vol
