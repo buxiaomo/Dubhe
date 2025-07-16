@@ -2,6 +2,11 @@ ARG REGISTRY_HOST=docker.io
 FROM ${REGISTRY_HOST}/nvidia/cuda:12.3.2-cudnn9-devel-ubuntu20.04
 
 RUN apt-get update \
+    && apt-get dist-upgrade -y \
+    && apt-get clean all \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update \
     && apt-get install --no-install-recommends vim git curl -y \
     && curl https://repo.anaconda.com/miniconda/Miniconda3-py310_24.9.2-0-Linux-$(uname -m).sh -o /tmp/miniconda3.sh \
     && chmod +x /tmp/miniconda3.sh \
