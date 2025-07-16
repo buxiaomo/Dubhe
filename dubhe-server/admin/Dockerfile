@@ -1,5 +1,6 @@
 ARG REGISTRY_HOST=docker.io
 FROM ${REGISTRY_HOST}/library/openjdk:8-jre
+COPY sources.list /etc/apt/sources.list
 RUN apt-get update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
