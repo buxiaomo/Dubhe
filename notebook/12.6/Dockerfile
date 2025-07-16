@@ -1,5 +1,5 @@
-# docker build -t 127.0.0.1:5000/buxiaomo/notebook:12.6.3-cudnn-devel-ubuntu20.04 .
-FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu20.04
+ARG REGISTRY_HOST=docker.io
+FROM ${REGISTRY_HOST}/nvidia/cuda:12.6.3-cudnn-devel-ubuntu20.04
 
 RUN apt-get update \
     && apt-get install --no-install-recommends vim git curl -y \
