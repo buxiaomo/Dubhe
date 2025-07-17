@@ -6,9 +6,9 @@ spec:
   selector:
     app: distribute-train-operator
   ports:
-    - name: port-8080
-      port: 8080
-      targetPort: 8080
+    - name: port-8090
+      port: 8090
+      targetPort: 8090
 
 ---
 apiVersion: apps/v1
@@ -38,7 +38,7 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 8090
               protocol: TCP
           livenessProbe:
             initialDelaySeconds: 60
@@ -47,7 +47,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             tcpSocket:
-              port: 8080
+              port: 8090
           readinessProbe:
             initialDelaySeconds: 10
             failureThreshold: 3
@@ -55,7 +55,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             tcpSocket:
-              port: 8080
+              port: 8090
           volumeMounts:
             - name: dubhe
               mountPath: /data/kubeconfig.yaml
