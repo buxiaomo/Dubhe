@@ -53,6 +53,19 @@ spec:
           hostnames:
             - ldap
             - db
+      initContainers:
+        - name: chown-root-dir
+          image: "{{ .Values.dubhe.dcm4chee.postgres.image.repository }}:{{ .Values.dubhe.dcm4chee.postgres.image.tag }}"
+          volumeMounts:
+            - name: dcm4chee-vol
+              mountPath: /var/lib/postgresql/data
+              subPath: db
+          command:
+            [
+              "sh",
+              "-c",
+              "chown 999:999 /var/lib/postgresql/data"
+            ]
       containers:
         - name: dubhe-backend-dcm4chee-ldap
           image: "{{ .Values.dubhe.dcm4chee.slapd.image.repository }}:{{ .Values.dubhe.dcm4chee.slapd.image.tag }}"
@@ -77,7 +90,7 @@ spec:
             tcpSocket:
               port: 389
           readinessProbe:
-            initialDelaySeconds: 5
+            initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
             tcpSocket:
@@ -105,7 +118,7 @@ spec:
             tcpSocket:
               port: 5432
           readinessProbe:
-            initialDelaySeconds: 5
+            initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
             tcpSocket:
