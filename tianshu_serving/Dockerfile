@@ -1,8 +1,9 @@
 ARG REGISTRY_HOST=docker.io
 FROM ${REGISTRY_HOST}/nvidia/cuda:11.2.2-cudnn8-devel-ubuntu18.04
+COPY sources.list /etc/apt/sources.list
 WORKDIR /workspace
 RUN apt-key adv --recv-keys --keyserver keyserver.ubuntu.com A4B469963BF863CC
-RUN rm -rf /etc/apt/sources.list.d && apt-get update && apt-get install -y --no-install-recommends python3-pip \
+RUN rm -rf /etc/apt/sources.list.d && apt-get update && apt-get install -y python3-pip \
     && ln -s /usr/bin/python3 /usr/bin/python \
     && apt-get clean all \
     && rm -rf /var/lib/apt/lists/*
