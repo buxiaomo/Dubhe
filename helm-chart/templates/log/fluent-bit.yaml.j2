@@ -226,7 +226,7 @@ spec:
     spec:
       containers:
         - name: fluent-bit
-          image: "{{ .Values.log.fluentbit.image.repository }}"
+          image: "{{ .Values.log.fluentbit.image.repository }}:{{ .Values.log.fluentbit.image.tag }}"
           imagePullPolicy: IfNotPresent
           resources:
             requests:

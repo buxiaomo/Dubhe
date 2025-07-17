@@ -54,7 +54,7 @@ spec:
             claimName: elasticsearch-vol
       initContainers:
         - name: fix-permissions
-          image: "{{ .Values.log.initContainers.infra.image.repository }}"
+          image: "{{ .Values.log.initContainers.infra.image.repository }}:{{ .Values.log.initContainers.infra.image.tag }}"
           imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
           volumeMounts:
@@ -63,20 +63,20 @@ spec:
           securityContext:
             privileged: true
         - name: increase-vm-max-map
-          image: "{{ .Values.log.initContainers.infra.image.repository }}"
+          image: "{{ .Values.log.initContainers.infra.image.repository }}:{{ .Values.log.initContainers.infra.image.tag }}"
           imagePullPolicy: IfNotPresent
           command: ["sysctl", "-w", "vm.max_map_count=262144"]
           securityContext:
             privileged: true
         - name: increase-fd-ulimit
-          image: "{{ .Values.log.initContainers.infra.image.repository }}"
+          image: "{{ .Values.log.initContainers.infra.image.repository }}:{{ .Values.log.initContainers.infra.image.tag }}"
           imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "ulimit -n 65536"]
           securityContext:
             privileged: true
       containers:
         - name: elasticsearch
-          image: "{{ .Values.log.elasticsearch.image.repository }}"
+          image: "{{ .Values.log.elasticsearch.image.repository }}:{{ .Values.log.elasticsearch.image.tag }}"
           ports:
             - name: http
               containerPort: 9200

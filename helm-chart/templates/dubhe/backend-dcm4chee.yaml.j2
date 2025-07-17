@@ -55,7 +55,7 @@ spec:
             - db
       containers:
         - name: dubhe-backend-dcm4chee-ldap
-          image: "docker.io/dcm4che/slapd-dcm4chee:2.4.44-12.0"
+          image: "{{ .Values.dubhe.dcm4chee.slapd.image.repository }}:{{ .Values.dubhe.dcm4chee.slapd.image.tag }}"
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: dcm4chee-vol
@@ -71,7 +71,7 @@ spec:
               containerPort: 389
               protocol: TCP
           livenessProbe:
-            initialDelaySeconds: 10
+            initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 5
             tcpSocket:
@@ -86,7 +86,7 @@ spec:
             - name: TZ
               value: "Asia/Shanghai"
         - name: dubhe-backend-dcm4chee-db
-          image: "docker.io/dcm4che/postgres-dcm4chee:10.0-12"
+          image: "{{ .Values.dubhe.dcm4chee.postgres.image.repository }}:{{ .Values.dubhe.dcm4chee.postgres.image.tag }}"
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: dcm4chee-vol
@@ -99,7 +99,7 @@ spec:
               containerPort: 5432
               protocol: TCP
           livenessProbe:
-            initialDelaySeconds: 10
+            initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 5
             tcpSocket:
@@ -118,7 +118,7 @@ spec:
             - name: POSTGRES_PASSWORD
               value: "pacs"
         - name: dubhe-backend-dcm4chee-arc
-          image: "docker.io/dcm4che/dcm4chee-arc-psql:5.12.0"
+          image: "{{ .Values.dubhe.dcm4chee.arc.image.repository }}:{{ .Values.dubhe.dcm4chee.arc.image.tag }}"
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: dcm4chee-vol

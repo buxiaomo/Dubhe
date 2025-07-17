@@ -106,6 +106,24 @@ pipeline {
                     }
                 }
 
+                stage('serving-gpu') {
+                    steps {
+                        dir('tianshu_serving') {
+                            script{
+                                BuildDockerImage(this) {
+                                    name = 'serving-gpu'
+                                    tag = 'base'
+                                    platform = "linux/amd64,linux/arm64"
+                                    path = './Dockerfile'
+                                    buildArgs = [
+                                        "REGISTRY_HOST=192.168.2.228:30002"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+
                 stage('dubhe-storage') {
                     steps {
                         dir('dubhe-storage') {
@@ -604,7 +622,20 @@ pipeline {
                                     "dubhe.cicd.enabled=false",
                                     "dubhe.image.host=${registryHost}",
                                     "dubhe.image.repository=${jobName}",
-                                    "dubhe.image.tag=latest"
+                                    "dubhe.image.tag=latest",
+                                    "redis.image.repository=192.168.2.228:30002/library/redis",
+                                    "minio.image.repository=192.168.2.228:30002/minio/minio",
+                                    "minio.mc.image.repository=192.168.2.228:30002/minio/mc",
+                                    "nacos.image.repository=192.168.2.228:30002/nacos/nacos-server",
+                                    "nacos.mysql.image.repository=192.168.2.228:30002/nacos/nacos-mysql",
+                                    "monitoring.initContainers.infra.image.repository=192.168.2.228:30002/library/alpine",
+                                    "monitoring.nodexporter.image.repository=192.168.2.228:30002/prom/node-exporter",
+                                    "monitoring.prometheus.image.repository=192.168.2.228:30002/prom/prometheus",
+                                    "monitoring.grafana.image.repository=192.168.2.228:30002/grafana/grafana",
+                                    "log.initContainers.infra.image.repository=192.168.2.228:30002/library/alpine",
+                                    "log.elasticsearch.infra.image.repository=192.168.2.228:30002/elasticsearch/elasticsearch",
+                                    "log.fluentbit.infra.image.repository=192.168.2.228:30002/fluent/fluent-bit",
+                                    "dubhe.initContainers.infra.image.repository=192.168.2.228:30002/library/busybox"
                                 ]
                             }
                         } else {
@@ -622,7 +653,20 @@ pipeline {
                                     "global.storageClassName=${storageClassName}",
                                     "dubhe.image.host=${registryHost}",
                                     "dubhe.image.repository=${jobName}",
-                                    "dubhe.image.tag=${tag}"
+                                    "dubhe.image.tag=${tag}",
+                                    "redis.image.repository=192.168.2.228:30002/library/redis",
+                                    "minio.image.repository=192.168.2.228:30002/minio/minio",
+                                    "minio.mc.image.repository=192.168.2.228:30002/minio/mc",
+                                    "nacos.image.repository=192.168.2.228:30002/nacos/nacos-server",
+                                    "nacos.mysql.image.repository=192.168.2.228:30002/nacos/nacos-mysql",
+                                    "monitoring.initContainers.infra.image.repository=192.168.2.228:30002/library/alpine",
+                                    "monitoring.nodexporter.image.repository=192.168.2.228:30002/prom/node-exporter",
+                                    "monitoring.prometheus.image.repository=192.168.2.228:30002/prom/prometheus",
+                                    "monitoring.grafana.image.repository=192.168.2.228:30002/grafana/grafana",
+                                    "log.initContainers.infra.image.repository=192.168.2.228:30002/library/alpine",
+                                    "log.elasticsearch.infra.image.repository=192.168.2.228:30002/elasticsearch/elasticsearch",
+                                    "log.fluentbit.infra.image.repository=192.168.2.228:30002/fluent/fluent-bit",
+                                    "dubhe.initContainers.infra.image.repository=192.168.2.228:30002/library/busybox"
                                 ]
                             }
                         }

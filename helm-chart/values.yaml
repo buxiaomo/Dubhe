@@ -59,27 +59,42 @@ log:
   initContainers:
     infra: 
       image:
-        repository: "docker.io/library/alpine:3.6"
+        repository: "docker.io/library/alpine"
+        tag: "3.6"
   elasticsearch: 
     image:
-      repository: "docker.elastic.co/elasticsearch/elasticsearch:7.17.16"
+      repository: "docker.elastic.co/elasticsearch/elasticsearch"
+      tag: "7.17.16"
   fluentbit: 
     image:
-      repository: "docker.io/fluent/fluent-bit:1.9.10"
-
+      repository: "docker.io/fluent/fluent-bit"
+      tag: "1.9.10"
 
 dubhe:
+  hostPath: /data/dubhe
   initContainers:
     infra: 
       image:
-        repository: "docker.io/library/busybox:1.37.0"
+        repository: "docker.io/library/busybox"
+        tag: "1.37.0"
   image:
     host: "192.168.2.228:5000"
     repository: "zhijiangtianshu"
     tag: "v1"
-  hostPath: /data/dubhe
   dcm4chee:
     hostPath: /data/dcm4chee
+    slapd:
+      image:
+        repository: "docker.io/dcm4che/slapd-dcm4chee"
+        tag: "2.4.44-12.0"
+    postgres:
+      image:
+        repository: "docker.io/dcm4che/postgres-dcm4chee"
+        tag: "10.0-12"
+    arc:
+      image:
+        repository: "docker.io/dcm4che/dcm4chee-arc-psql"
+        tag: "5.12.0"
   cicd: 
     enabled: false
     username: admin

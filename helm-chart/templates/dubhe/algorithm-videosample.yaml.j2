@@ -26,7 +26,7 @@ spec:
             name: dubhe
       initContainers:
         - name: wait-for-mysql
-          image: "{{ .Values.dubhe.initContainers.infra.image.repository }}"
+          image: "{{ .Values.dubhe.initContainers.infra.image.repository }}:{{ .Values.dubhe.initContainers.infra.image.tag }}"
           command: 
           - 'sh'
           - '-c'
