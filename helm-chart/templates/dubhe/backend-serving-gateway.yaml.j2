@@ -68,8 +68,6 @@ spec:
       containers:
         - name: backend-serving-gateway
           image: "{{ .Values.dubhe.image.host }}/{{ .Values.dubhe.image.repository }}/dubhe-serving-gateway:{{ .Values.dubhe.image.tag }}"
-          # image: "192.168.2.228:5000/enlin/dubhe-java:v1"
-          # command: ["/bin/bash", "-c", "cd /data/ && java -Xms1024m -Xmx1024m   -jar dubhe-serving-gateway-0.0.1-SNAPSHOT-exec.jar --spring.profiles.active=prod"]
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: dubhe-vol
@@ -82,7 +80,7 @@ spec:
               containerPort: 8081
               protocol: TCP
           livenessProbe:
-            initialDelaySeconds: 60
+            initialDelaySeconds: 90
             failureThreshold: 5
             successThreshold: 1
             periodSeconds: 10
@@ -90,7 +88,7 @@ spec:
             tcpSocket:
               port: 8081
           readinessProbe:
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
             failureThreshold: 3
             successThreshold: 1
             periodSeconds: 10

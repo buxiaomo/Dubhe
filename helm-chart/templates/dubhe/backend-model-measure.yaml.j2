@@ -54,14 +54,7 @@ spec:
       containers:
         - name: backend-model-measure
           image: "{{ .Values.dubhe.image.host }}/{{ .Values.dubhe.image.repository }}/model-measuring:{{ .Values.dubhe.image.tag }}"
-          # image: "registry.cn-hangzhou.aliyuncs.com/enlin/model-measuring:v1"
           imagePullPolicy: IfNotPresent
-          # command:
-          #   - /bin/bash
-          # args:
-          #   - -c
-          #   - "python /model_measuring/app.py"
-          #   # - "source /root/anaconda3/bin/activate pytorch_1_3 && pip install web.py -i https://pypi.tuna.tsinghua.edu.cn/simple/ &&  python /model_measuring/app.py"
           volumeMounts:
             - name: dubhe-vol
               mountPath: /model
@@ -72,9 +65,6 @@ spec:
             - name: dubhe-vol
               mountPath: /exported-metrics
               subPath: dubhe-prod/exported-metrics
-            # - name: dubhe
-            #   mountPath: /app/bootstrap-prod.yml
-            #   subPath: bootstrap-prod.yml
           ports:
             - name: http
               containerPort: 8080

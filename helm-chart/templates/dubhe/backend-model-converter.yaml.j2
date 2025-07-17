@@ -42,7 +42,6 @@ spec:
       containers:
         - name: backend-model-converter
           image: "{{ .Values.dubhe.image.host }}/{{ .Values.dubhe.image.repository }}/model-converter:{{ .Values.dubhe.image.tag }}"
-          # image: "registry.cn-hangzhou.aliyuncs.com/enlin/model-converter:v1"
           imagePullPolicy: IfNotPresent
           command:
             - /bin/bash
@@ -61,7 +60,7 @@ spec:
               containerPort: 8080
               protocol: TCP
           livenessProbe:
-            initialDelaySeconds: 10
+            initialDelaySeconds: 90
             periodSeconds: 10
             timeoutSeconds: 5
             httpGet:
@@ -69,7 +68,7 @@ spec:
               port: 8080
               scheme: HTTP
           readinessProbe:
-            initialDelaySeconds: 5
+            initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
             httpGet:

@@ -65,8 +65,6 @@ spec:
       containers:
         - name: backend-data
           image: "{{ .Values.dubhe.image.host }}/{{ .Values.dubhe.image.repository }}/dubhe-data:{{ .Values.dubhe.image.tag }}"
-          # image: "192.168.2.228:5000/enlin/dubhe-java:v1"
-          # command: ["/bin/bash", "-c", "cd /data/ && java -Xms1024m -Xmx1024m   -jar dubhe-data-0.0.1-SNAPSHOT-exec.jar --spring.profiles.active=prod"]
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: dubhe-vol
@@ -79,7 +77,7 @@ spec:
               containerPort: 8823
               protocol: TCP
           # livenessProbe:
-          #   initialDelaySeconds: 10
+          #   initialDelaySeconds: 90
           #   periodSeconds: 10
           #   timeoutSeconds: 5
           #   tcpSocket:

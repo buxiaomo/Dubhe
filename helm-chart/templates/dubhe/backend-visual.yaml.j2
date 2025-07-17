@@ -84,7 +84,7 @@ spec:
               containerPort: 9898
               protocol: TCP
           livenessProbe:
-            initialDelaySeconds: 60
+            initialDelaySeconds: 90
             failureThreshold: 5
             successThreshold: 1
             periodSeconds: 10
@@ -92,7 +92,7 @@ spec:
             tcpSocket:
               port: 9898
           readinessProbe:
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
             failureThreshold: 3
             successThreshold: 1
             periodSeconds: 10
