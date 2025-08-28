@@ -33,7 +33,7 @@ pipeline {
     stages {
         stage('checkout') {
             steps {
-                checkout scmGit(branches: [[name: '*/add-health-check']], extensions: [lfs()], userRemoteConfigs: [[credentialsId: 'github', url: "${env.REPOSITORY_URL}"]])
+                checkout scmGit(branches: [[name: '*/add-health-check']], extensions: [], userRemoteConfigs: [[credentialsId: 'github', url: "${env.REPOSITORY_URL}"]])
                 withCredentials([usernamePassword(credentialsId: 'harbor', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
                     sh "echo ${PASSWORD} | docker login ${env.REGISTRY_HOST} -u ${USERNAME} --password-stdin"
                 }
@@ -635,7 +635,11 @@ pipeline {
                                     "log.initContainers.infra.image.repository=192.168.2.228:30002/library/alpine",
                                     "log.elasticsearch.infra.image.repository=192.168.2.228:30002/elasticsearch/elasticsearch",
                                     "log.fluentbit.infra.image.repository=192.168.2.228:30002/fluent/fluent-bit",
-                                    "dubhe.initContainers.infra.image.repository=192.168.2.228:30002/library/busybox"
+                                    "dubhe.initContainers.infra.image.repository=192.168.2.228:30002/library/busybox",
+                                    "external_url.web=192.168.2.228:30800",
+                                    "external_url.dcm=192.168.2.228",
+                                    "external_url.serving=192.168.2.228",
+                                    "external_url.terminal=192.168.2.228"
                                 ]
                             }
                         } else {
@@ -666,7 +670,11 @@ pipeline {
                                     "log.initContainers.infra.image.repository=192.168.2.228:30002/library/alpine",
                                     "log.elasticsearch.infra.image.repository=192.168.2.228:30002/elasticsearch/elasticsearch",
                                     "log.fluentbit.infra.image.repository=192.168.2.228:30002/fluent/fluent-bit",
-                                    "dubhe.initContainers.infra.image.repository=192.168.2.228:30002/library/busybox"
+                                    "dubhe.initContainers.infra.image.repository=192.168.2.228:30002/library/busybox",
+                                    "external_url.web=192.168.2.228:30800",
+                                    "external_url.dcm=192.168.2.228",
+                                    "external_url.serving=192.168.2.228",
+                                    "external_url.terminal=192.168.2.228"
                                 ]
                             }
                         }
@@ -675,9 +683,9 @@ pipeline {
             }
         }
     }
-    post {
-        always {
-            cleanWs deleteDirs: true, notFailBuild: true
-        }
-    }
+    // post {
+    //     always {
+    //         cleanWs deleteDirs: true, notFailBuild: true
+    //     }
+    // }
 }
